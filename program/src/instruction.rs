@@ -10,4 +10,10 @@ pub enum CounterInstruction {
     #[account(2, writable, signer, name="payer", desc = "The account paying for the storage fees")]
     #[account(3, name="system_program", desc = "The system program")]
     Create,
+    // Write (Includes resize)
+    // InitializeCanonical (Write before on same account)
+    // InitializeThirdParty (Write before on same account)
+    // Update (Write before on external Buffer account)
+    // Set authority (for canonical only)
+    // Close
 }

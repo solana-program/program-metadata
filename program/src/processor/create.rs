@@ -1,7 +1,7 @@
 use crate::{
     assertions::{assert_pda, assert_same_pubkeys, assert_signer, assert_writable},
     instruction::accounts::CreateAccounts,
-    state::{Counter, Key},
+    state::{AccountDiscriminator, Metadata},
     utils::create_account,
 };
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, system_program};
@@ -15,7 +15,7 @@ pub fn create<'a>(accounts: &'a [AccountInfo<'a>]) -> ProgramResult {
         "counter",
         ctx.accounts.counter,
         &crate::ID,
-        &Counter::seeds(ctx.accounts.authority.key),
+        &Metadata::seeds(ctx.accounts.authority.key),
     )?;
     assert_signer("authority", ctx.accounts.authority)?;
     assert_signer("payer", ctx.accounts.payer)?;
@@ -32,19 +32,19 @@ pub fn create<'a>(accounts: &'a [AccountInfo<'a>]) -> ProgramResult {
     }
 
     // Create Counter PDA.
-    let counter = Counter {
-        key: Key::Counter,
+    let counter = Metadata {
+        discriminator: AccountDiscriminator::Counter,
         authority: *ctx.accounts.authority.key,
         value: 0,
     };
-    let mut seeds = Counter::seeds(ctx.accounts.authority.key);
+    let mut seeds = Metadata::seeds(ctx.accounts.authority.key);
     let bump = [counter_bump];
     seeds.push(&bump);
     create_account(
         ctx.accounts.counter,
         ctx.accounts.payer,
         ctx.accounts.system_program,
-        Counter::LEN,
+        Metadata::LEN,
         &crate::ID,
         Some(&[&seeds]),
     )?;
