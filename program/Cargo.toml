@@ -1,0 +1,23 @@
+[package]
+name = "spl-program-metadata"
+version = "0.0.0"
+edition = "2021"
+readme = "./README.md"
+license-file = "../LICENSE"
+publish = false
+
+[package.metadata.solana]
+program-id = "4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1"
+program-dependencies = []
+account-dependencies = []
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+borsh = "^0.10"
+shank = "^0.4.2"
+num-derive = "^0.3"
+num-traits = "^0.2"
+solana-program = "~1.18"
+thiserror = "^1.0"
