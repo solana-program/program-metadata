@@ -1,5 +1,7 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
+use crate::state::header::Header;
+
 pub mod initialize;
 pub mod set_authority;
 pub mod write;
@@ -54,4 +56,50 @@ fn is_program_authority(
             Err(ProgramError::InvalidAccountData)
         }
     }
+}
+
+#[inline(always)]
+fn validate_update(
+    metadata: &AccountInfo,
+    authority: &AccountInfo,
+    program: &AccountInfo,
+    program_data: &AccountInfo,
+) -> Result<(), ProgramError> {
+    // metadata
+    // - must be mutable
+    // - implicit program owned check since we are writing to the account
+
+    let header = unsafe { Header::load_unchecked(metadata.borrow_data_unchecked()) };
+
+    if !header.mutable() {
+        // TODO: use custom error (immutable metadata account)
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // authority
+    // - must be a signer
+    // - must match the current authority or be the program upgrade authority
+
+    if !authority.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    let authorized = if let Some(metadata_authority) = header.authority.as_ref() {
+        metadata_authority == authority.key()
+    } else {
+        false
+    };
+
+    // Either the authority is the current authority or it is a canonical metadata
+    // account and the authority provided is the program upgrade authority; otherwise,
+    // the authority is invalid.
+    if !(authorized
+        || (header.canonical()
+            && program.key() == &header.program
+            && is_program_authority(program, program_data, authority.key())?))
+    {
+        return Err(ProgramError::IncorrectAuthority);
+    }
+
+    Ok(())
 }
