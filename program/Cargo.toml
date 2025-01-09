@@ -12,12 +12,18 @@ program-dependencies = []
 account-dependencies = []
 
 [lib]
-crate-type = ["cdylib"]
+# TODO: split into program and interface crates
+crate-type = ["cdylib", "lib"]
 
 [dependencies]
 pinocchio = "0.7.0"
 pinocchio-pubkey = "0.2.2"
 pinocchio-system = "0.2.1"
 
+[dev-dependencies]
+mollusk-svm = { version = "0.0.13", git = "https://github.com/buffalojoec/mollusk.git" }
+solana-sdk = "2.1.0"
+
 [features]
 logging = []
+test-sbf = []

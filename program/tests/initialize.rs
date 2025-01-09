@@ -1,0 +1,61 @@
+#![cfg(feature = "test-sbf")]
+
+mod setup;
+use initialize::{initialize, InitializeArgs};
+use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
+pub use setup::*;
+
+use solana_sdk::{account::AccountSharedData, pubkey::Pubkey, system_program};
+use spl_program_metadata::state::header::Header;
+
+#[test]
+fn test_initialize_mint() {
+    let authority_key = Pubkey::new_unique();
+
+    let program_data_key = Pubkey::new_unique();
+    let program_data_account = setup_program_data_account(Some(&authority_key));
+
+    let program_key = Pubkey::new_unique();
+    let program_account = setup_program_account(&program_data_key);
+
+    let mut seed = [0u8; 17];
+    seed[0..3].copy_from_slice("idl".as_bytes());
+
+    let (metadata_key, _) =
+        Pubkey::find_program_address(&[program_key.as_ref(), &seed], &PROGRAM_ID);
+    let metadata_account = create_empty_account(Header::LEN + 10, system_program::ID);
+
+    let instruction = initialize(
+        &authority_key,
+        &program_key,
+        &program_data_key,
+        None,
+        InitializeArgs {
+            canonical: true,
+            seed,
+            encoding: 0,
+            compression: 0,
+            format: 0,
+            data_source: 0,
+        },
+        Some(&[1u8; 10]),
+    )
+    .unwrap();
+
+    let mollusk = Mollusk::new(&PROGRAM_ID, "spl_program_metadata");
+    mollusk.process_and_validate_instruction_chain(
+        &[instruction],
+        &[
+            (metadata_key, metadata_account),
+            (PROGRAM_ID, AccountSharedData::default()),
+            (authority_key, AccountSharedData::default()),
+            (program_key, program_account),
+            (program_data_key, program_data_account),
+            keyed_account_for_system_program(),
+        ],
+        &[
+            Check::success(),
+            Check::account(&metadata_key).data_slice(0, &[2]).build(),
+        ],
+    );
+}
