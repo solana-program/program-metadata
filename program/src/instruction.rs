@@ -1,19 +1,48 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use shank::{ShankContext, ShankInstruction};
+use pinocchio::program_error::ProgramError;
 
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, ShankContext, ShankInstruction)]
+#[derive(Clone, Debug)]
 #[rustfmt::skip]
-pub enum CounterInstruction {
-    /// Creates the counter account derived from the provided authority.
-    #[account(0, writable, name="counter", desc = "The program derived address of the counter account to create (seeds: ['counter', authority])")]
-    #[account(1, signer, name="authority", desc = "The authority of the counter")]
-    #[account(2, writable, signer, name="payer", desc = "The account paying for the storage fees")]
-    #[account(3, name="system_program", desc = "The system program")]
-    Create,
-    // Write (Includes resize)
-    // InitializeCanonical (Write before on same account)
-    // InitializeThirdParty (Write before on same account)
-    // Update (Write before on external Buffer account)
-    // Set authority (for canonical only)
-    // Close
+pub enum ProgramMetadataInstruction {
+    /// Writes data to a pre-funded (buffer) account.
+    /// 
+    /// This instruction allocated and assign the account to the
+    /// program if needed.
+    /// 
+    /// 0. `[w]` The account to write to.
+    /// 1. `[b]` The data to write.
+    Write,
+
+    /// Initializes a canonical metadata account.
+    /// 
+    /// A canonical metadata account is an account initialized
+    /// by the program upgrade authority.
+    InitializeCanonical,
+
+    /// Initializes a "third-porty" metadata account.
+    InitializeThirdParty,
+
+    /// Updates the data of a metadata account from an buffer account.
+    Update,
+
+    /// Sets the authority of a metadata account.
+    SetAuthority,
+
+    /// Closes a metadata account.
+    Close,
+}
+
+impl TryFrom<&u8> for ProgramMetadataInstruction {
+    type Error = ProgramError;
+
+    fn try_from(value: &u8) -> Result<Self, Self::Error> {
+        match *value {
+            0 => Ok(ProgramMetadataInstruction::Write),
+            1 => Ok(ProgramMetadataInstruction::InitializeCanonical),
+            2 => Ok(ProgramMetadataInstruction::InitializeThirdParty),
+            3 => Ok(ProgramMetadataInstruction::Update),
+            4 => Ok(ProgramMetadataInstruction::SetAuthority),
+            5 => Ok(ProgramMetadataInstruction::Close),
+            _ => Err(ProgramError::InvalidInstructionData),
+        }
+    }
 }
