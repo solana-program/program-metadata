@@ -140,61 +140,28 @@ impl TryFrom<u8> for DataSource {
     }
 }
 
-/// Type to represent inlined data.
-///
-/// Inlined data is stored directly in the account.
-pub struct DirectData<'a>(pub &'a [u8]);
+pub trait Zeroable: PartialEq + Sized {
+    const ZERO: Self;
 
-/// Type to represent URL data.
-///
-/// URL data is stored as a `str` value in the account.
-pub struct UrlData<'a>(pub &'a str);
-
-/// Type to represent external data.
-///
-/// External data contains a reference (address) to an external account
-/// and an offset and an optional length to specify the data range.
-pub struct ExternalData {
-    /// Pubkey of the external account.
-    pub address: Pubkey,
-
-    /// Offset of the data in the external account.
-    ///
-    /// Default to 0.
-    pub offset: u32,
-
-    /// Length of the data in the external account.
-    ///
-    /// Default to 0, which means the whole account.
-    pub length: Zeroable<u32>,
-}
-
-impl ExternalData {
-    const LEN: usize = core::mem::size_of::<ExternalData>();
-}
-
-pub trait Nullable: PartialEq + Sized {
-    const NONE: Self;
-
-    fn is_none(&self) -> bool {
-        self == &Self::NONE
+    fn is_zero(&self) -> bool {
+        self == &Self::ZERO
     }
 }
 
-impl Nullable for Pubkey {
-    const NONE: Self = [0u8; core::mem::size_of::<Pubkey>()];
+impl Zeroable for Pubkey {
+    const ZERO: Self = [0u8; core::mem::size_of::<Pubkey>()];
 }
 
-impl Nullable for u32 {
-    const NONE: Self = 0;
+impl Zeroable for u32 {
+    const ZERO: Self = 0;
 }
 
 #[derive(Clone, Debug)]
-pub struct Zeroable<T: Nullable>(T);
+pub struct ZeroableOption<T: Zeroable>(T);
 
-impl<T: Nullable> Zeroable<T> {
+impl<T: Zeroable> ZeroableOption<T> {
     pub fn as_ref(&self) -> Option<&T> {
-        if self.0.is_none() {
+        if self.0.is_zero() {
             None
         } else {
             Some(&self.0)
@@ -202,7 +169,7 @@ impl<T: Nullable> Zeroable<T> {
     }
 
     pub fn as_mut(&mut self) -> Option<&mut T> {
-        if self.0.is_none() {
+        if self.0.is_zero() {
             None
         } else {
             Some(&mut self.0)
@@ -210,7 +177,7 @@ impl<T: Nullable> Zeroable<T> {
     }
 }
 
-impl<T: Nullable> From<T> for Zeroable<T> {
+impl<T: Zeroable> From<T> for ZeroableOption<T> {
     fn from(value: T) -> Self {
         Self(value)
     }

@@ -20,7 +20,7 @@
 
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
-use super::{AccountDiscriminator, Compression, DataSource, Encoding, Format, Zeroable};
+use super::{AccountDiscriminator, Compression, DataSource, Encoding, Format, ZeroableOption};
 
 /// Metadata account header.
 #[repr(C)]
@@ -34,7 +34,7 @@ pub struct Header {
     /// Authority that can update this metadata.
     ///
     /// For canonical metadata accounts, the authority can be `None`.
-    pub authority: Zeroable<Pubkey>,
+    pub authority: ZeroableOption<Pubkey>,
 
     /// Indicates whether the metadata is mutable.
     pub(crate) mutable: u8,

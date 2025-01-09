@@ -1,6 +1,6 @@
-use pinocchio::program_error::ProgramError;
+use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
-use super::{DataSource, DirectData, ExternalData, UrlData};
+use super::{DataSource, ZeroableOption};
 
 /// Metadata account data.
 pub enum Data<'a> {
@@ -32,4 +32,37 @@ impl<'a> Data<'a> {
             DataSource::External => Data::External(&*(bytes.as_ptr() as *const ExternalData)),
         }
     }
+}
+
+/// Type to represent inlined data.
+///
+/// Inlined data is stored directly in the account.
+pub struct DirectData<'a>(pub &'a [u8]);
+
+/// Type to represent URL data.
+///
+/// URL data is stored as a `str` value in the account.
+pub struct UrlData<'a>(pub &'a str);
+
+/// Type to represent external data.
+///
+/// External data contains a reference (address) to an external account
+/// and an offset and an optional length to specify the data range.
+pub struct ExternalData {
+    /// Pubkey of the external account.
+    pub address: Pubkey,
+
+    /// Offset of the data in the external account.
+    ///
+    /// Default to 0.
+    pub offset: u32,
+
+    /// Length of the data in the external account.
+    ///
+    /// Default to 0, which means the whole account.
+    pub length: ZeroableOption<u32>,
+}
+
+impl ExternalData {
+    const LEN: usize = core::mem::size_of::<ExternalData>();
 }
