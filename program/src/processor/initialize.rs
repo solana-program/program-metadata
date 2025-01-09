@@ -15,7 +15,7 @@ use crate::{
 
 /// Initializes a metadata account.
 pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    let (args, remaining_data) = if instruction_data.is_empty() {
+    let (args, remaining_data) = if instruction_data.len() < Initialize::LEN {
         return Err(ProgramError::InvalidInstructionData);
     } else {
         let (args, remaining_data) = instruction_data.split_at(Initialize::LEN);
