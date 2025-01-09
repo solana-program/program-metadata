@@ -1,10 +1,9 @@
 #![cfg(feature = "test-sbf")]
 
 mod setup;
-use initialize::{initialize, InitializeArgs};
-use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 pub use setup::*;
 
+use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
 use solana_sdk::{account::AccountSharedData, pubkey::Pubkey, system_program};
 use spl_program_metadata::state::header::Header;
 
@@ -55,7 +54,12 @@ fn test_initialize_mint() {
         ],
         &[
             Check::success(),
+            // account discriminator
             Check::account(&metadata_key).data_slice(0, &[2]).build(),
+            // metadata data
+            Check::account(&metadata_key)
+                .data_slice(Header::LEN, &[1u8; 10])
+                .build(),
         ],
     );
 }

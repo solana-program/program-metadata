@@ -1,4 +1,5 @@
 pub mod initialize;
+pub use initialize::*;
 
 use solana_sdk::{
     account::{Account, AccountSharedData},
