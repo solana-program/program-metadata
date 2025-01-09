@@ -4,19 +4,21 @@ use pinocchio::{
 
 use crate::state::{header::Header, AccountDiscriminator};
 
+/// Writes data to a buffer account.
 pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let [buffer] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-    // Account validation:
-    //
-    // - Explicit signer check
-    //
-    // - Implicit rent exemption check since we are reallocating the account
+
+    // Account validation.
+
+    // buffer
+    // - explicit signer check
+    // - implicit rent exemption check since we are reallocating the account
     //   (it will fail if the account is not pre-funded for the required space)
-    //
-    // - Implicit program owned and writable check since we are writing to the
+    // - implicit program owned and writable check since we are writing to the
     //   account (it will fail if the account is not assigned to the program)
+
     if !buffer.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }

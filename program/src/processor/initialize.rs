@@ -124,7 +124,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             let metadata_lamports = metadata.borrow_mut_lamports_unchecked();
             let buffer_lamports = buffer.borrow_mut_lamports_unchecked();
             // Move the buffer lamports to the metadata account.
-            *metadata_lamports = *buffer_lamports;
+            *metadata_lamports += *buffer_lamports;
             *buffer_lamports = 0;
         }
     }
@@ -162,19 +162,19 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
 
     let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
 
-    let metadata_header = unsafe { Header::load_mut_unchecked(metadata_account_data) };
-    metadata_header.discriminator = AccountDiscriminator::Metadata as u8;
-    metadata_header.program = *program.key();
+    let header = unsafe { Header::load_mut_unchecked(metadata_account_data) };
+    header.discriminator = AccountDiscriminator::Metadata as u8;
+    header.program = *program.key();
     if !canonical {
-        metadata_header.authority = (*authority.key()).into();
+        header.authority = (*authority.key()).into();
     }
-    metadata_header.mutable = true as u8;
-    metadata_header.canonical = canonical as u8;
-    metadata_header.seed.copy_from_slice(args.seed.as_ref());
-    metadata_header.encoding = Encoding::try_from(args.encoding)? as u8;
-    metadata_header.compression = Compression::try_from(args.compression)? as u8;
-    metadata_header.format = Format::try_from(args.format)? as u8;
-    metadata_header.data_source = DataSource::try_from(args.data_source)? as u8;
+    header.mutable = true as u8;
+    header.canonical = canonical as u8;
+    header.seed.copy_from_slice(args.seed.as_ref());
+    header.encoding = Encoding::try_from(args.encoding)? as u8;
+    header.compression = Compression::try_from(args.compression)? as u8;
+    header.format = Format::try_from(args.format)? as u8;
+    header.data_source = DataSource::try_from(args.data_source)? as u8;
 
     unsafe {
         sol_memcpy(&mut metadata_account_data[Header::LEN..], data, data.len());
