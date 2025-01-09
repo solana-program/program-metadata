@@ -32,6 +32,7 @@ impl<'a> Metadata<'a> {
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum AccountDiscriminator {
+    Empty,
     Buffer,
     Metadata,
 }

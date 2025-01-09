@@ -2966,6 +2966,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "pinocchio-system"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "691ec8989fcb86fba22f22deb3cae9d440dc174d1735dd785b172349e9cbbb8a"
+dependencies = [
+ "pinocchio",
+ "pinocchio-pubkey",
+]
+
+[[package]]
 name = "pkcs8"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5125,6 +5135,7 @@ version = "0.0.0"
 dependencies = [
  "pinocchio",
  "pinocchio-pubkey",
+ "pinocchio-system",
 ]
 
 [[package]]
