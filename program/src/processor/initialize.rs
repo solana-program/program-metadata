@@ -9,28 +9,26 @@ use pinocchio::{
 use pinocchio_system::instructions::{Allocate, Assign};
 
 use crate::{
-    state::{
-        header::Header, AccountDiscriminator, Compression, DataSource, Encoding, Format, Zeroable,
-    },
+    state::{header::Header, AccountDiscriminator, Compression, DataSource, Encoding, Format},
     ID,
 };
 
 /// Initializes a metadata account.
 pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    let (args, remaining_data) =
-        if let Some((args, remaining_data)) = instruction_data.split_at_checked(Initialize::LEN) {
-            (unsafe { Initialize::load_unchecked(args) }, remaining_data)
-        } else {
-            return Err(ProgramError::InvalidInstructionData);
-        };
+    let (args, remaining_data) = if instruction_data.is_empty() {
+        return Err(ProgramError::InvalidInstructionData);
+    } else {
+        let (args, remaining_data) = instruction_data.split_at(Initialize::LEN);
+        (unsafe { Initialize::load_unchecked(args) }, remaining_data)
+    };
 
     let [metadata, buffer, authority, program, program_data, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    // Account validation.
+    // Accounts validation.
 
-    // Buffer
+    // buffer
     // - implicit program owned check since we are closing the account
 
     let has_buffer = buffer.key() != &ID;
@@ -48,18 +46,23 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    // Authority must be a signed.
+    // authority
+    // - must be a signer
+
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Program.
+    // program
+    // - must be executable
 
     let program_account_data = unsafe { program.borrow_data_unchecked() };
 
     let program_data_key = match (program_account_data.first(), program.executable()) {
+        // 2 - program
         (Some(2), true) => {
-            let program_data_key: Pubkey = program_account_data[1..]
+            // offset = 4 (discriminator)
+            let program_data_key: Pubkey = program_account_data[4..]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidAccountData)?;
             program_data_key
@@ -70,7 +73,8 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         }
     };
 
-    // Program Data.
+    // program data
+    // - must match the program account data
 
     if program_data_key != *program_data.key() {
         // TODO: use custom error (invalid program data account)
@@ -80,9 +84,10 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     let program_data_account_data = unsafe { program_data.borrow_data_unchecked() };
 
     let canonical = match (program_data_account_data.first(), program_data.executable()) {
+        // 3 - program data
         (Some(3), false) => {
-            // offset = 1 (discriminator) + 8 (slot)
-            let authority_key: Pubkey = program_account_data[9..]
+            // offset = 4 (discriminator) + 8 (slot) + 1 (option)
+            let authority_key: Pubkey = program_data_account_data[13..]
                 .try_into()
                 .map_err(|_| ProgramError::InvalidAccountData)?;
             authority.key() == &authority_key
@@ -93,7 +98,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         }
     };
 
-    // Metadata PDA.
+    // metadata
     // - implicit program owned check since we are writing to the account
 
     let seeds: &[&[u8]] = if canonical {
@@ -160,11 +165,9 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     let metadata_header = unsafe { Header::load_mut_unchecked(metadata_account_data) };
     metadata_header.discriminator = AccountDiscriminator::Metadata as u8;
     metadata_header.program = *program.key();
-    metadata_header.authority = if canonical {
-        Pubkey::ZERO.into()
-    } else {
-        (*authority.key()).into()
-    };
+    if !canonical {
+        metadata_header.authority = (*authority.key()).into();
+    }
     metadata_header.mutable = true as u8;
     metadata_header.canonical = canonical as u8;
     metadata_header.seed.copy_from_slice(args.seed.as_ref());
