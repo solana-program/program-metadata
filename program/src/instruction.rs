@@ -87,6 +87,8 @@ pub enum ProgramMetadataInstruction {
     /// ### Accounts
     ///  0. `[  w  ]` Metadata account.
     ///  1. `[  s  ]` Authority account.
+    ///  2. `[  o  ]` (optional) Program account.
+    ///  3. `[  o  ]` (optional) Program data account.
     SetImmutable,
 
     /// Withdraws excess lamports from a metadata account.

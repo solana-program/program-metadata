@@ -4,6 +4,7 @@ use crate::state::header::Header;
 
 pub mod initialize;
 pub mod set_authority;
+pub mod set_immutable;
 pub mod write;
 
 #[inline(always)]
