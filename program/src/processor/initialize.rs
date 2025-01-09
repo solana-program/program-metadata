@@ -3,7 +3,7 @@ use pinocchio::{
     instruction::{Seed, Signer},
     memory::sol_memcpy,
     program_error::ProgramError,
-    pubkey::{find_program_address, Pubkey},
+    pubkey::find_program_address,
     ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign};
@@ -12,6 +12,8 @@ use crate::{
     state::{header::Header, AccountDiscriminator, Compression, DataSource, Encoding, Format},
     ID,
 };
+
+use super::is_program_authority;
 
 /// Initializes a metadata account.
 pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
@@ -53,50 +55,11 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // program
-    // - must be executable
+    // program and program data (validation is done in `is_program_authority`)
+    // - program must be executable
+    // - program data must be owned by the program
 
-    let program_account_data = unsafe { program.borrow_data_unchecked() };
-
-    let program_data_key = match (program_account_data.first(), program.executable()) {
-        // 2 - program
-        (Some(2), true) => {
-            // offset = 4 (discriminator)
-            let program_data_key: Pubkey = program_account_data[4..]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
-            program_data_key
-        }
-        _ => {
-            // TODO: use custom error (invalid program state)
-            return Err(ProgramError::InvalidAccountData);
-        }
-    };
-
-    // program data
-    // - must match the program account data
-
-    if program_data_key != *program_data.key() {
-        // TODO: use custom error (invalid program data account)
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let program_data_account_data = unsafe { program_data.borrow_data_unchecked() };
-
-    let canonical = match (program_data_account_data.first(), program_data.executable()) {
-        // 3 - program data
-        (Some(3), false) => {
-            // offset = 4 (discriminator) + 8 (slot) + 1 (option)
-            let authority_key: Pubkey = program_data_account_data[13..]
-                .try_into()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
-            authority.key() == &authority_key
-        }
-        _ => {
-            // TODO: use custom error (invalid program state)
-            return Err(ProgramError::InvalidAccountData);
-        }
-    };
+    let canonical = is_program_authority(program, program_data, authority.key())?;
 
     // metadata
     // - implicit program owned check since we are writing to the account
