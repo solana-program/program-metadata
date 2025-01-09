@@ -12,12 +12,11 @@ program-dependencies = []
 account-dependencies = []
 
 [lib]
-crate-type = ["cdylib", "lib"]
+crate-type = ["cdylib"]
 
 [dependencies]
-borsh = "^0.10"
-shank = "^0.4.2"
-num-derive = "^0.3"
-num-traits = "^0.2"
-solana-program = "~1.18"
-thiserror = "^1.0"
+pinocchio = "0.7.0"
+pinocchio-pubkey = "0.2.2"
+
+[features]
+logging = []
