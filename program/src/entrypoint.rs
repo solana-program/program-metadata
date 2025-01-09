@@ -7,7 +7,7 @@ use pinocchio::{
 
 use crate::{
     instruction::ProgramMetadataInstruction,
-    processor::{initialize::initialize, write::write},
+    processor::{initialize::initialize, set_authority::set_authority, write::write},
 };
 
 entrypoint!(process_instruction);
@@ -35,6 +35,13 @@ fn process_instruction(
             msg!("Instruction: Initialize");
 
             initialize(accounts, data)
+        }
+        // 2 - SetAuthority
+        ProgramMetadataInstruction::SetAuthority => {
+            #[cfg(feature = "logging")]
+            msg!("Instruction: SetAuthority");
+
+            set_authority(accounts, data)
         }
         _ => Err(ProgramError::InvalidInstructionData),
     }

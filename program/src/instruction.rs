@@ -39,6 +39,8 @@ pub enum ProgramMetadataInstruction {
 
     /// Sets the authority of a metadata account.
     ///
+    /// If no new authority is provided, the authority is removed.
+    ///
     /// When setting the authority to a `canonical` metadata account with the
     /// program upgrade authority, both program and program data accounts are
     /// required.
