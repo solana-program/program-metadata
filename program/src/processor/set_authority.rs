@@ -21,9 +21,14 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
     //    the account
     validate_update(metadata, authority, program, program_data)?;
 
-    // Set the new authority.
-
     let header = unsafe { Header::load_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
+
+    if !header.canonical() {
+        // TODO: use custom error (non canonical account)
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Set the new authority.
 
     header.authority = if *has_new_authority == 0 {
         Pubkey::ZERO.into()
