@@ -1,6 +1,6 @@
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
-use super::{AccountDiscriminator, ZeroableOption};
+use super::{AccountDiscriminator, ZeroableOption, SEED_LEN};
 
 /// Buffer account header.
 #[repr(C)]
@@ -26,7 +26,7 @@ pub struct Buffer {
     /// Seed used to derive the PDA.
     ///
     /// Only for buffer PDA accounts; otherwise `[0u8; 16]`.
-    pub seed: [u8; 16],
+    pub seed: [u8; SEED_LEN],
 
     // Extra padding for alignment.
     _padding: [u8; 14],

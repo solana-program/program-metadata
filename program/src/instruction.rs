@@ -117,6 +117,28 @@ pub enum ProgramMetadataInstruction {
     ///  3. `[  o  ]` (optional) Program data account.
     ///  5. `[  w  ]` Destination account.
     Close,
+
+    /// Alocates a buffer account.
+    ///
+    /// The buffer account can either be a PDA or a keypair account.
+    /// It must be pre-funded with enough lamports to cover the storage
+    /// cost.
+    ///
+    /// This instruction is used when the data to be stored is greater than
+    /// the maximum size of a single realloc.
+    ///
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[w]` Buffer account to allocate.
+    /// 1. `[s]` Authority account.
+    /// 2. `[o]` Program account.
+    /// 3. `[o]` Program data account.
+    /// 4. `[o]` System program.
+    ///
+    /// Instruction data:
+    ///
+    /// - `[u8; 16]`: (optional) seed
+    Allocate,
 }
 
 impl TryFrom<&u8> for ProgramMetadataInstruction {
@@ -131,6 +153,7 @@ impl TryFrom<&u8> for ProgramMetadataInstruction {
             4 => Ok(ProgramMetadataInstruction::SetImmutable),
             5 => Ok(ProgramMetadataInstruction::WithdrawExcessLamports),
             6 => Ok(ProgramMetadataInstruction::Close),
+            7 => Ok(ProgramMetadataInstruction::Allocate),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

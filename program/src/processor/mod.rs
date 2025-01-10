@@ -2,6 +2,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::
 
 use crate::state::{header::Header, AccountDiscriminator};
 
+pub mod allocate;
 pub mod close;
 pub mod initialize;
 pub mod set_authority;

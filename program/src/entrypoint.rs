@@ -8,7 +8,7 @@ use pinocchio::{
 use crate::{
     instruction::ProgramMetadataInstruction,
     processor::{
-        close::close, initialize::initialize, set_authority::set_authority,
+        allocate::allocate, close::close, initialize::initialize, set_authority::set_authority,
         set_immutable::set_immutable, withdraw_excess_lamports::withdraw_excess_lamports,
         write::write,
     },
@@ -71,6 +71,13 @@ fn process_instruction(
             msg!("Instruction: Close");
 
             close(accounts)
+        }
+        // 7 - Allocate
+        ProgramMetadataInstruction::Allocate => {
+            #[cfg(feature = "logging")]
+            msg!("Instruction: Allocate");
+
+            allocate(accounts, data)
         }
         _ => Err(ProgramError::InvalidInstructionData),
     }

@@ -6,6 +6,9 @@ use data::{Data, ExternalData};
 use header::Header;
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 
+/// The length of the seed used to derive the metadata account address.
+pub const SEED_LEN: usize = 16;
+
 /// Struct to represent the contents of a `Metadata` account.
 pub struct Metadata<'a> {
     /// The header of the metadata account.

@@ -1,6 +1,8 @@
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
-use super::{AccountDiscriminator, Compression, DataSource, Encoding, Format, ZeroableOption};
+use super::{
+    AccountDiscriminator, Compression, DataSource, Encoding, Format, ZeroableOption, SEED_LEN,
+};
 
 /// Metadata account header.
 #[repr(C)]
@@ -26,7 +28,7 @@ pub struct Header {
     pub(crate) canonical: u8,
 
     /// Seed used to derive the PDA.
-    pub seed: [u8; 16],
+    pub seed: [u8; SEED_LEN],
 
     /// Encoding of the data.
     pub(crate) encoding: u8,
