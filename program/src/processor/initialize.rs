@@ -45,32 +45,16 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     };
 
     // Access accounts.
-    let [metadata, buffer, authority, program, program_data, _system_program] = accounts else {
+    let [metadata, authority, program, program_data, _system_program, _remaining @ ..] = accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
-    };
-
-    // Get data from buffer or remaining instruction data.
-    let (data, has_buffer) = {
-        let has_buffer = buffer.key() != &ID;
-        let has_remaining_data = !remaining_data.is_empty();
-        let data = match (has_remaining_data, has_buffer) {
-            (true, false) => remaining_data,
-            (false, true) => {
-                let buffer_data = unsafe { buffer.borrow_data_unchecked() };
-                if buffer_data.is_empty() || buffer_data[0] != AccountDiscriminator::Buffer as u8 {
-                    return Err(ProgramError::InvalidAccountData);
-                }
-                &buffer_data[Header::LEN..]
-            }
-            _ => return Err(ProgramError::InvalidInstructionData),
-        };
-        (data, has_buffer)
     };
 
     // Validate authority.
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
+
     let canonical = is_program_authority(program, program_data, authority.key())?;
 
     // Validatate metadata seeds.
@@ -84,52 +68,80 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         return Err(ProgramError::InvalidSeeds);
     }
 
-    // Ensure metadata account is not already initialized.
-    if !metadata.data_is_empty() {
-        return Err(ProgramError::AccountAlreadyInitialized);
-    }
-
-    // Use the buffer account to fund the metadata account, if provided.
-    if has_buffer {
-        unsafe {
-            let metadata_lamports = metadata.borrow_mut_lamports_unchecked();
-            let buffer_lamports = buffer.borrow_mut_lamports_unchecked();
-            // Move the buffer lamports to the metadata account.
-            *metadata_lamports += *buffer_lamports;
-            *buffer_lamports = 0;
-        }
-    }
-
-    // Allocate and assign the metadata account.
-    let signer_bump = &[bump];
-    let signer_seeds: &[Seed] = if canonical {
-        &[
-            Seed::from(program.key()),
-            Seed::from(args.seed.as_ref()),
-            Seed::from(signer_bump),
-        ]
+    let mut metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
+    let discriminator = if metadata_account_data.is_empty() {
+        None
     } else {
-        &[
-            Seed::from(program.key()),
-            Seed::from(authority.key()),
-            Seed::from(args.seed.as_ref()),
-            Seed::from(signer_bump),
-        ]
+        Some(AccountDiscriminator::try_from(metadata_account_data[0])?)
     };
-    let signer = &[Signer::from(signer_seeds)];
-    Allocate {
-        account: metadata,
-        space: (Header::LEN + data.len()) as u64,
-    }
-    .invoke_signed(signer)?;
-    Assign {
-        account: metadata,
-        owner: &crate::ID,
-    }
-    .invoke_signed(signer)?;
+
+    let data_length = match discriminator {
+        Some(AccountDiscriminator::Buffer) => {
+            // When using a pre-allocated buffer, no remaining instruction data
+            // is allowed.
+            if !remaining_data.is_empty() {
+                return Err(ProgramError::InvalidAccountData);
+            }
+            metadata_account_data.len() - Header::LEN
+        }
+        Some(AccountDiscriminator::Metadata) => {
+            return Err(ProgramError::AccountAlreadyInitialized)
+        }
+        None => {
+            // Ensure remaining data is provided.
+            if remaining_data.is_empty() {
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            // Allocate and assign the metadata account.
+            let signer_bump = &[bump];
+            let signer_seeds: &[Seed] = if canonical {
+                &[
+                    Seed::from(program.key()),
+                    Seed::from(args.seed.as_ref()),
+                    Seed::from(signer_bump),
+                ]
+            } else {
+                &[
+                    Seed::from(program.key()),
+                    Seed::from(authority.key()),
+                    Seed::from(args.seed.as_ref()),
+                    Seed::from(signer_bump),
+                ]
+            };
+            let signer = &[Signer::from(signer_seeds)];
+
+            Allocate {
+                account: metadata,
+                space: (Header::LEN + remaining_data.len()) as u64,
+            }
+            .invoke_signed(signer)?;
+            Assign {
+                account: metadata,
+                owner: &crate::ID,
+            }
+            .invoke_signed(signer)?;
+
+            // Refresh the metadata account data reference.
+            metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
+
+            // Copy the instruction remaining data to the metadata account.
+            unsafe {
+                sol_memcpy(
+                    &mut metadata_account_data[Header::LEN..],
+                    remaining_data,
+                    remaining_data.len(),
+                );
+            }
+
+            remaining_data.len()
+        }
+        _ => {
+            return Err(ProgramError::InvalidAccountData);
+        }
+    };
 
     // Initialize the metadata account.
-    let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
     let header = unsafe { Header::load_mut_unchecked(metadata_account_data) };
     header.discriminator = AccountDiscriminator::Metadata as u8;
     header.program = *program.key();
@@ -143,16 +155,12 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     header.encoding = Encoding::try_from(args.encoding)? as u8;
     header.compression = Compression::try_from(args.compression)? as u8;
     header.format = Format::try_from(args.format)? as u8;
-    header.data_source = DataSource::try_from(args.data_source)? as u8;
-    header.data_length = (data.len() as u32).to_le_bytes();
-    unsafe {
-        sol_memcpy(&mut metadata_account_data[Header::LEN..], data, data.len());
-    }
-
-    // Close the buffer account, if provided.
-    if has_buffer {
-        buffer.close()?;
-    }
+    header.data_source = {
+        let data_source = DataSource::try_from(args.data_source)?;
+        data_source.validate_data_length(data_length)?;
+        data_source as u8
+    };
+    header.data_length = (data_length as u32).to_le_bytes();
 
     Ok(())
 }

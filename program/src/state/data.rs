@@ -64,5 +64,5 @@ pub struct ExternalData {
 }
 
 impl ExternalData {
-    const LEN: usize = core::mem::size_of::<ExternalData>();
+    pub const LEN: usize = core::mem::size_of::<ExternalData>();
 }

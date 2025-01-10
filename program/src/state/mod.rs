@@ -1,9 +1,9 @@
 pub mod data;
 pub mod header;
 
-use data::Data;
+use data::{Data, ExternalData};
 use header::Header;
-use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 
 /// Struct to represent the contents of a `Metadata` account.
 pub struct Metadata<'a> {
@@ -127,6 +127,20 @@ pub enum DataSource {
     Direct,
     Url,
     External,
+}
+
+impl DataSource {
+    #[inline(always)]
+    pub fn validate_data_length(&self, length: usize) -> ProgramResult {
+        match (self, length) {
+            (DataSource::Direct | DataSource::Url, l) if l > 0 => Ok(()),
+            (DataSource::External, ExternalData::LEN) => Ok(()),
+            _ => {
+                // TODO: use custom error (invalid data length)
+                Err(ProgramError::InvalidAccountData)
+            }
+        }
+    }
 }
 
 impl TryFrom<u8> for DataSource {

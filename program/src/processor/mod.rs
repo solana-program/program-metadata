@@ -27,6 +27,12 @@ fn is_program_authority(
     program_data: &AccountInfo,
     authority: &Pubkey,
 ) -> Result<bool, ProgramError> {
+    // If we don't have a program data to check against, we can't verify
+    // the program upgrade authority.
+    if program_data.key() == &crate::ID {
+        return Ok(false);
+    }
+
     // Program checks.
     let expected_program_data = {
         let data = unsafe { program.borrow_data_unchecked() };

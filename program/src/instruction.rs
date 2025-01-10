@@ -24,12 +24,11 @@ pub enum ProgramMetadataInstruction {
     /// by the program upgrade authority.
     ///
     /// ### Accounts
-    ///  0. `[  w  ]` The metadata account to initialize.
-    ///  1. `[ w,o ]` (optional) Buffer account to copy data from.
-    ///  2. `[  s  ]` The program upgrade authority.
-    ///  3. `[     ]` Program account.
-    ///  4. `[     ]` Program data account.
-    ///  5. `[     ]` System program.
+    ///  0. `[  w  ]` Metadata account to initialize.
+    ///  1. `[  s  ]` Authority (for canonical, must match program upgrade authority).
+    ///  2. `[     ]` Program account.
+    ///  3. `[  o  ]` Program data account.
+    ///  4. `[  o  ]` System program.
     ///
     /// ### Instruction data
     ///  - `[u8; 16]`: seed

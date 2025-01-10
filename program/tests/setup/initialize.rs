@@ -10,8 +10,7 @@ use super::PROGRAM_ID;
 pub fn initialize(
     authority: &Pubkey,
     program: &Pubkey,
-    program_data: &Pubkey,
-    _buffer: Option<&Pubkey>,
+    program_data: Option<&Pubkey>,
     args: InitializeArgs,
     instruction_data: Option<&[u8]>,
 ) -> Result<Instruction, ProgramError> {
@@ -24,10 +23,9 @@ pub fn initialize(
 
     let accounts = vec![
         AccountMeta::new(metadata_key, false),
-        AccountMeta::new_readonly(PROGRAM_ID, false),
         AccountMeta::new_readonly(*authority, true),
         AccountMeta::new_readonly(*program, false),
-        AccountMeta::new_readonly(*program_data, false),
+        AccountMeta::new_readonly(*program_data.unwrap_or(&PROGRAM_ID), false),
         AccountMeta::new_readonly(system_program::ID, false),
     ];
 
