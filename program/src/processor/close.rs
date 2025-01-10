@@ -8,6 +8,8 @@ use super::validate_authority;
 ///
 /// ## Validation
 /// The following validation checks are performed:
+///
+/// - [implicit] The `account` to close is owned by the Program Metadata program. Implicitly checked by closing to the account.
 pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
     let [account, authority, program, program_data, destination] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -32,7 +34,7 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
             }
         }
         AccountDiscriminator::Metadata => {
-            // Metadata and authority validation is done in the `validate_update`.
+            // Metadata and authority validation is done in the `validate_authority`.
             validate_authority(account, authority, program, program_data)?
         }
         _ => return Err(ProgramError::InvalidAccountData),

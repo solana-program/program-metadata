@@ -21,7 +21,7 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
         .split_first()
         .ok_or(ProgramError::InvalidInstructionData)?;
 
-    // Accounts validation is done in the `validate_update` function.
+    // Accounts validation is done in the `validate_authority` function.
     //  - metadata: program owned is implicitly checked since we are writing to
     //    the account
     validate_authority(metadata, authority, program, program_data)?;
