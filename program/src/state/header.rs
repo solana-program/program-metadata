@@ -46,7 +46,7 @@ pub struct Header {
     pub(crate) canonical: u8,
 
     /// Seed used to derive the PDA.
-    pub seed: [u8; 17],
+    pub seed: [u8; 16],
 
     /// Encoding of the data.
     pub(crate) encoding: u8,
@@ -59,22 +59,16 @@ pub struct Header {
 
     /// Source of the data.
     pub(crate) data_source: u8,
+
+    // Length of the data after the header.
+    pub(crate) data_length: [u8; 4],
+
+    // Extra padding for alignment.
+    pub(crate) _padding: [u8; 5],
 }
 
-// (A: Canonical PDA) signer === program_authority => [program, seed ("idl")]
-// -> create: signer === program_authority (data.mutable_authority = false)
-// -> update: signer === program_authority || signer === metadata.authority
-// -> close: signer === program_authority || signer === metadata.authority
-// -> set_authority: signer === program_authority || signer === metadata.authority
-
-// (B: Third-party PDA) signer === anyone => [program, authority, seed ("idl")]
-// -> create: signer === anyone
-// -> update: signer === metadata.authority
-// -> close: signer === metadata.authority
-// -> set_authority: NOT ALLOWED
-
 impl Header {
-    pub const LEN: usize = core::mem::size_of::<Header>(); // 88 bytes
+    pub const LEN: usize = core::mem::size_of::<Header>(); // 96 bytes
 
     pub fn discriminator(&self) -> Result<AccountDiscriminator, ProgramError> {
         self.discriminator.try_into()
@@ -102,6 +96,10 @@ impl Header {
 
     pub fn data_source(&self) -> Result<DataSource, ProgramError> {
         self.data_source.try_into()
+    }
+
+    pub fn data_length(&self) -> u32 {
+        u32::from_le_bytes(self.data_length)
     }
 
     pub fn load(bytes: &[u8]) -> Result<&Self, ProgramError> {

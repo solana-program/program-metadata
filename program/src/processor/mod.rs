@@ -111,9 +111,9 @@ fn validate_authority(
     };
     // The authority is the program upgrade authority for canonical metadata accounts.
     let authorized = explicitly_authorized
-        || header.canonical()
+        || (header.canonical()
             && program.key() == &header.program
-            && is_program_authority(program, program_data, authority.key())?;
+            && is_program_authority(program, program_data, authority.key())?);
     if !authorized {
         return Err(ProgramError::IncorrectAuthority);
     }

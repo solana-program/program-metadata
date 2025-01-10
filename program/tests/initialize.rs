@@ -17,7 +17,7 @@ fn test_initialize_mint() {
     let program_key = Pubkey::new_unique();
     let program_account = setup_program_account(&program_data_key);
 
-    let mut seed = [0u8; 17];
+    let mut seed = [0u8; 16];
     seed[0..3].copy_from_slice("idl".as_bytes());
 
     let (metadata_key, _) =

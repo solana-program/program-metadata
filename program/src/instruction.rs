@@ -2,14 +2,17 @@ use pinocchio::program_error::ProgramError;
 
 #[derive(Clone, Copy, Debug)]
 pub enum ProgramMetadataInstruction {
-    /// Writes data to a pre-funded (buffer) account.
+    /// Writes data to a pre-funded account.
     ///
-    /// The buffer account must be pre-funded with enough lamports to cover
+    /// This can be on a buffer account or an uninitialized metadata account.
+    ///
+    /// The account must be pre-funded with enough lamports to cover
     /// the storage cost of the data being written. It also needs to be
     /// assigned to the program.
     ///
     /// ### Accounts
-    ///  0. `[ w,s ]` The buffer account to write.
+    ///  0. `[ w ]` The account to write to.
+    ///  1. `[ s ]` The authority of the account.
     ///
     /// ### Instruction data
     ///  - `[u8]`:  bytes
@@ -29,7 +32,7 @@ pub enum ProgramMetadataInstruction {
     ///  5. `[     ]` System program.
     ///
     /// ### Instruction data
-    ///  - `[u8; 17]`: seed
+    ///  - `[u8; 16]`: seed
     ///  - `u8`: encoding
     ///  - `u8`: compression
     ///  - `u8`: format

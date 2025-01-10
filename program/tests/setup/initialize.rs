@@ -31,13 +31,13 @@ pub fn initialize(
         AccountMeta::new_readonly(system_program::ID, false),
     ];
 
-    let mut data = vec![0u8; 22];
+    let mut data = vec![0u8; 21];
     data[0] = 1;
-    data[1..18].copy_from_slice(args.seed.as_ref());
-    data[18] = args.encoding;
-    data[19] = args.compression;
-    data[20] = args.format;
-    data[21] = args.data_source;
+    data[1..17].copy_from_slice(args.seed.as_ref());
+    data[17] = args.encoding;
+    data[18] = args.compression;
+    data[19] = args.format;
+    data[20] = args.data_source;
 
     if let Some(instruction_data) = instruction_data {
         data.extend_from_slice(instruction_data);
@@ -52,7 +52,7 @@ pub fn initialize(
 
 pub struct InitializeArgs {
     pub canonical: bool,
-    pub seed: [u8; 17],
+    pub seed: [u8; 16],
     pub encoding: u8,
     pub compression: u8,
     pub format: u8,

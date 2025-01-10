@@ -3,13 +3,15 @@ use pinocchio::{
     instruction::{Seed, Signer},
     memory::sol_memcpy,
     program_error::ProgramError,
-    pubkey::find_program_address,
+    pubkey::{find_program_address, Pubkey},
     ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign};
 
 use crate::{
-    state::{header::Header, AccountDiscriminator, Compression, DataSource, Encoding, Format},
+    state::{
+        header::Header, AccountDiscriminator, Compression, DataSource, Encoding, Format, Zeroable,
+    },
     ID,
 };
 
@@ -131,9 +133,10 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     let header = unsafe { Header::load_mut_unchecked(metadata_account_data) };
     header.discriminator = AccountDiscriminator::Metadata as u8;
     header.program = *program.key();
-    if !canonical {
-        header.authority = (*authority.key()).into();
-    }
+    header.authority = match canonical {
+        true => Pubkey::ZERO.into(),
+        false => (*authority.key()).into(),
+    };
     header.mutable = true as u8;
     header.canonical = canonical as u8;
     header.seed.copy_from_slice(args.seed.as_ref());
@@ -141,6 +144,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     header.compression = Compression::try_from(args.compression)? as u8;
     header.format = Format::try_from(args.format)? as u8;
     header.data_source = DataSource::try_from(args.data_source)? as u8;
+    header.data_length = (data.len() as u32).to_le_bytes();
     unsafe {
         sol_memcpy(&mut metadata_account_data[Header::LEN..], data, data.len());
     }
@@ -154,7 +158,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
 }
 
 struct Initialize {
-    pub seed: [u8; 17],
+    pub seed: [u8; 16],
     pub encoding: u8,
     pub compression: u8,
     pub format: u8,
