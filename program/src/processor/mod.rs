@@ -53,11 +53,15 @@ fn is_program_authority(
         let data = unsafe { program_data.borrow_data_unchecked() };
         match (data.first(), program_data.executable()) {
             (Some(3 /* program data discriminator */), false) => {
-                // TODO(loris): Should we handle the `None` case? If so, we just need to return `false`.
-                let offset: usize = 4 /* discriminator */ + 8 /* slot */ + 1 /* option */;
-                let authority_key = Pubkey::try_from(data[offset..])
-                    .map_err(|_| ProgramError::InvalidAccountData)?;
-                authority == &authority_key
+                let option_offset: usize = 4 /* discriminator */ + 8 /* slot */;
+                if data[option_offset] == 1 {
+                    let pubkey_offset: usize = option_offset + 1 /* option */;
+                    let authority_key = Pubkey::try_from(data[pubkey_offset..])
+                        .map_err(|_| ProgramError::InvalidAccountData)?;
+                    authority == &authority_key
+                } else {
+                    false
+                }
             }
             _ => {
                 // TODO: use custom error (invalid program state)
