@@ -108,16 +108,16 @@ fn validate_update(
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
-    let authorized = match header.authority.as_ref() {
-        // The authority is the set authority.
+    // The authority is the set authority.
+    let explicitly_authorized = match header.authority.as_ref() {
         Some(metadata_authority) => metadata_authority == authority.key(),
-        // The authority is the program upgrade authority for canonical metadata accounts.
-        None => {
-            header.canonical()
-                && program.key() == &header.program
-                && is_program_authority(program, program_data, authority.key())?
-        }
+        None => false,
     };
+    // The authority is the program upgrade authority for canonical metadata accounts.
+    let authorized = explicitly_authorized
+        || header.canonical()
+            && program.key() == &header.program
+            && is_program_authority(program, program_data, authority.key())?;
     if !authorized {
         return Err(ProgramError::IncorrectAuthority);
     }
