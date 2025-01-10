@@ -1,23 +1,3 @@
-// Canonical + Authority x and program_authority allowed to update Metadata
-// -> [authority = Some(x)] [mutable = true] [canonical = true]
-// Canonical + Only program_authority allowed to update Metadata (Could end up immutable as well)
-// -> [authority = None] [mutable = true] [canonical = true]
-// Canonical + No authority allowed to update Metadata
-// -> [authority = None] [mutable = false] [canonical = true]
-
-// NEVER REACHED:
-// -> [authority = Some(x)] [mutable = false] [canonical = true]
-// Cleaned by the program.
-
-// Third-party + Only authority x allowed to update Metadata
-// -> [authority = Some(x)] [mutable = true] [canonical = false]
-// Third-party + No authority allowed to update Metadata
-// -> [authority = Some(x)] [mutable = false] [canonical = false]
-
-// NEVER REACHED:
-// -> [authority = None] [mutable = _] [canonical = true]
-// Third-party should always have the seed authority set.
-
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
 use super::{AccountDiscriminator, Compression, DataSource, Encoding, Format, ZeroableOption};
@@ -26,7 +6,7 @@ use super::{AccountDiscriminator, Compression, DataSource, Encoding, Format, Zer
 #[repr(C)]
 pub struct Header {
     /// Account discriminator.
-    pub discriminator: u8,
+    pub(crate) discriminator: u8,
 
     /// Program ID that this metadata is associated with.
     pub program: Pubkey,
@@ -64,7 +44,7 @@ pub struct Header {
     pub(crate) data_length: [u8; 4],
 
     // Extra padding for alignment.
-    pub(crate) _padding: [u8; 5],
+    _padding: [u8; 5],
 }
 
 impl Header {
