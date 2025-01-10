@@ -1,8 +1,8 @@
 #[cfg(feature = "logging")]
 use pinocchio::msg;
 use pinocchio::{
-    account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey::Pubkey,
-    ProgramResult,
+    account_info::AccountInfo, default_panic_handler, no_allocator, program_entrypoint,
+    program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 
 use crate::{
@@ -14,7 +14,11 @@ use crate::{
     },
 };
 
-entrypoint!(process_instruction);
+program_entrypoint!(process_instruction);
+// Logs panic output.
+default_panic_handler!();
+// No allocator is used.
+no_allocator!();
 
 fn process_instruction(
     _program_id: &Pubkey,
