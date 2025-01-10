@@ -7,7 +7,11 @@ use pinocchio::{
 
 use crate::{
     instruction::ProgramMetadataInstruction,
-    processor::{initialize::initialize, set_authority::set_authority, write::write},
+    processor::{
+        close::close, initialize::initialize, set_authority::set_authority,
+        set_immutable::set_immutable, withdraw_excess_lamports::withdraw_excess_lamports,
+        write::write,
+    },
 };
 
 entrypoint!(process_instruction);
@@ -42,6 +46,27 @@ fn process_instruction(
             msg!("Instruction: SetAuthority");
 
             set_authority(accounts, data)
+        }
+        // 4 - SetImmutable
+        ProgramMetadataInstruction::SetImmutable => {
+            #[cfg(feature = "logging")]
+            msg!("Instruction: SetImmutable");
+
+            set_immutable(accounts)
+        }
+        // 5 - WithdrawExcessLamports
+        ProgramMetadataInstruction::WithdrawExcessLamports => {
+            #[cfg(feature = "logging")]
+            msg!("Instruction: WithdrawExcessLamports");
+
+            withdraw_excess_lamports(accounts)
+        }
+        // 6 - Close
+        ProgramMetadataInstruction::Close => {
+            #[cfg(feature = "logging")]
+            msg!("Instruction: Close");
+
+            close(accounts)
         }
         _ => Err(ProgramError::InvalidInstructionData),
     }
