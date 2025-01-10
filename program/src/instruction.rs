@@ -94,9 +94,12 @@ pub enum ProgramMetadataInstruction {
     /// Withdraws excess lamports from a metadata account.
     ///
     /// ### Accounts
-    ///  0. `[  w  ]` Metadata account.
-    ///  1. `[  s  ]` Authority account.
-    ///  2. `[  w  ]` Destination account.
+    ///  0. `[  w  ]` Account to close.
+    ///  1. `[  s  ]` Metadata authority or buffer account.
+    ///  2. `[  o  ]` (optional) Program account.
+    ///  3. `[  o  ]` (optional) Program data account.
+    ///  5. `[  w  ]` Destination account.
+    ///  6. `[     ]` Rent sysvar account.
     WithdrawExcessLamports,
 
     /// Closes a program-owned account.

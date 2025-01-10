@@ -6,6 +6,7 @@ pub mod close;
 pub mod initialize;
 pub mod set_authority;
 pub mod set_immutable;
+pub mod withdraw_excess_lamports;
 pub mod write;
 
 #[inline(always)]
