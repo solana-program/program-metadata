@@ -2,18 +2,21 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 
 use crate::state::header::Header;
 
-use super::validate_update;
+use super::validate_authority;
 
 /// Sets the metadata account as immutable.
+///
+/// ## Validation
+/// The following validation checks are performed:
+///
+/// - [implicit] The `metadata` account is owned by the Program Metadata program. Implicitly checked by writing to the account.
 pub fn set_immutable(accounts: &[AccountInfo]) -> ProgramResult {
     let [metadata, authority, program, program_data] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     // Accounts validation is done in the `validate_update` function.
-    //  - metadata: program owned is implicitly checked since we are writing to
-    //    the account
-    validate_update(metadata, authority, program, program_data)?;
+    validate_authority(metadata, authority, program, program_data)?;
 
     // Make the metadata account immutable.
 

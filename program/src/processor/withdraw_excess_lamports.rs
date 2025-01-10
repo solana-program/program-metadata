@@ -2,18 +2,21 @@ use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, sysvars::rent::Rent, ProgramResult,
 };
 
-use super::validate_update;
+use super::validate_authority;
 
 /// Withdraws excess lamports from a metadata account.
+///
+/// ## Validation
+/// The following validation checks are performed:
+///
+/// - [implicit] The `metadata` account is owned by the Program Metadata program. Implicitly checked by writing to the account.
 pub fn withdraw_excess_lamports(accounts: &[AccountInfo]) -> ProgramResult {
     let [metadata, authority, program, program_data, destination, rent_sysvar] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     // Accounts validation is done in the `validate_update` function.
-    //  - metadata: program owned is implicitly checked since we are writing to
-    //    the account
-    validate_update(metadata, authority, program, program_data)?;
+    validate_authority(metadata, authority, program, program_data)?;
 
     // Withdraw the excess lamports in the account.
 

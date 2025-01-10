@@ -4,9 +4,14 @@ use pinocchio::{
 
 use crate::state::{header::Header, Zeroable};
 
-use super::validate_update;
+use super::validate_authority;
 
 /// Sets the authority of a metadata account.
+///
+/// ## Validation
+/// The following validation checks are performed:
+///
+/// - [implicit] The `metadata` account is owned by the Program Metadata program. Implicitly checked by writing to the account.
 pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let [metadata, authority, program, program_data] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -19,7 +24,7 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
     // Accounts validation is done in the `validate_update` function.
     //  - metadata: program owned is implicitly checked since we are writing to
     //    the account
-    validate_update(metadata, authority, program, program_data)?;
+    validate_authority(metadata, authority, program, program_data)?;
 
     let header = unsafe { Header::load_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
 

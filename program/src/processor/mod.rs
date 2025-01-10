@@ -83,12 +83,8 @@ fn is_program_authority(
 /// - [explicit] The `authority` account must be a signer.
 /// - [explicit] The `authority` account must match the authority set on the `metadata` account OR
 ///   it must be the program upgrade authority if the `metadata` account is canonical (see `is_program_authority`).
-/// - [implicit] The `metadata` account is owned by the Program Metadata program.
-///   We are not explicitly checking this since only the Program Metadata program can write to it.
-///   However, this implies that the caller of this function must perform an update on the `metadata` account.
-///   If it doesn't, an explicit check should be performed by the caller to avoid reading invalid data.
 #[inline(always)]
-fn validate_update(
+fn validate_authority(
     metadata: &AccountInfo,
     authority: &AccountInfo,
     program: &AccountInfo,

@@ -33,7 +33,6 @@ use super::is_program_authority;
 /// - [explicit] The `metadata` account must be empty.
 /// - [implicit] The `metadata` account must be owned by the Program Metadata program. Implicitly checked by writing to the account.
 /// - [implicit] The `metadata` account must be pre-funded when passing extra instruction data. Implicitly checked by writing to the account.
-///
 pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Parse instruction data.
     let (args, remaining_data) = if instruction_data.len() < Initialize::LEN {

@@ -5,6 +5,9 @@ use pinocchio::{
 use crate::state::{header::Header, AccountDiscriminator};
 
 /// Writes data to a buffer account.
+///
+/// ## Validation
+/// The following validation checks are performed:
 pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     let [buffer] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
