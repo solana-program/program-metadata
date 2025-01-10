@@ -10,6 +10,9 @@ pub fn set_immutable(accounts: &[AccountInfo]) -> ProgramResult {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
+    // Accounts validation is done in the `validate_update` function.
+    //  - metadata: program owned is implicitly checked since we are writing to
+    //    the account
     validate_update(metadata, authority, program, program_data)?;
 
     // Make the metadata account immutable.

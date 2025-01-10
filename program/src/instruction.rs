@@ -99,7 +99,7 @@ pub enum ProgramMetadataInstruction {
     ///  2. `[  w  ]` Destination account.
     WithdrawExcessLamports,
 
-    /// Closes a metadata account.
+    /// Closes a program-owned account.
     ///
     /// The lamports in the metadata account are transferred to the destination
     /// account.
@@ -108,9 +108,11 @@ pub enum ProgramMetadataInstruction {
     /// is immutable.
     ///
     /// ### Accounts
-    ///  0. `[  w  ]` Metadata account.
-    ///  1. `[  s  ]` Authority account.
-    ///  2. `[  w  ]` Destination account.
+    ///  0. `[  w  ]` Account to close.
+    ///  1. `[  s  ]` Metadata authority or buffer account.
+    ///  2. `[  o  ]` (optional) Program account.
+    ///  3. `[  o  ]` (optional) Program data account.
+    ///  5. `[  w  ]` Destination account.
     Close,
 }
 

@@ -1,7 +1,8 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::state::header::Header;
+use crate::state::{header::Header, AccountDiscriminator};
 
+pub mod close;
 pub mod initialize;
 pub mod set_authority;
 pub mod set_immutable;
@@ -71,6 +72,10 @@ fn validate_update(
     // - implicit program owned check since we are writing to the account
 
     let header = unsafe { Header::load_unchecked(metadata.borrow_data_unchecked()) };
+
+    if header.discriminator != AccountDiscriminator::Metadata as u8 {
+        return Err(ProgramError::UninitializedAccount);
+    }
 
     if !header.mutable() {
         // TODO: use custom error (immutable metadata account)
