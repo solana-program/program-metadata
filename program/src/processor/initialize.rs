@@ -16,7 +16,26 @@ use crate::{
 use super::is_program_authority;
 
 /// Initializes a metadata account.
+///
+/// ## Validation
+/// The following validation checks are performed:
+///
+/// - [explicit] The instruction data must be at least `Initialize::LEN` bytes long.
+/// - [explicit] Either some extra instruction data or a `buffer` account must be provided but not both.
+/// - [explicit] The exact number of accounts must be provided.
+/// - [explicit] The `buffer` account, if provided, must have a discriminator set to `1` — i.e. defining a `Buffer` account.
+/// - [implicit] The `buffer` account must be owned by the program. Implicitly checked by closing the account.
+/// - [explicit] The `authority` account must be a signer.
+/// - [explicit] The `authority` account must either:
+///   - be the program upgrade authority (for canonical metadata accounts) OR
+///   - be included in the seeds used to derive the metadata account address (for non-canonical metadata accounts).
+/// - [explicit] The `program` and `program_data` accounts must pass the `is_program_authority` checks.
+/// - [explicit] The `metadata` account must be empty.
+/// - [implicit] The `metadata` account must be owned by the Program Metadata program. Implicitly checked by writing to the account.
+/// - [implicit] The `metadata` account must be pre-funded when passing extra instruction data. Implicitly checked by writing to the account.
+///
 pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+    // Parse instruction data.
     let (args, remaining_data) = if instruction_data.len() < Initialize::LEN {
         return Err(ProgramError::InvalidInstructionData);
     } else {
@@ -24,64 +43,52 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         (unsafe { Initialize::load_unchecked(args) }, remaining_data)
     };
 
+    // Access accounts.
     let [metadata, buffer, authority, program, program_data, _system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    // Accounts validation.
-
-    // buffer
-    // - implicit program owned check since we are closing the account
-
-    let has_buffer = buffer.key() != &ID;
-    let has_remaining_data = !remaining_data.is_empty();
-
-    let data = match (has_remaining_data, has_buffer) {
-        (true, false) => remaining_data,
-        (false, true) => {
-            let buffer_data = unsafe { buffer.borrow_data_unchecked() };
-            if buffer_data.is_empty() || buffer_data[0] != AccountDiscriminator::Buffer as u8 {
-                return Err(ProgramError::InvalidAccountData);
+    // Get data from buffer or remaining instruction data.
+    let (data, has_buffer) = {
+        let has_buffer = buffer.key() != &ID;
+        let has_remaining_data = !remaining_data.is_empty();
+        let data = match (has_remaining_data, has_buffer) {
+            (true, false) => remaining_data,
+            (false, true) => {
+                let buffer_data = unsafe { buffer.borrow_data_unchecked() };
+                if buffer_data.is_empty() || buffer_data[0] != AccountDiscriminator::Buffer as u8 {
+                    return Err(ProgramError::InvalidAccountData);
+                }
+                &buffer_data[Header::LEN..]
             }
-            &buffer_data[Header::LEN..]
-        }
-        _ => return Err(ProgramError::InvalidInstructionData),
+            _ => return Err(ProgramError::InvalidInstructionData),
+        };
+        (data, has_buffer)
     };
 
-    // authority
-    // - must be a signer
-
+    // Validate authority.
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
-
-    // program and program data (validation is done in `is_program_authority`)
-    // - program must be executable
-    // - program data must be owned by the program
-
     let canonical = is_program_authority(program, program_data, authority.key())?;
 
-    // metadata
-    // - implicit program owned check since we are writing to the account
-
+    // Validatate metadata seeds.
     let seeds: &[&[u8]] = if canonical {
         &[program.key(), args.seed.as_ref()]
     } else {
         &[program.key(), authority.key(), args.seed.as_ref()]
     };
-
     let (derived_metadata, bump) = find_program_address(seeds, &ID);
-
     if metadata.key() != &derived_metadata {
         return Err(ProgramError::InvalidSeeds);
     }
 
-    // Allocates the metadata account.
-
+    // Ensure metadata account is not already initialized.
     if !metadata.data_is_empty() {
         return Err(ProgramError::AccountAlreadyInitialized);
     }
 
+    // Use the buffer account to fund the metadata account, if provided.
     if has_buffer {
         unsafe {
             let metadata_lamports = metadata.borrow_mut_lamports_unchecked();
@@ -92,6 +99,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         }
     }
 
+    // Allocate and assign the metadata account.
     let signer_bump = &[bump];
     let signer_seeds: &[Seed] = if canonical {
         &[
@@ -108,23 +116,19 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         ]
     };
     let signer = &[Signer::from(signer_seeds)];
-
     Allocate {
         account: metadata,
         space: (Header::LEN + data.len()) as u64,
     }
     .invoke_signed(signer)?;
-
     Assign {
         account: metadata,
         owner: &crate::ID,
     }
     .invoke_signed(signer)?;
 
-    // Initialize metadata account.
-
+    // Initialize the metadata account.
     let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
-
     let header = unsafe { Header::load_mut_unchecked(metadata_account_data) };
     header.discriminator = AccountDiscriminator::Metadata as u8;
     header.program = *program.key();
@@ -138,12 +142,11 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     header.compression = Compression::try_from(args.compression)? as u8;
     header.format = Format::try_from(args.format)? as u8;
     header.data_source = DataSource::try_from(args.data_source)? as u8;
-
     unsafe {
         sol_memcpy(&mut metadata_account_data[Header::LEN..], data, data.len());
     }
 
-    // Close the buffer account (if needed).
+    // Close the buffer account, if provided.
     if has_buffer {
         buffer.close()?;
     }
