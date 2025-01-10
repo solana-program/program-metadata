@@ -34,7 +34,6 @@ impl<'a> Metadata<'a> {
 pub enum AccountDiscriminator {
     Empty,
     Buffer,
-    Allocated,
     Metadata,
 }
 
@@ -45,8 +44,7 @@ impl TryFrom<u8> for AccountDiscriminator {
         match value {
             0 => Ok(AccountDiscriminator::Empty),
             1 => Ok(AccountDiscriminator::Buffer),
-            2 => Ok(AccountDiscriminator::Allocated),
-            3 => Ok(AccountDiscriminator::Metadata),
+            2 => Ok(AccountDiscriminator::Metadata),
             _ => Err(ProgramError::InvalidAccountData),
         }
     }
