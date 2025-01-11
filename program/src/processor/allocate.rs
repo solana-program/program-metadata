@@ -40,6 +40,11 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
         if instruction_data.len() != SEED_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
+        // And an executable program account.
+        if !program.executable() {
+            // TODO: use custom error (not executable program account)
+            return Err(ProgramError::InvalidAccountData);
+        }
         let canonical = is_program_authority(program, program_data, authority.key())?;
 
         let seeds: &[&[u8]] = if canonical {
