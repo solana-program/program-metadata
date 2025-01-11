@@ -37,7 +37,7 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
         (false, 0, false)
     } else {
         // A PDA buffer requires a `seed` value.
-        if !instruction_data.len() != SEED_LEN {
+        if instruction_data.len() != SEED_LEN {
             return Err(ProgramError::InvalidInstructionData);
         }
         let canonical = is_program_authority(program, program_data, authority.key())?;
