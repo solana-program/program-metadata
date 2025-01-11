@@ -1,4 +1,7 @@
+pub mod allocate;
 pub mod initialize;
+
+pub use allocate::*;
 pub use initialize::*;
 
 use solana_sdk::{
