@@ -2,7 +2,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 
 use crate::state::header::Header;
 
-use super::validate_authority;
+use super::{validate_authority, validate_metadata};
 
 /// Sets the metadata account as immutable.
 ///
@@ -16,7 +16,8 @@ pub fn set_immutable(accounts: &[AccountInfo]) -> ProgramResult {
     };
 
     // Accounts validation is done in the `validate_authority` function.
-    validate_authority(metadata, authority, program, program_data)?;
+    let header = validate_metadata(metadata)?;
+    validate_authority(header, authority, program, program_data)?;
 
     // Make the metadata account immutable.
 

@@ -4,7 +4,7 @@ use pinocchio::{
 
 use crate::state::{header::Header, Zeroable};
 
-use super::validate_authority;
+use super::{validate_authority, validate_metadata};
 
 /// Sets the authority of a metadata account.
 ///
@@ -24,7 +24,8 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
     // Accounts validation is done in the `validate_authority` function.
     //  - metadata: program owned is implicitly checked since we are writing to
     //    the account
-    validate_authority(metadata, authority, program, program_data)?;
+    let header = validate_metadata(metadata)?;
+    validate_authority(header, authority, program, program_data)?;
 
     let header = unsafe { Header::load_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
 

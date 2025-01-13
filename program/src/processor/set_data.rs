@@ -6,7 +6,7 @@ use crate::state::{
     header::Header, AccountDiscriminator, Compression, DataSource, Encoding, Format,
 };
 
-use super::validate_authority;
+use super::{validate_authority, validate_metadata};
 
 /// Update the data of a metadata account.
 pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
@@ -24,7 +24,8 @@ pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
     };
 
     // Validate authority.
-    validate_authority(metadata, authority, program, program_data)?;
+    let header = validate_metadata(metadata)?;
+    validate_authority(header, authority, program, program_data)?;
 
     // Validate metadata account.
     let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };

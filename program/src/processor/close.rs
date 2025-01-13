@@ -2,7 +2,7 @@ use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramR
 
 use crate::state::AccountDiscriminator;
 
-use super::validate_authority;
+use super::{validate_authority, validate_metadata};
 
 /// Closes a program-owned account.
 ///
@@ -34,8 +34,8 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
             }
         }
         AccountDiscriminator::Metadata => {
-            // Metadata and authority validation is done in the `validate_authority`.
-            validate_authority(account, authority, program, program_data)?
+            let header = validate_metadata(account)?;
+            validate_authority(header, authority, program, program_data)?
         }
         _ => return Err(ProgramError::InvalidAccountData),
     }

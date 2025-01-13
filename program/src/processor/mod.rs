@@ -82,24 +82,15 @@ fn is_program_authority(
     Ok(is_program_authority)
 }
 
-/// Ensures the `metadata` account can be updated by the provided `authority`.
+/// Ensures the `metadata` account is valid and mutable.
 ///
 /// ## Validation
 /// The following validation checks are performed:
 ///
 /// - [explicit] The `metadata` account discriminator (first byte) must be `2` — i.e. defining a `Metadata` account.
 /// - [explicit] The `metadata` account must be mutable — i.e. `mutable = true`.
-/// - [explicit] The `authority` account must be a signer.
-/// - [explicit] The `authority` account must match the authority set on the `metadata` account OR
-///   it must be the program upgrade authority if the `metadata` account is canonical (see `is_program_authority`).
 #[inline(always)]
-fn validate_authority(
-    metadata: &AccountInfo,
-    authority: &AccountInfo,
-    program: &AccountInfo,
-    program_data: &AccountInfo,
-) -> Result<(), ProgramError> {
-    // Metadata checks.
+fn validate_metadata(metadata: &AccountInfo) -> Result<&Header, ProgramError> {
     let header = unsafe { Header::load_unchecked(metadata.borrow_data_unchecked()) };
     if header.discriminator != AccountDiscriminator::Metadata as u8 {
         return Err(ProgramError::UninitializedAccount);
@@ -108,20 +99,37 @@ fn validate_authority(
         // TODO: use custom error (immutable metadata account)
         return Err(ProgramError::InvalidAccountData);
     }
+    Ok(header)
+}
 
+/// Ensures the `metadata` account can be updated by the provided `authority`.
+///
+/// ## Validation
+/// The following validation checks are performed:
+///
+/// - [explicit] The `authority` account must be a signer.
+/// - [explicit] The `authority` account must match the authority set on the `metadata` account OR
+///   it must be the program upgrade authority if the `metadata` account is canonical (see `is_program_authority`).
+#[inline(always)]
+fn validate_authority(
+    metadata_header: &Header,
+    authority: &AccountInfo,
+    program: &AccountInfo,
+    program_data: &AccountInfo,
+) -> Result<(), ProgramError> {
     // Authority checks.
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
     // The authority is the set authority.
-    let explicitly_authorized = match header.authority.as_ref() {
+    let explicitly_authorized = match metadata_header.authority.as_ref() {
         Some(metadata_authority) => metadata_authority == authority.key(),
         None => false,
     };
     // The authority is the program upgrade authority for canonical metadata accounts.
     let authorized = explicitly_authorized
-        || (header.canonical()
-            && program.key() == &header.program
+        || (metadata_header.canonical()
+            && program.key() == &metadata_header.program
             && is_program_authority(program, program_data, authority.key())?);
     if !authorized {
         return Err(ProgramError::IncorrectAuthority);

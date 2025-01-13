@@ -2,7 +2,7 @@ use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, sysvars::rent::Rent, ProgramResult,
 };
 
-use super::validate_authority;
+use super::{validate_authority, validate_metadata};
 
 /// Withdraws excess lamports from a metadata account.
 ///
@@ -16,7 +16,8 @@ pub fn withdraw_excess_lamports(accounts: &[AccountInfo]) -> ProgramResult {
     };
 
     // Accounts validation is done in the `validate_authority` function.
-    validate_authority(metadata, authority, program, program_data)?;
+    let header = validate_metadata(metadata)?;
+    validate_authority(header, authority, program, program_data)?;
 
     // Withdraw the excess lamports in the account.
 
