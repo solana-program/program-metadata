@@ -41,6 +41,16 @@ pub enum AccountDiscriminator {
     Metadata,
 }
 
+impl AccountDiscriminator {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Option<AccountDiscriminator>, ProgramError> {
+        if bytes.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(AccountDiscriminator::try_from(bytes[0])?))
+        }
+    }
+}
+
 impl TryFrom<u8> for AccountDiscriminator {
     type Error = ProgramError;
 

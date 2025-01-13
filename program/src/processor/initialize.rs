@@ -68,13 +68,8 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     }
 
     let mut metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
-    let discriminator = if metadata_account_data.is_empty() {
-        None
-    } else {
-        Some(AccountDiscriminator::try_from(metadata_account_data[0])?)
-    };
 
-    let data_length = match discriminator {
+    let data_length = match AccountDiscriminator::from_bytes(metadata_account_data)? {
         Some(AccountDiscriminator::Empty) => {
             // An account with an `Empty` discriminator means some "zero" account was provided.
             // However, the initialize instruction only supports accounts with no data or pre-allocated

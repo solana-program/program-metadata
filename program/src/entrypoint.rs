@@ -9,8 +9,8 @@ use crate::{
     instruction::ProgramMetadataInstruction,
     processor::{
         allocate::allocate, close::close, initialize::initialize, set_authority::set_authority,
-        set_immutable::set_immutable, withdraw_excess_lamports::withdraw_excess_lamports,
-        write::write,
+        set_data::set_data, set_immutable::set_immutable,
+        withdraw_excess_lamports::withdraw_excess_lamports, write::write,
     },
 };
 
@@ -51,6 +51,13 @@ fn process_instruction(
 
             set_authority(accounts, data)
         }
+        // 3 - SetData
+        ProgramMetadataInstruction::SetData => {
+            #[cfg(feature = "logging")]
+            msg!("Instruction: SetData");
+
+            set_data(accounts, data)
+        }
         // 4 - SetImmutable
         ProgramMetadataInstruction::SetImmutable => {
             #[cfg(feature = "logging")]
@@ -79,6 +86,5 @@ fn process_instruction(
 
             allocate(accounts, data)
         }
-        _ => Err(ProgramError::InvalidInstructionData),
     }
 }
