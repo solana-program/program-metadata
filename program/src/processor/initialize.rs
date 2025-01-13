@@ -23,16 +23,16 @@ use super::is_program_authority;
 /// The following validation checks are performed:
 ///
 /// - [explicit] The instruction data must be at least `Initialize::LEN` bytes long.
-/// - [explicit] Either some extra instruction data or a `buffer` account must be provided but not both.
-/// - [explicit] The exact number of accounts must be provided.
-/// - [explicit] The `buffer` account, if provided, must have a discriminator set to `1` — i.e. defining a `Buffer` account.
-/// - [implicit] The `buffer` account must be owned by the program. Implicitly checked by closing the account.
+/// - [explicit] All instruction accounts must be provided. Optional accounts must be set to `crate::ID`.
 /// - [explicit] The `authority` account must be a signer.
 /// - [explicit] The `authority` account must either:
 ///   - be the program upgrade authority (for canonical metadata accounts) OR
 ///   - be included in the seeds used to derive the metadata account address (for non-canonical metadata accounts).
+/// - [explicit] The `metadata` account must not already be initialized — i.e. it must either:
+///   - be empty. In which case, the remaining instruction data is used as the metadata account data. OR
+///   - be a pre-allocated buffer (i.e. `discriminator = 1`). In which case, no remaining instruction data is allowed
+///     as the data must already be written to the account, after the header.
 /// - [explicit] The `program` and `program_data` accounts must pass the `is_program_authority` checks.
-/// - [explicit] The `metadata` account must be empty.
 /// - [implicit] The `metadata` account must be owned by the Program Metadata program. Implicitly checked by writing to the account.
 /// - [implicit] The `metadata` account must be pre-funded when passing extra instruction data. Implicitly checked by writing to the account.
 pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
@@ -54,8 +54,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
-
-    let canonical = is_program_authority(program, program_data, authority.key())?;
+    let canonical: bool = is_program_authority(program, program_data, authority.key())?;
 
     // Validatate metadata seeds.
     let seeds: &[&[u8]] = if canonical {
@@ -76,9 +75,14 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     };
 
     let data_length = match discriminator {
+        Some(AccountDiscriminator::Empty) => {
+            // An account with an `Empty` discriminator means some "zero" account was provided.
+            // However, the initialize instruction only supports accounts with no data or pre-allocated
+            // buffer (meaning the account should have use the `Allocate` and `Write` instructions first).
+            return Err(ProgramError::InvalidAccountData);
+        }
         Some(AccountDiscriminator::Buffer) => {
-            // When using a pre-allocated buffer, no remaining instruction data
-            // is allowed.
+            // When using a pre-allocated buffer, no remaining instruction data is allowed.
             if !remaining_data.is_empty() {
                 return Err(ProgramError::InvalidAccountData);
             }
@@ -135,9 +139,6 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             }
 
             remaining_data.len()
-        }
-        _ => {
-            return Err(ProgramError::InvalidAccountData);
         }
     };
 

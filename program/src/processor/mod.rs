@@ -18,10 +18,11 @@ pub mod write;
 ///
 /// - [explicit] The `program` account must be executable.
 /// - [explicit] The `program` account discriminator (first byte) must be `2` — i.e. defining a `Program` account.
-/// - [explicit] The `program_data` account must be the one set on the `program` account data.
-/// - [explicit] The `program_data` account must not be executable.
-/// - [explicit] The `program_data` account discriminator (first byte) must be `3` — i.e. defining a `ProgramData` account.
-/// - [explicit] The `program_data` account must have 32 bytes of data in the range [13..45], representing the authority.
+/// - [explicit] The `program_data` account is optional. When set to `crate::ID`, the function returns `false`.
+/// - [explicit] When provided, the `program_data` account must be the one set on the `program` account data.
+/// - [explicit] When provided, the `program_data` account must not be executable.
+/// - [explicit] When provided, the `program_data` account discriminator (first byte) must be `3` — i.e. defining a `ProgramData` account.
+/// - [explicit] When provided, the `program_data` account must have 32 bytes of data in the range [13..45], representing the authority.
 #[inline(always)]
 fn is_program_authority(
     program: &AccountInfo,
