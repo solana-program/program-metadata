@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './accountDiscriminator';
 export * from './compression';
 export * from './dataSource';
 export * from './encoding';

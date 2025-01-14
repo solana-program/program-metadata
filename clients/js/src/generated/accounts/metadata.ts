@@ -25,8 +25,6 @@ import {
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
-  getU8Decoder,
-  getU8Encoder,
   padRightDecoder,
   padRightEncoder,
   transformEncoder,
@@ -45,6 +43,9 @@ import {
   type ReadonlyUint8Array,
 } from '@solana/web3.js';
 import {
+  AccountDiscriminator,
+  getAccountDiscriminatorDecoder,
+  getAccountDiscriminatorEncoder,
   getCompressionDecoder,
   getCompressionEncoder,
   getDataSourceDecoder,
@@ -68,7 +69,7 @@ import {
 } from '../types';
 
 export type Metadata = {
-  discriminator: number;
+  discriminator: AccountDiscriminator;
   program: Address;
   authority: Option<Address>;
   mutable: boolean;
@@ -99,7 +100,7 @@ export type MetadataArgs = {
 export function getMetadataEncoder(): Encoder<MetadataArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', getU8Encoder()],
+      ['discriminator', getAccountDiscriminatorEncoder()],
       ['program', getAddressEncoder()],
       [
         'authority',
@@ -118,13 +119,13 @@ export function getMetadataEncoder(): Encoder<MetadataArgs> {
       ['dataLength', padRightEncoder(getU32Encoder(), 5)],
       ['data', getBytesEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: 2 })
+    (value) => ({ ...value, discriminator: AccountDiscriminator.Metadata })
   );
 }
 
 export function getMetadataDecoder(): Decoder<Metadata> {
   return getStructDecoder([
-    ['discriminator', getU8Decoder()],
+    ['discriminator', getAccountDiscriminatorDecoder()],
     ['program', getAddressDecoder()],
     [
       'authority',

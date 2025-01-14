@@ -23,8 +23,6 @@ import {
   getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU8Decoder,
-  getU8Encoder,
   padRightDecoder,
   padRightEncoder,
   transformEncoder,
@@ -43,6 +41,9 @@ import {
   type ReadonlyUint8Array,
 } from '@solana/web3.js';
 import {
+  AccountDiscriminator,
+  getAccountDiscriminatorDecoder,
+  getAccountDiscriminatorEncoder,
   getSeedDecoder,
   getSeedEncoder,
   type Seed,
@@ -50,7 +51,7 @@ import {
 } from '../types';
 
 export type Buffer = {
-  discriminator: number;
+  discriminator: AccountDiscriminator;
   program: Option<Address>;
   authority: Option<Address>;
   canonical: boolean;
@@ -69,7 +70,7 @@ export type BufferArgs = {
 export function getBufferEncoder(): Encoder<BufferArgs> {
   return transformEncoder(
     getStructEncoder([
-      ['discriminator', getU8Encoder()],
+      ['discriminator', getAccountDiscriminatorEncoder()],
       [
         'program',
         getOptionEncoder(getAddressEncoder(), {
@@ -88,13 +89,13 @@ export function getBufferEncoder(): Encoder<BufferArgs> {
       ['seed', padRightEncoder(getSeedEncoder(), 14)],
       ['data', getBytesEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: 1 })
+    (value) => ({ ...value, discriminator: AccountDiscriminator.Buffer })
   );
 }
 
 export function getBufferDecoder(): Decoder<Buffer> {
   return getStructDecoder([
-    ['discriminator', getU8Decoder()],
+    ['discriminator', getAccountDiscriminatorDecoder()],
     [
       'program',
       getOptionDecoder(getAddressDecoder(), {

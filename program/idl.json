@@ -7,7 +7,58 @@
     "name": "programMetadata",
     "publicKey": "4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1",
     "version": "0.0.0",
-    "pdas": [],
+    "pdas": [
+      {
+        "kind": "pdaNode",
+        "name": "canonical",
+        "docs": [
+          "The canonical derivation for metadata accounts managed by the program authority itself."
+        ],
+        "seeds": [
+          {
+            "kind": "variablePdaSeedNode",
+            "name": "program",
+            "docs": ["The program to which the metadata belongs."],
+            "type": { "kind": "publicKeyTypeNode" }
+          },
+          {
+            "kind": "variablePdaSeedNode",
+            "name": "seed",
+            "docs": ["The seed deriving the metadata account."],
+            "type": { "kind": "definedTypeLinkNode", "name": "seed" }
+          }
+        ]
+      },
+      {
+        "kind": "pdaNode",
+        "name": "nonCanonical",
+        "docs": [
+          "The derivation for metadata accounts managed by third-party authorities."
+        ],
+        "seeds": [
+          {
+            "kind": "variablePdaSeedNode",
+            "name": "program",
+            "docs": ["The program to which the metadata belongs."],
+            "type": { "kind": "publicKeyTypeNode" }
+          },
+          {
+            "kind": "variablePdaSeedNode",
+            "name": "authority",
+            "docs": [
+              "The third-party authority managing this metadata account."
+            ],
+            "type": { "kind": "publicKeyTypeNode" }
+          },
+          {
+            "kind": "variablePdaSeedNode",
+            "name": "seed",
+            "docs": ["The seed deriving the metadata account."],
+            "type": { "kind": "definedTypeLinkNode", "name": "seed" }
+          }
+        ]
+      }
+    ],
     "accounts": [
       {
         "kind": "accountNode",
@@ -21,13 +72,16 @@
               "name": "discriminator",
               "docs": [],
               "type": {
-                "kind": "numberTypeNode",
-                "format": "u8",
-                "endian": "le"
+                "kind": "definedTypeLinkNode",
+                "name": "accountDiscriminator"
               },
               "defaultValue": {
-                "kind": "numberValueNode",
-                "number": 1
+                "kind": "enumValueNode",
+                "enum": {
+                  "kind": "definedTypeLinkNode",
+                  "name": "accountDiscriminator"
+                },
+                "variant": "buffer"
               },
               "defaultValueStrategy": "omitted"
             },
@@ -94,13 +148,16 @@
               "name": "discriminator",
               "docs": [],
               "type": {
-                "kind": "numberTypeNode",
-                "format": "u8",
-                "endian": "le"
+                "kind": "definedTypeLinkNode",
+                "name": "accountDiscriminator"
               },
               "defaultValue": {
-                "kind": "numberValueNode",
-                "number": 2
+                "kind": "enumValueNode",
+                "enum": {
+                  "kind": "definedTypeLinkNode",
+                  "name": "accountDiscriminator"
+                },
+                "variant": "metadata"
               },
               "defaultValueStrategy": "omitted"
             },
@@ -205,13 +262,58 @@
         "kind": "instructionNode",
         "name": "initialize",
         "docs": [],
+        "optionalAccountStrategy": "programId",
         "accounts": [
           {
             "kind": "instructionAccountNode",
             "name": "metadata",
             "docs": ["Metadata account the initialize."],
-            "is_signer": false,
-            "is_writable": true
+            "isSigner": false,
+            "isWritable": true,
+            "defaultValue": {
+              "kind": "conditionalValueNode",
+              "condition": {
+                "kind": "accountValueNode",
+                "name": "programData"
+              },
+              "ifTrue": {
+                "kind": "pdaValueNode",
+                "pda": { "kind": "pdaLinkNode", "name": "canonical" },
+                "seeds": [
+                  {
+                    "kind": "pdaSeedValueNode",
+                    "name": "program",
+                    "value": { "kind": "accountValueNode", "name": "program" }
+                  },
+                  {
+                    "kind": "pdaSeedValueNode",
+                    "name": "seed",
+                    "value": { "kind": "argumentValueNode", "name": "seed" }
+                  }
+                ]
+              },
+              "ifFalse": {
+                "kind": "pdaValueNode",
+                "pda": { "kind": "pdaLinkNode", "name": "nonCanonical" },
+                "seeds": [
+                  {
+                    "kind": "pdaSeedValueNode",
+                    "name": "program",
+                    "value": { "kind": "accountValueNode", "name": "program" }
+                  },
+                  {
+                    "kind": "pdaSeedValueNode",
+                    "name": "authority",
+                    "value": { "kind": "accountValueNode", "name": "authority" }
+                  },
+                  {
+                    "kind": "pdaSeedValueNode",
+                    "name": "seed",
+                    "value": { "kind": "argumentValueNode", "name": "seed" }
+                  }
+                ]
+              }
+            }
           },
           {
             "kind": "instructionAccountNode",
@@ -219,31 +321,39 @@
             "docs": [
               "Authority (for canonical, must match program upgrade authority)."
             ],
-            "is_signer": true,
-            "is_writable": false
+            "isSigner": true,
+            "isWritable": false
           },
           {
             "kind": "instructionAccountNode",
             "name": "program",
             "docs": ["Program account."],
-            "is_signer": false,
-            "is_writable": false
+            "isSigner": false,
+            "isWritable": false
           },
           {
             "kind": "instructionAccountNode",
             "name": "programData",
             "docs": ["Program account."],
-            "is_signer": false,
-            "is_writable": false,
-            "is_optional": true
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
           },
           {
             "kind": "instructionAccountNode",
             "name": "system",
             "docs": ["System program."],
-            "is_signer": false,
-            "is_writable": false,
-            "is_optional": true
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true,
+            "defaultValue": {
+              "kind": "conditionalValueNode",
+              "condition": { "kind": "argumentValueNode", "name": "data" },
+              "ifTrue": {
+                "kind": "publicKeyValueNode",
+                "publicKey": "11111111111111111111111111111111"
+              }
+            }
           }
         ],
         "arguments": [
@@ -317,6 +427,33 @@
           "kind": "fixedSizeTypeNode",
           "size": 16,
           "type": { "kind": "stringTypeNode", "encoding": "utf8" }
+        }
+      },
+      {
+        "kind": "definedTypeNode",
+        "name": "accountDiscriminator",
+        "docs": [],
+        "type": {
+          "kind": "enumTypeNode",
+          "variants": [
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "empty"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "buffer"
+            },
+            {
+              "kind": "enumEmptyVariantTypeNode",
+              "name": "metadata"
+            }
+          ],
+          "size": {
+            "kind": "numberTypeNode",
+            "format": "u8",
+            "endian": "le"
+          }
         }
       },
       {
