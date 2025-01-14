@@ -567,6 +567,45 @@
             "endian": "le"
           }
         }
+      },
+      {
+        "kind": "definedTypeNode",
+        "name": "externalData",
+        "docs": [],
+        "type": {
+          "kind": "structTypeNode",
+          "fields": [
+            {
+              "kind": "structFieldTypeNode",
+              "name": "address",
+              "docs": [],
+              "type": { "kind": "publicKeyTypeNode" }
+            },
+            {
+              "kind": "structFieldTypeNode",
+              "name": "offset",
+              "docs": [],
+              "type": {
+                "kind": "numberTypeNode",
+                "format": "u32",
+                "endian": "le"
+              }
+            },
+            {
+              "kind": "structFieldTypeNode",
+              "name": "length",
+              "docs": [],
+              "type": {
+                "kind": "zeroableOptionTypeNode",
+                "item": {
+                  "kind": "numberTypeNode",
+                  "format": "u32",
+                  "endian": "le"
+                }
+              }
+            }
+          ]
+        }
       }
     ],
     "errors": []

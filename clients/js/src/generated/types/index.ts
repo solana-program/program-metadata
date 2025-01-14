@@ -10,5 +10,6 @@ export * from './accountDiscriminator';
 export * from './compression';
 export * from './dataSource';
 export * from './encoding';
+export * from './externalData';
 export * from './format';
 export * from './seed';
