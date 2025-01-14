@@ -4,6 +4,7 @@ import {
   appendTransactionMessageInstructions,
   getUtf8Encoder,
   pipe,
+  some,
 } from '@solana/web3.js';
 import test from 'ava';
 import {
@@ -24,29 +25,33 @@ import {
   signAndSendTransaction,
 } from './_setup';
 
-test('non canonical, direct, with instruction data', async (t) => {
-  // Given
+test('it initializes a non canonical PDA with direct data from instruction data', async (t) => {
+  // Given the following authority and program.
   const client = createDefaultSolanaClient();
   const authority = await generateKeyPairSignerWithSol(client);
   const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+
+  // And the following metadata seed and data.
   const seed = 'dummy';
   const data = getUtf8Encoder().encode('Hello, World!');
 
-  // And
+  // And given the metadata accounts is pre-funded.
   const [metadata] = await findNonCanonicalPda({
     authority: authority.address,
     program,
     seed,
   });
-  const size = 96n + BigInt(data.length);
-  const transferIx = getTransferSolInstruction({
+  const rent = await client.rpc
+    .getMinimumBalanceForRentExemption(96n + BigInt(data.length))
+    .send();
+  const preFund = getTransferSolInstruction({
     source: authority,
     destination: metadata,
-    amount: await client.rpc.getMinimumBalanceForRentExemption(size).send(),
+    amount: rent,
   });
 
-  // When
-  const createIx = await getInitializeInstructionAsync({
+  // When we initialize the metadata account with the data on the instruction.
+  const initialize = await getInitializeInstructionAsync({
     authority,
     program,
     seed,
@@ -58,24 +63,24 @@ test('non canonical, direct, with instruction data', async (t) => {
   });
   await pipe(
     await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstructions([transferIx, createIx], tx),
+    (tx) => appendTransactionMessageInstructions([preFund, initialize], tx),
     (tx) => signAndSendTransaction(client, tx)
   );
 
-  // Then
+  // Then we expect the following metadata account to be created.
   const metadataAccount = await fetchMetadata(client.rpc, metadata);
   t.like(metadataAccount.data, <Metadata>{
     discriminator: AccountDiscriminator.Metadata,
-    // program: Address;
-    // authority: Option<Address>;
-    // mutable: boolean;
-    // canonical: boolean;
-    // seed: Seed;
-    // encoding: Encoding;
-    // compression: Compression;
-    // format: Format;
-    // dataSource: DataSource;
-    // dataLength: number;
-    // data: ReadonlyUint8Array;
+    program,
+    authority: some(authority.address),
+    mutable: true,
+    canonical: false,
+    seed: 'dummy',
+    encoding: Encoding.Utf8,
+    compression: Compression.None,
+    format: Format.None,
+    dataSource: DataSource.Direct,
+    dataLength: data.length,
+    data,
   });
 });
