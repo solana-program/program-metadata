@@ -77,7 +77,9 @@ export type InitializeInstruction<
   TAccountAuthority extends string | IAccountMeta<string> = string,
   TAccountProgram extends string | IAccountMeta<string> = string,
   TAccountProgramData extends string | IAccountMeta<string> = string,
-  TAccountSystem extends string | IAccountMeta<string> = string,
+  TAccountSystem extends
+    | string
+    | IAccountMeta<string> = '11111111111111111111111111111111',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -246,10 +248,8 @@ export async function getInitializeInstructionAsync<
     }
   }
   if (!accounts.system.value) {
-    if (args.data) {
-      accounts.system.value =
-        '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
-    }
+    accounts.system.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
@@ -348,10 +348,8 @@ export function getInitializeInstruction<
 
   // Resolve default values.
   if (!accounts.system.value) {
-    if (args.data) {
-      accounts.system.value =
-        '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
-    }
+    accounts.system.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

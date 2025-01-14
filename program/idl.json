@@ -347,12 +347,8 @@
             "isWritable": false,
             "isOptional": true,
             "defaultValue": {
-              "kind": "conditionalValueNode",
-              "condition": { "kind": "argumentValueNode", "name": "data" },
-              "ifTrue": {
-                "kind": "publicKeyValueNode",
-                "publicKey": "11111111111111111111111111111111"
-              }
+              "kind": "publicKeyValueNode",
+              "publicKey": "11111111111111111111111111111111"
             }
           }
         ],

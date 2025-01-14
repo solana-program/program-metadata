@@ -1,6 +1,8 @@
+import { getTransferSolInstruction } from '@solana-program/system';
 import {
   address,
-  appendTransactionMessageInstruction,
+  appendTransactionMessageInstructions,
+  getUtf8Encoder,
   pipe,
 } from '@solana/web3.js';
 import test from 'ava';
@@ -28,6 +30,20 @@ test('non canonical, direct, with instruction data', async (t) => {
   const authority = await generateKeyPairSignerWithSol(client);
   const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
   const seed = 'dummy';
+  const data = getUtf8Encoder().encode('Hello, World!');
+
+  // And
+  const [metadata] = await findNonCanonicalPda({
+    authority: authority.address,
+    program,
+    seed,
+  });
+  const size = 96n + BigInt(data.length);
+  const transferIx = getTransferSolInstruction({
+    source: authority,
+    destination: metadata,
+    amount: await client.rpc.getMinimumBalanceForRentExemption(size).send(),
+  });
 
   // When
   const createIx = await getInitializeInstructionAsync({
@@ -38,22 +54,17 @@ test('non canonical, direct, with instruction data', async (t) => {
     compression: Compression.None,
     format: Format.None,
     dataSource: DataSource.Direct,
-    data: null,
+    data: getUtf8Encoder().encode('Hello, World!'),
   });
   await pipe(
     await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstruction(createIx, tx),
+    (tx) => appendTransactionMessageInstructions([transferIx, createIx], tx),
     (tx) => signAndSendTransaction(client, tx)
   );
 
   // Then
-  const [pda] = await findNonCanonicalPda({
-    authority: authority.address,
-    program,
-    seed,
-  });
-  const metadata = await fetchMetadata(client.rpc, pda);
-  t.like(metadata, <Metadata>{
+  const metadataAccount = await fetchMetadata(client.rpc, metadata);
+  t.like(metadataAccount.data, <Metadata>{
     discriminator: AccountDiscriminator.Metadata,
     // program: Address;
     // authority: Option<Address>;
