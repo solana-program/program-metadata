@@ -42,7 +42,8 @@ fn is_program_authority(
         match (data.first(), program.executable()) {
             (Some(2 /* program discriminator */), true) => {
                 let offset: usize = 4 /* discriminator */;
-                Pubkey::try_from(&data[offset..]).map_err(|_| ProgramError::InvalidAccountData)?
+                Pubkey::try_from(&data[offset..offset + 32])
+                    .map_err(|_| ProgramError::InvalidAccountData)?
             }
             _ => {
                 // TODO: use custom error (invalid program state)
@@ -65,7 +66,8 @@ fn is_program_authority(
                 let option_offset: usize = 4 /* discriminator */ + 8 /* slot */;
                 if data[option_offset] == 1 {
                     let pubkey_offset: usize = option_offset + 1 /* option */;
-                    let authority_key = Pubkey::try_from(&data[pubkey_offset..])
+                    pinocchio::msg!("B7");
+                    let authority_key = Pubkey::try_from(&data[pubkey_offset..pubkey_offset + 32])
                         .map_err(|_| ProgramError::InvalidAccountData)?;
                     authority == &authority_key
                 } else {
