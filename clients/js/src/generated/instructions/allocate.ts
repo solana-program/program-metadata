@@ -8,8 +8,6 @@
 
 import {
   combineCodec,
-  getBytesDecoder,
-  getBytesEncoder,
   getOptionDecoder,
   getOptionEncoder,
   getStructDecoder,
@@ -30,168 +28,139 @@ import {
   type OptionOrNullable,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
-  type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/web3.js';
 import { PROGRAM_METADATA_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
-  getCompressionDecoder,
-  getCompressionEncoder,
-  getDataSourceDecoder,
-  getDataSourceEncoder,
-  getEncodingDecoder,
-  getEncodingEncoder,
-  getFormatDecoder,
-  getFormatEncoder,
-  type Compression,
-  type CompressionArgs,
-  type DataSource,
-  type DataSourceArgs,
-  type Encoding,
-  type EncodingArgs,
-  type Format,
-  type FormatArgs,
+  getSeedDecoder,
+  getSeedEncoder,
+  type Seed,
+  type SeedArgs,
 } from '../types';
 
-export const SET_DATA_DISCRIMINATOR = 3;
+export const ALLOCATE_DISCRIMINATOR = 7;
 
-export function getSetDataDiscriminatorBytes() {
-  return getU8Encoder().encode(SET_DATA_DISCRIMINATOR);
+export function getAllocateDiscriminatorBytes() {
+  return getU8Encoder().encode(ALLOCATE_DISCRIMINATOR);
 }
 
-export type SetDataInstruction<
+export type AllocateInstruction<
   TProgram extends string = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
-  TAccountMetadata extends string | IAccountMeta<string> = string,
-  TAccountAuthority extends string | IAccountMeta<string> = string,
   TAccountBuffer extends string | IAccountMeta<string> = string,
+  TAccountAuthority extends string | IAccountMeta<string> = string,
   TAccountProgram extends string | IAccountMeta<string> = string,
   TAccountProgramData extends string | IAccountMeta<string> = string,
+  TAccountSystem extends
+    | string
+    | IAccountMeta<string> = '11111111111111111111111111111111',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
     [
-      TAccountMetadata extends string
-        ? WritableAccount<TAccountMetadata>
-        : TAccountMetadata,
+      TAccountBuffer extends string
+        ? WritableAccount<TAccountBuffer>
+        : TAccountBuffer,
       TAccountAuthority extends string
         ? ReadonlySignerAccount<TAccountAuthority> &
             IAccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
-      TAccountBuffer extends string
-        ? WritableAccount<TAccountBuffer>
-        : TAccountBuffer,
       TAccountProgram extends string
         ? ReadonlyAccount<TAccountProgram>
         : TAccountProgram,
       TAccountProgramData extends string
         ? ReadonlyAccount<TAccountProgramData>
         : TAccountProgramData,
+      TAccountSystem extends string
+        ? ReadonlyAccount<TAccountSystem>
+        : TAccountSystem,
       ...TRemainingAccounts,
     ]
   >;
 
-export type SetDataInstructionData = {
+export type AllocateInstructionData = {
   discriminator: number;
-  encoding: Encoding;
-  compression: Compression;
-  format: Format;
-  dataSource: DataSource;
-  data: Option<ReadonlyUint8Array>;
+  /** The seed of the metadata for PDA buffers. */
+  seed: Option<Seed>;
 };
 
-export type SetDataInstructionDataArgs = {
-  encoding: EncodingArgs;
-  compression: CompressionArgs;
-  format: FormatArgs;
-  dataSource: DataSourceArgs;
-  data: OptionOrNullable<ReadonlyUint8Array>;
+export type AllocateInstructionDataArgs = {
+  /** The seed of the metadata for PDA buffers. */
+  seed: OptionOrNullable<SeedArgs>;
 };
 
-export function getSetDataInstructionDataEncoder(): Encoder<SetDataInstructionDataArgs> {
+export function getAllocateInstructionDataEncoder(): Encoder<AllocateInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
-      ['encoding', getEncodingEncoder()],
-      ['compression', getCompressionEncoder()],
-      ['format', getFormatEncoder()],
-      ['dataSource', getDataSourceEncoder()],
-      ['data', getOptionEncoder(getBytesEncoder(), { prefix: null })],
+      ['seed', getOptionEncoder(getSeedEncoder(), { prefix: null })],
     ]),
-    (value) => ({ ...value, discriminator: SET_DATA_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: ALLOCATE_DISCRIMINATOR })
   );
 }
 
-export function getSetDataInstructionDataDecoder(): Decoder<SetDataInstructionData> {
+export function getAllocateInstructionDataDecoder(): Decoder<AllocateInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
-    ['encoding', getEncodingDecoder()],
-    ['compression', getCompressionDecoder()],
-    ['format', getFormatDecoder()],
-    ['dataSource', getDataSourceDecoder()],
-    ['data', getOptionDecoder(getBytesDecoder(), { prefix: null })],
+    ['seed', getOptionDecoder(getSeedDecoder(), { prefix: null })],
   ]);
 }
 
-export function getSetDataInstructionDataCodec(): Codec<
-  SetDataInstructionDataArgs,
-  SetDataInstructionData
+export function getAllocateInstructionDataCodec(): Codec<
+  AllocateInstructionDataArgs,
+  AllocateInstructionData
 > {
   return combineCodec(
-    getSetDataInstructionDataEncoder(),
-    getSetDataInstructionDataDecoder()
+    getAllocateInstructionDataEncoder(),
+    getAllocateInstructionDataDecoder()
   );
 }
 
-export type SetDataInput<
-  TAccountMetadata extends string = string,
-  TAccountAuthority extends string = string,
+export type AllocateInput<
   TAccountBuffer extends string = string,
+  TAccountAuthority extends string = string,
   TAccountProgram extends string = string,
   TAccountProgramData extends string = string,
+  TAccountSystem extends string = string,
 > = {
-  /** Metadata account. */
-  metadata: Address<TAccountMetadata>;
-  /** Authority account. */
+  /** Buffer account to allocate. */
+  buffer: Address<TAccountBuffer>;
+  /** Authority account (for non-PDA buffers, that must be the buffer itself). */
   authority: TransactionSigner<TAccountAuthority>;
-  /** Buffer account to copy data from. */
-  buffer?: Address<TAccountBuffer>;
   /** Program account. */
   program?: Address<TAccountProgram>;
   /** Program data account. */
   programData?: Address<TAccountProgramData>;
-  encoding: SetDataInstructionDataArgs['encoding'];
-  compression: SetDataInstructionDataArgs['compression'];
-  format: SetDataInstructionDataArgs['format'];
-  dataSource: SetDataInstructionDataArgs['dataSource'];
-  data: SetDataInstructionDataArgs['data'];
+  /** System program. */
+  system?: Address<TAccountSystem>;
+  seed: AllocateInstructionDataArgs['seed'];
 };
 
-export function getSetDataInstruction<
-  TAccountMetadata extends string,
-  TAccountAuthority extends string,
+export function getAllocateInstruction<
   TAccountBuffer extends string,
+  TAccountAuthority extends string,
   TAccountProgram extends string,
   TAccountProgramData extends string,
+  TAccountSystem extends string,
   TProgramAddress extends Address = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
 >(
-  input: SetDataInput<
-    TAccountMetadata,
-    TAccountAuthority,
+  input: AllocateInput<
     TAccountBuffer,
+    TAccountAuthority,
     TAccountProgram,
-    TAccountProgramData
+    TAccountProgramData,
+    TAccountSystem
   >,
   config?: { programAddress?: TProgramAddress }
-): SetDataInstruction<
+): AllocateInstruction<
   TProgramAddress,
-  TAccountMetadata,
-  TAccountAuthority,
   TAccountBuffer,
+  TAccountAuthority,
   TAccountProgram,
-  TAccountProgramData
+  TAccountProgramData,
+  TAccountSystem
 > {
   // Program address.
   const programAddress =
@@ -199,11 +168,11 @@ export function getSetDataInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    metadata: { value: input.metadata ?? null, isWritable: true },
-    authority: { value: input.authority ?? null, isWritable: false },
     buffer: { value: input.buffer ?? null, isWritable: true },
+    authority: { value: input.authority ?? null, isWritable: false },
     program: { value: input.program ?? null, isWritable: false },
     programData: { value: input.programData ?? null, isWritable: false },
+    system: { value: input.system ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -213,59 +182,65 @@ export function getSetDataInstruction<
   // Original args.
   const args = { ...input };
 
+  // Resolve default values.
+  if (!accounts.system.value) {
+    accounts.system.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
-      getAccountMeta(accounts.metadata),
-      getAccountMeta(accounts.authority),
       getAccountMeta(accounts.buffer),
+      getAccountMeta(accounts.authority),
       getAccountMeta(accounts.program),
       getAccountMeta(accounts.programData),
+      getAccountMeta(accounts.system),
     ],
     programAddress,
-    data: getSetDataInstructionDataEncoder().encode(
-      args as SetDataInstructionDataArgs
+    data: getAllocateInstructionDataEncoder().encode(
+      args as AllocateInstructionDataArgs
     ),
-  } as SetDataInstruction<
+  } as AllocateInstruction<
     TProgramAddress,
-    TAccountMetadata,
-    TAccountAuthority,
     TAccountBuffer,
+    TAccountAuthority,
     TAccountProgram,
-    TAccountProgramData
+    TAccountProgramData,
+    TAccountSystem
   >;
 
   return instruction;
 }
 
-export type ParsedSetDataInstruction<
+export type ParsedAllocateInstruction<
   TProgram extends string = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Metadata account. */
-    metadata: TAccountMetas[0];
-    /** Authority account. */
+    /** Buffer account to allocate. */
+    buffer: TAccountMetas[0];
+    /** Authority account (for non-PDA buffers, that must be the buffer itself). */
     authority: TAccountMetas[1];
-    /** Buffer account to copy data from. */
-    buffer?: TAccountMetas[2] | undefined;
     /** Program account. */
-    program?: TAccountMetas[3] | undefined;
+    program?: TAccountMetas[2] | undefined;
     /** Program data account. */
-    programData?: TAccountMetas[4] | undefined;
+    programData?: TAccountMetas[3] | undefined;
+    /** System program. */
+    system?: TAccountMetas[4] | undefined;
   };
-  data: SetDataInstructionData;
+  data: AllocateInstructionData;
 };
 
-export function parseSetDataInstruction<
+export function parseAllocateInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedSetDataInstruction<TProgram, TAccountMetas> {
+): ParsedAllocateInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 5) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
@@ -285,12 +260,12 @@ export function parseSetDataInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      metadata: getNextAccount(),
+      buffer: getNextAccount(),
       authority: getNextAccount(),
-      buffer: getNextOptionalAccount(),
       program: getNextOptionalAccount(),
       programData: getNextOptionalAccount(),
+      system: getNextOptionalAccount(),
     },
-    data: getSetDataInstructionDataDecoder().decode(instruction.data),
+    data: getAllocateInstructionDataDecoder().decode(instruction.data),
   };
 }

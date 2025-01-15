@@ -6,8 +6,12 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './allocate';
+export * from './close';
+export * from './extend';
 export * from './initialize';
 export * from './setAuthority';
 export * from './setData';
 export * from './setImmutable';
+export * from './trim';
 export * from './write';

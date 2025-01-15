@@ -174,7 +174,7 @@ export type InitializeAsyncInput<
   authority: TransactionSigner<TAccountAuthority>;
   /** Program account. */
   program: Address<TAccountProgram>;
-  /** Program account. */
+  /** Program data account. */
   programData?: Address<TAccountProgramData>;
   /** System program. */
   system?: Address<TAccountSystem>;
@@ -290,7 +290,7 @@ export type InitializeInput<
   authority: TransactionSigner<TAccountAuthority>;
   /** Program account. */
   program: Address<TAccountProgram>;
-  /** Program account. */
+  /** Program data account. */
   programData?: Address<TAccountProgramData>;
   /** System program. */
   system?: Address<TAccountSystem>;
@@ -389,7 +389,7 @@ export type ParsedInitializeInstruction<
     authority: TAccountMetas[1];
     /** Program account. */
     program: TAccountMetas[2];
-    /** Program account. */
+    /** Program data account. */
     programData?: TAccountMetas[3] | undefined;
     /** System program. */
     system?: TAccountMetas[4] | undefined;

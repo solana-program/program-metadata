@@ -13,10 +13,14 @@ import {
   type ReadonlyUint8Array,
 } from '@solana/web3.js';
 import {
+  type ParsedAllocateInstruction,
+  type ParsedCloseInstruction,
+  type ParsedExtendInstruction,
   type ParsedInitializeInstruction,
   type ParsedSetAuthorityInstruction,
   type ParsedSetDataInstruction,
   type ParsedSetImmutableInstruction,
+  type ParsedTrimInstruction,
   type ParsedWriteInstruction,
 } from '../instructions';
 
@@ -34,6 +38,10 @@ export enum ProgramMetadataInstruction {
   SetAuthority,
   SetData,
   SetImmutable,
+  Trim,
+  Close,
+  Allocate,
+  Extend,
 }
 
 export function identifyProgramMetadataInstruction(
@@ -54,6 +62,18 @@ export function identifyProgramMetadataInstruction(
   }
   if (containsBytes(data, getU8Encoder().encode(4), 0)) {
     return ProgramMetadataInstruction.SetImmutable;
+  }
+  if (containsBytes(data, getU8Encoder().encode(5), 0)) {
+    return ProgramMetadataInstruction.Trim;
+  }
+  if (containsBytes(data, getU8Encoder().encode(6), 0)) {
+    return ProgramMetadataInstruction.Close;
+  }
+  if (containsBytes(data, getU8Encoder().encode(7), 0)) {
+    return ProgramMetadataInstruction.Allocate;
+  }
+  if (containsBytes(data, getU8Encoder().encode(8), 0)) {
+    return ProgramMetadataInstruction.Extend;
   }
   throw new Error(
     'The provided instruction could not be identified as a programMetadata instruction.'
@@ -77,4 +97,16 @@ export type ParsedProgramMetadataInstruction<
     } & ParsedSetDataInstruction<TProgram>)
   | ({
       instructionType: ProgramMetadataInstruction.SetImmutable;
-    } & ParsedSetImmutableInstruction<TProgram>);
+    } & ParsedSetImmutableInstruction<TProgram>)
+  | ({
+      instructionType: ProgramMetadataInstruction.Trim;
+    } & ParsedTrimInstruction<TProgram>)
+  | ({
+      instructionType: ProgramMetadataInstruction.Close;
+    } & ParsedCloseInstruction<TProgram>)
+  | ({
+      instructionType: ProgramMetadataInstruction.Allocate;
+    } & ParsedAllocateInstruction<TProgram>)
+  | ({
+      instructionType: ProgramMetadataInstruction.Extend;
+    } & ParsedExtendInstruction<TProgram>);

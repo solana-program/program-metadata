@@ -383,7 +383,7 @@
           {
             "kind": "instructionAccountNode",
             "name": "programData",
-            "docs": ["Program account."],
+            "docs": ["Program data account."],
             "isSigner": false,
             "isWritable": false,
             "isOptional": true
@@ -574,7 +574,7 @@
           {
             "kind": "instructionAccountNode",
             "name": "programData",
-            "docs": ["Program account."],
+            "docs": ["Program data account."],
             "isSigner": false,
             "isWritable": false,
             "isOptional": true
@@ -684,6 +684,215 @@
             },
             "defaultValueStrategy": "omitted",
             "defaultValue": { "kind": "numberValueNode", "number": 4 }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "trim",
+        "docs": ["TODO"],
+        "optionalAccountStrategy": "programId",
+        "accounts": [],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValueStrategy": "omitted",
+            "defaultValue": { "kind": "numberValueNode", "number": 5 }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "close",
+        "docs": [],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "account",
+            "docs": ["Account to close."],
+            "isSigner": false,
+            "isWritable": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "docs": [
+              "Authority account (for non-PDA buffers, that must be the buffer itself)."
+            ],
+            "isSigner": true,
+            "isWritable": false
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "program",
+            "docs": ["Program account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "programData",
+            "docs": ["Program data account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "destination",
+            "docs": ["Destination account."],
+            "isSigner": false,
+            "isWritable": true
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValueStrategy": "omitted",
+            "defaultValue": { "kind": "numberValueNode", "number": 6 }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "allocate",
+        "docs": [],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "buffer",
+            "docs": ["Buffer account to allocate."],
+            "isSigner": false,
+            "isWritable": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "docs": [
+              "Authority account (for non-PDA buffers, that must be the buffer itself)."
+            ],
+            "isSigner": true,
+            "isWritable": false
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "program",
+            "docs": ["Program account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "programData",
+            "docs": ["Program data account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "system",
+            "docs": ["System program."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true,
+            "defaultValue": {
+              "kind": "publicKeyValueNode",
+              "publicKey": "11111111111111111111111111111111"
+            }
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValueStrategy": "omitted",
+            "defaultValue": { "kind": "numberValueNode", "number": 7 }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "seed",
+            "docs": ["The seed of the metadata for PDA buffers."],
+            "type": {
+              "kind": "remainderOptionTypeNode",
+              "item": {
+                "kind": "definedTypeLinkNode",
+                "name": "seed"
+              }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "extend",
+        "docs": ["TODO"],
+        "optionalAccountStrategy": "programId",
+        "accounts": [],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValueStrategy": "omitted",
+            "defaultValue": { "kind": "numberValueNode", "number": 8 }
           }
         ],
         "discriminators": [
