@@ -61,6 +61,9 @@
     "typescript": "^5.5.3"
   },
   "ava": {
+    "files": [
+      "test/**/*.test.ts"
+    ],
     "nodeArguments": [
       "--no-warnings"
     ],
