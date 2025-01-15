@@ -3,6 +3,7 @@ import {
   address,
   appendTransactionMessageInstructions,
   getUtf8Encoder,
+  none,
   pipe,
   some,
 } from '@solana/web3.js';
@@ -72,7 +73,7 @@ test('it initializes a canonical PDA with direct data from instruction data', as
   t.like(metadataAccount.data, <Metadata>{
     discriminator: AccountDiscriminator.Metadata,
     program,
-    authority: some(authority.address),
+    authority: none(),
     mutable: true,
     canonical: true,
     seed: 'dummy',
