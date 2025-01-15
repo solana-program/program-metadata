@@ -12,7 +12,13 @@ import {
   type Address,
   type ReadonlyUint8Array,
 } from '@solana/web3.js';
-import { type ParsedInitializeInstruction } from '../instructions';
+import {
+  type ParsedInitializeInstruction,
+  type ParsedSetAuthorityInstruction,
+  type ParsedSetDataInstruction,
+  type ParsedSetImmutableInstruction,
+  type ParsedWriteInstruction,
+} from '../instructions';
 
 export const PROGRAM_METADATA_PROGRAM_ADDRESS =
   '4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1' as Address<'4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1'>;
@@ -23,15 +29,31 @@ export enum ProgramMetadataAccount {
 }
 
 export enum ProgramMetadataInstruction {
+  Write,
   Initialize,
+  SetAuthority,
+  SetData,
+  SetImmutable,
 }
 
 export function identifyProgramMetadataInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): ProgramMetadataInstruction {
   const data = 'data' in instruction ? instruction.data : instruction;
+  if (containsBytes(data, getU8Encoder().encode(0), 0)) {
+    return ProgramMetadataInstruction.Write;
+  }
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
     return ProgramMetadataInstruction.Initialize;
+  }
+  if (containsBytes(data, getU8Encoder().encode(2), 0)) {
+    return ProgramMetadataInstruction.SetAuthority;
+  }
+  if (containsBytes(data, getU8Encoder().encode(3), 0)) {
+    return ProgramMetadataInstruction.SetData;
+  }
+  if (containsBytes(data, getU8Encoder().encode(4), 0)) {
+    return ProgramMetadataInstruction.SetImmutable;
   }
   throw new Error(
     'The provided instruction could not be identified as a programMetadata instruction.'
@@ -40,6 +62,19 @@ export function identifyProgramMetadataInstruction(
 
 export type ParsedProgramMetadataInstruction<
   TProgram extends string = '4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1',
-> = {
-  instructionType: ProgramMetadataInstruction.Initialize;
-} & ParsedInitializeInstruction<TProgram>;
+> =
+  | ({
+      instructionType: ProgramMetadataInstruction.Write;
+    } & ParsedWriteInstruction<TProgram>)
+  | ({
+      instructionType: ProgramMetadataInstruction.Initialize;
+    } & ParsedInitializeInstruction<TProgram>)
+  | ({
+      instructionType: ProgramMetadataInstruction.SetAuthority;
+    } & ParsedSetAuthorityInstruction<TProgram>)
+  | ({
+      instructionType: ProgramMetadataInstruction.SetData;
+    } & ParsedSetDataInstruction<TProgram>)
+  | ({
+      instructionType: ProgramMetadataInstruction.SetImmutable;
+    } & ParsedSetImmutableInstruction<TProgram>);

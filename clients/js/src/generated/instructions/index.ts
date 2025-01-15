@@ -7,3 +7,7 @@
  */
 
 export * from './initialize';
+export * from './setAuthority';
+export * from './setData';
+export * from './setImmutable';
+export * from './write';

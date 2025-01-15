@@ -260,6 +260,55 @@
     "instructions": [
       {
         "kind": "instructionNode",
+        "name": "write",
+        "docs": [],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "buffer",
+            "docs": ["The buffer to write to."],
+            "isSigner": false,
+            "isWritable": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "docs": ["The authority of the buffer."],
+            "isSigner": true,
+            "isWritable": false
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValueStrategy": "omitted",
+            "defaultValue": { "kind": "numberValueNode", "number": 0 }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "data",
+            "docs": [],
+            "type": { "kind": "bytesTypeNode" }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
         "name": "initialize",
         "docs": [],
         "optionalAccountStrategy": "programId",
@@ -403,6 +452,238 @@
               "kind": "remainderOptionTypeNode",
               "item": { "kind": "bytesTypeNode" }
             }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "setAuthority",
+        "docs": [],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "metadata",
+            "docs": ["Metadata account."],
+            "isSigner": false,
+            "isWritable": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "docs": ["Current authority account."],
+            "isSigner": true,
+            "isWritable": false
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "program",
+            "docs": ["Program account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "programData",
+            "docs": ["Program data account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValueStrategy": "omitted",
+            "defaultValue": { "kind": "numberValueNode", "number": 2 }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "newAuthority",
+            "docs": [],
+            "type": {
+              "kind": "optionTypeNode",
+              "item": { "kind": "publicKeyTypeNode" },
+              "prefix": {
+                "kind": "numberTypeNode",
+                "format": "u8",
+                "endian": "le"
+              }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "setData",
+        "docs": [],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "metadata",
+            "docs": ["Metadata account."],
+            "isSigner": false,
+            "isWritable": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "docs": ["Authority account."],
+            "isSigner": true,
+            "isWritable": false
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "buffer",
+            "docs": ["Buffer account to copy data from."],
+            "isSigner": false,
+            "isWritable": true,
+            "isOptional": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "program",
+            "docs": ["Program account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "programData",
+            "docs": ["Program account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValueStrategy": "omitted",
+            "defaultValue": { "kind": "numberValueNode", "number": 3 }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "encoding",
+            "docs": [],
+            "type": { "kind": "definedTypeLinkNode", "name": "encoding" }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "compression",
+            "docs": [],
+            "type": { "kind": "definedTypeLinkNode", "name": "compression" }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "format",
+            "docs": [],
+            "type": { "kind": "definedTypeLinkNode", "name": "format" }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "dataSource",
+            "docs": [],
+            "type": { "kind": "definedTypeLinkNode", "name": "dataSource" }
+          },
+          {
+            "kind": "instructionArgumentNode",
+            "name": "data",
+            "docs": [],
+            "type": {
+              "kind": "remainderOptionTypeNode",
+              "item": { "kind": "bytesTypeNode" }
+            }
+          }
+        ],
+        "discriminators": [
+          {
+            "kind": "fieldDiscriminatorNode",
+            "name": "discriminator",
+            "offset": 0
+          }
+        ]
+      },
+      {
+        "kind": "instructionNode",
+        "name": "setImmutable",
+        "docs": [],
+        "optionalAccountStrategy": "programId",
+        "accounts": [
+          {
+            "kind": "instructionAccountNode",
+            "name": "metadata",
+            "docs": ["Metadata account."],
+            "isSigner": false,
+            "isWritable": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "authority",
+            "docs": ["Authority account."],
+            "isSigner": true,
+            "isWritable": false
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "program",
+            "docs": ["Program account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "programData",
+            "docs": ["Program data account."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
+          }
+        ],
+        "arguments": [
+          {
+            "kind": "instructionArgumentNode",
+            "name": "discriminator",
+            "docs": [],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u8",
+              "endian": "le"
+            },
+            "defaultValueStrategy": "omitted",
+            "defaultValue": { "kind": "numberValueNode", "number": 4 }
           }
         ],
         "discriminators": [
