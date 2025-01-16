@@ -16,6 +16,7 @@ import {
   getStructEncoder,
   getU8Decoder,
   getU8Encoder,
+  none,
   transformEncoder,
   type Address,
   type Codec,
@@ -121,7 +122,7 @@ export type InitializeInstructionDataArgs = {
   compression: CompressionArgs;
   format: FormatArgs;
   dataSource: DataSourceArgs;
-  data: OptionOrNullable<ReadonlyUint8Array>;
+  data?: OptionOrNullable<ReadonlyUint8Array>;
 };
 
 export function getInitializeInstructionDataEncoder(): Encoder<InitializeInstructionDataArgs> {
@@ -135,7 +136,11 @@ export function getInitializeInstructionDataEncoder(): Encoder<InitializeInstruc
       ['dataSource', getDataSourceEncoder()],
       ['data', getOptionEncoder(getBytesEncoder(), { prefix: null })],
     ]),
-    (value) => ({ ...value, discriminator: INITIALIZE_DISCRIMINATOR })
+    (value) => ({
+      ...value,
+      discriminator: INITIALIZE_DISCRIMINATOR,
+      data: value.data ?? none(),
+    })
   );
 }
 
@@ -183,7 +188,7 @@ export type InitializeAsyncInput<
   compression: InitializeInstructionDataArgs['compression'];
   format: InitializeInstructionDataArgs['format'];
   dataSource: InitializeInstructionDataArgs['dataSource'];
-  data: InitializeInstructionDataArgs['data'];
+  data?: InitializeInstructionDataArgs['data'];
 };
 
 export async function getInitializeInstructionAsync<
@@ -299,7 +304,7 @@ export type InitializeInput<
   compression: InitializeInstructionDataArgs['compression'];
   format: InitializeInstructionDataArgs['format'];
   dataSource: InitializeInstructionDataArgs['dataSource'];
-  data: InitializeInstructionDataArgs['data'];
+  data?: InitializeInstructionDataArgs['data'];
 };
 
 export function getInitializeInstruction<

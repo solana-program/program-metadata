@@ -448,6 +448,7 @@
             "kind": "instructionArgumentNode",
             "name": "data",
             "docs": [],
+            "defaultValue": { "kind": "noneValueNode" },
             "type": {
               "kind": "remainderOptionTypeNode",
               "item": { "kind": "bytesTypeNode" }
