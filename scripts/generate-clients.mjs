@@ -16,3 +16,14 @@ codama.accept(
     prettierOptions: require(path.join(jsClient, '.prettierrc.json')),
   })
 );
+
+// Render Rust.
+// TODO: Extract unsupported types in order to hook them for the Rust client.
+// const rustClient = path.join(__dirname, '..', 'clients', 'rust');
+// codama.accept(
+//   renderRustVisitor(path.join(rustClient, 'src', 'generated'), {
+//     formatCode: true,
+//     crateFolder: rustClient,
+//     anchorTraits: false,
+//   })
+// );

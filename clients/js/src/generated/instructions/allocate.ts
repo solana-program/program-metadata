@@ -14,6 +14,7 @@ import {
   getStructEncoder,
   getU8Decoder,
   getU8Encoder,
+  none,
   transformEncoder,
   type Address,
   type Codec,
@@ -88,7 +89,7 @@ export type AllocateInstructionData = {
 
 export type AllocateInstructionDataArgs = {
   /** The seed of the metadata for PDA buffers. */
-  seed: OptionOrNullable<SeedArgs>;
+  seed?: OptionOrNullable<SeedArgs>;
 };
 
 export function getAllocateInstructionDataEncoder(): Encoder<AllocateInstructionDataArgs> {
@@ -97,7 +98,11 @@ export function getAllocateInstructionDataEncoder(): Encoder<AllocateInstruction
       ['discriminator', getU8Encoder()],
       ['seed', getOptionEncoder(getSeedEncoder(), { prefix: null })],
     ]),
-    (value) => ({ ...value, discriminator: ALLOCATE_DISCRIMINATOR })
+    (value) => ({
+      ...value,
+      discriminator: ALLOCATE_DISCRIMINATOR,
+      seed: value.seed ?? none(),
+    })
   );
 }
 
@@ -135,7 +140,7 @@ export type AllocateInput<
   programData?: Address<TAccountProgramData>;
   /** System program. */
   system?: Address<TAccountSystem>;
-  seed: AllocateInstructionDataArgs['seed'];
+  seed?: AllocateInstructionDataArgs['seed'];
 };
 
 export function getAllocateInstruction<

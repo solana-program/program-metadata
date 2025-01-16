@@ -858,6 +858,7 @@
             "kind": "instructionArgumentNode",
             "name": "seed",
             "docs": ["The seed of the metadata for PDA buffers."],
+            "defaultValue": { "kind": "noneValueNode" },
             "type": {
               "kind": "remainderOptionTypeNode",
               "item": {
