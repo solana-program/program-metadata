@@ -109,8 +109,8 @@ impl Header {
 }
 
 impl PdaInfo for Header {
-    fn program(&self) -> &Pubkey {
-        &self.program
+    fn program(&self) -> Option<&Pubkey> {
+        Some(&self.program)
     }
 
     fn authority(&self) -> Option<&Pubkey> {

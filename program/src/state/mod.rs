@@ -35,7 +35,7 @@ impl<'a> Metadata<'a> {
 /// Trait representing the common information of a PDA account.
 pub(crate) trait PdaInfo {
     /// The program that this PDA is associated with.
-    fn program(&self) -> &Pubkey;
+    fn program(&self) -> Option<&Pubkey>;
 
     /// The (optional) authority of the PDA.
     fn authority(&self) -> Option<&Pubkey>;

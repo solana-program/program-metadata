@@ -131,7 +131,7 @@ fn validate_authority<T: PdaInfo>(
     // The authority is the program upgrade authority for canonical metadata accounts.
     let authorized = explicitly_authorized
         || (pda_info.is_canonical()
-            && program.key() == pda_info.program()
+            && pda_info.program() == Some(program.key())
             && is_program_authority(program, program_data, authority.key())?);
     if !authorized {
         return Err(ProgramError::IncorrectAuthority);

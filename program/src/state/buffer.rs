@@ -67,8 +67,8 @@ impl Buffer {
 }
 
 impl PdaInfo for Buffer {
-    fn program(&self) -> &Pubkey {
-        self.program.as_ref().unwrap()
+    fn program(&self) -> Option<&Pubkey> {
+        self.program.as_ref()
     }
 
     fn authority(&self) -> Option<&Pubkey> {
