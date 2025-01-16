@@ -1,6 +1,6 @@
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
-use super::{AccountDiscriminator, ZeroableOption, SEED_LEN};
+use super::{AccountDiscriminator, PdaInfo, ZeroableOption, SEED_LEN};
 
 /// Buffer account header.
 #[repr(C)]
@@ -63,5 +63,19 @@ impl Buffer {
 
     pub(crate) unsafe fn load_mut_unchecked(bytes: &mut [u8]) -> &mut Self {
         &mut *(bytes.as_mut_ptr() as *mut Self)
+    }
+}
+
+impl PdaInfo for Buffer {
+    fn program(&self) -> &Pubkey {
+        self.program.as_ref().unwrap()
+    }
+
+    fn authority(&self) -> Option<&Pubkey> {
+        self.authority.as_ref()
+    }
+
+    fn is_canonical(&self) -> bool {
+        self.canonical() && self.authority().is_none()
     }
 }
