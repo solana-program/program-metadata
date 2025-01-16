@@ -621,6 +621,7 @@
           {
             "kind": "instructionArgumentNode",
             "name": "data",
+            "defaultValue": { "kind": "noneValueNode" },
             "docs": [],
             "type": {
               "kind": "remainderOptionTypeNode",

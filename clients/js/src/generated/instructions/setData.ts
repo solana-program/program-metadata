@@ -16,6 +16,7 @@ import {
   getStructEncoder,
   getU8Decoder,
   getU8Encoder,
+  none,
   transformEncoder,
   type Address,
   type Codec,
@@ -107,7 +108,7 @@ export type SetDataInstructionDataArgs = {
   compression: CompressionArgs;
   format: FormatArgs;
   dataSource: DataSourceArgs;
-  data: OptionOrNullable<ReadonlyUint8Array>;
+  data?: OptionOrNullable<ReadonlyUint8Array>;
 };
 
 export function getSetDataInstructionDataEncoder(): Encoder<SetDataInstructionDataArgs> {
@@ -120,7 +121,11 @@ export function getSetDataInstructionDataEncoder(): Encoder<SetDataInstructionDa
       ['dataSource', getDataSourceEncoder()],
       ['data', getOptionEncoder(getBytesEncoder(), { prefix: null })],
     ]),
-    (value) => ({ ...value, discriminator: SET_DATA_DISCRIMINATOR })
+    (value) => ({
+      ...value,
+      discriminator: SET_DATA_DISCRIMINATOR,
+      data: value.data ?? none(),
+    })
   );
 }
 
@@ -166,7 +171,7 @@ export type SetDataInput<
   compression: SetDataInstructionDataArgs['compression'];
   format: SetDataInstructionDataArgs['format'];
   dataSource: SetDataInstructionDataArgs['dataSource'];
-  data: SetDataInstructionDataArgs['data'];
+  data?: SetDataInstructionDataArgs['data'];
 };
 
 export function getSetDataInstruction<
