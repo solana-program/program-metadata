@@ -49,8 +49,8 @@ test('it can close canonical metadata accounts', async (t) => {
   );
 
   // Then we expect the metadata account to no longer exist.
-  const bufferAccount = await fetchMaybeMetadata(client.rpc, metadata);
-  t.false(bufferAccount.exists);
+  const account = await fetchMaybeMetadata(client.rpc, metadata);
+  t.false(account.exists);
 });
 
 test.todo('the set authority of a canonical metadata can close the account');
@@ -87,8 +87,8 @@ test('it can close non-canonical metadata accounts', async (t) => {
   );
 
   // Then we expect the metadata account to no longer exist.
-  const bufferAccount = await fetchMaybeMetadata(client.rpc, metadata);
-  t.false(bufferAccount.exists);
+  const account = await fetchMaybeMetadata(client.rpc, metadata);
+  t.false(account.exists);
 });
 
 test.skip('it can close canonical buffers', async (t) => {
@@ -121,8 +121,8 @@ test.skip('it can close canonical buffers', async (t) => {
   );
 
   // Then we expect the buffer account to no longer exist.
-  const bufferAccount = await fetchMaybeMetadata(client.rpc, buffer);
-  t.false(bufferAccount.exists);
+  const account = await fetchMaybeMetadata(client.rpc, buffer);
+  t.false(account.exists);
 });
 
 test.todo(
@@ -161,8 +161,8 @@ test.skip('it can close non-canonical buffers', async (t) => {
   );
 
   // Then we expect the buffer account to no longer exist.
-  const bufferAccount = await fetchMaybeMetadata(client.rpc, buffer);
-  t.false(bufferAccount.exists);
+  const account = await fetchMaybeMetadata(client.rpc, buffer);
+  t.false(account.exists);
 });
 
 test('it can close keypair buffers', async (t) => {
@@ -189,6 +189,6 @@ test('it can close keypair buffers', async (t) => {
   );
 
   // Then we expect the buffer account to no longer exist.
-  const bufferAccount = await fetchMaybeMetadata(client.rpc, buffer.address);
-  t.false(bufferAccount.exists);
+  const account = await fetchMaybeMetadata(client.rpc, buffer.address);
+  t.false(account.exists);
 });
