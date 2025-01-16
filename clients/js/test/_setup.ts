@@ -17,6 +17,7 @@ import {
   getProgramDerivedAddress,
   getSignatureFromTransaction,
   IInstruction,
+  isOption,
   KeyPairSigner,
   lamports,
   pipe,
@@ -31,18 +32,25 @@ import {
   SolanaRpcSubscriptionsApi,
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
+  unwrapOption,
 } from '@solana/web3.js';
 import {
+  Compression,
+  DataSource,
+  Encoding,
   findCanonicalPda,
   findNonCanonicalPda,
+  Format,
   getAllocateInstruction,
+  getInitializeInstruction,
   getWriteInstruction,
+  InitializeInput,
   SeedArgs,
 } from '../src';
 import { getDeployWithMaxDataLenInstruction as getLoaderV3DeployInstruction } from './loader-v3/deploy';
-import { getWriteInstruction as getLoaderV3WriteInstruction } from './loader-v3/write';
 import { getInitializeBufferInstruction as getLoaderV3InitializeBufferInstruction } from './loader-v3/initializeBuffer';
 import { LOADER_V3_PROGRAM_ADDRESS } from './loader-v3/shared';
+import { getWriteInstruction as getLoaderV3WriteInstruction } from './loader-v3/write';
 
 const SMALLER_VALID_PROGRAM_BINARY =
   'f0VMRgIBAQAAAAAAAAAAAAMA9wABAAAA6AAAAAAAAABAAAAAAAAAAMgBAAAAAAAAAAAAAEAAOAADAEAABgAFAAEAAAAFAAAA6AAAAAAAAADoAAAAAAAAAOgAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAQAAAAAAAAAQAAAAQAAABgAQAAAAAAAGABAAAAAAAAYAEAAAAAAAA8AAAAAAAAADwAAAAAAAAAABAAAAAAAAACAAAABgAAAPAAAAAAAAAA8AAAAAAAAADwAAAAAAAAAHAAAAAAAAAAcAAAAAAAAAAIAAAAAAAAAJUAAAAAAAAAHgAAAAAAAAAEAAAAAAAAAAYAAAAAAAAAYAEAAAAAAAALAAAAAAAAABgAAAAAAAAABQAAAAAAAACQAQAAAAAAAAoAAAAAAAAADAAAAAAAAAAWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAQAAEA6AAAAAAAAAAAAAAAAAAAAABlbnRyeXBvaW50AAAudGV4dAAuZHluYW1pYwAuZHluc3ltAC5keW5zdHIALnNoc3RydGFiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAABAAAABgAAAAAAAADoAAAAAAAAAOgAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAHAAAABgAAAAMAAAAAAAAA8AAAAAAAAADwAAAAAAAAAHAAAAAAAAAABAAAAAAAAAAIAAAAAAAAABAAAAAAAAAAEAAAAAsAAAACAAAAAAAAAGABAAAAAAAAYAEAAAAAAAAwAAAAAAAAAAQAAAABAAAACAAAAAAAAAAYAAAAAAAAABgAAAADAAAAAgAAAAAAAACQAQAAAAAAAJABAAAAAAAADAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAgAAAAAwAAAAAAAAAAAAAAAAAAAAAAAACcAQAAAAAAACoAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAA';
@@ -280,4 +288,67 @@ export async function createKeypairBuffer(
     ...input,
   });
   return buffer;
+}
+
+type PartialExcept<T, K extends keyof T> = Partial<Omit<T, K>> & Pick<T, K>;
+export async function createMetadata(
+  client: Client,
+  input: PartialExcept<
+    InitializeInput,
+    'metadata' | 'authority' | 'seed' | 'program'
+  > & {
+    payer?: TransactionSigner;
+  }
+): Promise<void> {
+  const { payer = input.authority, ...initializeInput } = input;
+  const data =
+    (isOption(input.data) ? unwrapOption(input.data) : input.data) ??
+    new Uint8Array([]);
+  const dataSize = BigInt(96 + data.length);
+  const [rent, defaultTransaction] = await Promise.all([
+    client.rpc.getMinimumBalanceForRentExemption(dataSize).send(),
+    createDefaultTransaction(client, payer),
+  ]);
+  const preFundIx = getTransferSolInstruction({
+    source: payer,
+    destination: input.metadata,
+    amount: rent,
+  });
+  const initializeIx = getInitializeInstruction({
+    encoding: Encoding.None,
+    compression: Compression.None,
+    format: Format.None,
+    dataSource: DataSource.Direct,
+    ...initializeInput,
+  });
+  await pipe(
+    defaultTransaction,
+    (tx) => appendTransactionMessageInstructions([preFundIx, initializeIx], tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+}
+
+export async function createCanonicalMetadata(
+  client: Client,
+  input: Omit<Parameters<typeof createMetadata>[1], 'metadata'>
+) {
+  const metadata = await findCanonicalPda({
+    program: input.program,
+    seed: input.seed,
+  });
+  await createMetadata(client, { metadata: metadata[0], ...input });
+  return metadata;
+}
+
+export async function createNonCanonicalMetadata(
+  client: Client,
+  input: Omit<Parameters<typeof createMetadata>[1], 'metadata'>
+) {
+  const metadata = await findNonCanonicalPda({
+    program: input.program,
+    authority: input.authority.address,
+    seed: input.seed,
+  });
+  await createMetadata(client, { metadata: metadata[0], ...input });
+  return metadata;
 }
