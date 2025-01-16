@@ -76,6 +76,6 @@ impl PdaInfo for Buffer {
     }
 
     fn is_canonical(&self) -> bool {
-        self.canonical() && self.authority().is_none()
+        self.canonical()
     }
 }
