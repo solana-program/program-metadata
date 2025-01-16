@@ -1,35 +1,47 @@
-import { getCreateAccountInstruction } from '@solana-program/system';
+import {
+  getCreateAccountInstruction,
+  getTransferSolInstruction,
+} from '@solana-program/system';
 import {
   Address,
+  airdropFactory,
+  appendTransactionMessageInstructions,
   Commitment,
   CompilableTransactionMessage,
-  TransactionMessageWithBlockhashLifetime,
-  Rpc,
-  RpcSubscriptions,
-  SolanaRpcApi,
-  SolanaRpcSubscriptionsApi,
-  TransactionSigner,
-  airdropFactory,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
   createTransactionMessage,
   generateKeyPairSigner,
+  getAddressEncoder,
+  getBase64Encoder,
+  getProgramDerivedAddress,
   getSignatureFromTransaction,
+  IInstruction,
+  KeyPairSigner,
   lamports,
   pipe,
+  ReadonlyUint8Array,
+  Rpc,
+  RpcSubscriptions,
   sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   signTransactionMessageWithSigners,
-  appendTransactionMessageInstructions,
-  getAddressEncoder,
-  getProgramDerivedAddress,
-  getBase64Encoder,
-  KeyPairSigner,
+  SolanaRpcApi,
+  SolanaRpcSubscriptionsApi,
+  TransactionMessageWithBlockhashLifetime,
+  TransactionSigner,
 } from '@solana/web3.js';
-import { getDeployWithMaxDataLenInstruction } from './loader-v3/deploy';
-import { getWriteInstruction } from './loader-v3/write';
-import { getInitializeBufferInstruction } from './loader-v3/initializeBuffer';
+import {
+  findCanonicalPda,
+  findNonCanonicalPda,
+  getAllocateInstruction,
+  getWriteInstruction,
+  SeedArgs,
+} from '../src';
+import { getDeployWithMaxDataLenInstruction as getLoaderV3DeployInstruction } from './loader-v3/deploy';
+import { getWriteInstruction as getLoaderV3WriteInstruction } from './loader-v3/write';
+import { getInitializeBufferInstruction as getLoaderV3InitializeBufferInstruction } from './loader-v3/initializeBuffer';
 import { LOADER_V3_PROGRAM_ADDRESS } from './loader-v3/shared';
 
 const SMALLER_VALID_PROGRAM_BINARY =
@@ -123,11 +135,11 @@ export const createDeployedProgram = async (
     space: dataSize,
     programAddress: LOADER_V3_PROGRAM_ADDRESS,
   });
-  const initializeBufferIx = getInitializeBufferInstruction({
+  const initializeBufferIx = getLoaderV3InitializeBufferInstruction({
     sourceAccount: buffer.address,
     bufferAuthority: authority.address,
   });
-  const writeIx = getWriteInstruction({
+  const writeIx = getLoaderV3WriteInstruction({
     bufferAccount: buffer.address,
     bufferAuthority: authority,
     offset: 0,
@@ -140,7 +152,7 @@ export const createDeployedProgram = async (
     space: programSize,
     programAddress: LOADER_V3_PROGRAM_ADDRESS,
   });
-  const deployIx = getDeployWithMaxDataLenInstruction({
+  const deployIx = getLoaderV3DeployInstruction({
     payerAccount: payer,
     programDataAccount: programData,
     programAccount: program.address,
@@ -168,3 +180,104 @@ export const createDeployedProgram = async (
 
   return [program.address, programData];
 };
+
+export async function createBuffer(
+  client: Client,
+  input: {
+    buffer: Address;
+    authority: TransactionSigner;
+    payer?: TransactionSigner;
+    program?: Address;
+    programData?: Address;
+    seed?: SeedArgs;
+    dataLength?: number;
+    data?: ReadonlyUint8Array;
+  }
+): Promise<void> {
+  const { buffer, authority, program, programData, seed, data } = input;
+  const payer = input.payer ?? authority;
+  const dataLenth = input.dataLength ?? input.data?.length ?? 0;
+  const bufferSize = BigInt(96 + dataLenth);
+  const [rent, defaultTransaction] = await Promise.all([
+    client.rpc.getMinimumBalanceForRentExemption(bufferSize).send(),
+    createDefaultTransaction(client, payer),
+  ]);
+  const preFundIx = getTransferSolInstruction({
+    source: payer,
+    destination: buffer,
+    amount: rent,
+  });
+  const allocateIx = getAllocateInstruction({
+    buffer,
+    authority,
+    program,
+    programData,
+    seed,
+  });
+  const instructions: IInstruction[] = [preFundIx, allocateIx];
+  if (data) {
+    instructions.push(getWriteInstruction({ buffer, authority, data }));
+  }
+  await pipe(
+    defaultTransaction,
+    (tx) => appendTransactionMessageInstructions(instructions, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+}
+
+export async function createCanonicalBuffer(
+  client: Client,
+  input: {
+    authority: TransactionSigner;
+    payer?: TransactionSigner;
+    program: Address;
+    programData: Address;
+    seed: SeedArgs;
+    dataLength?: number;
+    data?: ReadonlyUint8Array;
+  }
+) {
+  const buffer = await findCanonicalPda({
+    program: input.program,
+    seed: input.seed,
+  });
+  await createBuffer(client, { buffer: buffer[0], ...input });
+  return buffer;
+}
+
+export async function createNonCanonicalBuffer(
+  client: Client,
+  input: {
+    authority: TransactionSigner;
+    payer?: TransactionSigner;
+    program: Address;
+    seed: SeedArgs;
+    dataLength?: number;
+    data?: ReadonlyUint8Array;
+  }
+) {
+  const buffer = await findNonCanonicalPda({
+    program: input.program,
+    authority: input.authority.address,
+    seed: input.seed,
+  });
+  await createBuffer(client, { buffer: buffer[0], ...input });
+  return buffer;
+}
+
+export async function createKeypairBuffer(
+  client: Client,
+  input: {
+    payer: TransactionSigner;
+    dataLength?: number;
+    data?: ReadonlyUint8Array;
+  }
+) {
+  const buffer = await generateKeyPairSigner();
+  await createBuffer(client, {
+    buffer: buffer.address,
+    authority: buffer,
+    ...input,
+  });
+  return buffer;
+}
