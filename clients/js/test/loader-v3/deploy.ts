@@ -22,11 +22,8 @@ import {
   type WritableAccount,
   type WritableSignerAccount,
 } from '@solana/web3.js';
-import {
-  LOADER_V3_PROGRAM_ADDRESS,
-  getAccountMetaFactory,
-  type ResolvedAccount,
-} from './shared';
+import { getAccountMetaFactory, type ResolvedAccount } from './shared';
+import { LOADER_V3_PROGRAM_ADDRESS } from '../../src';
 
 export const DEPLOY_WITH_MAX_DATA_LEN_DISCRIMINATOR = 2;
 

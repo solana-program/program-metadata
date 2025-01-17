@@ -25,11 +25,8 @@ import {
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/web3.js';
-import {
-  LOADER_V3_PROGRAM_ADDRESS,
-  getAccountMetaFactory,
-  type ResolvedAccount,
-} from './shared';
+import { getAccountMetaFactory, type ResolvedAccount } from './shared';
+import { LOADER_V3_PROGRAM_ADDRESS } from '../../src';
 
 export const WRITE_DISCRIMINATOR = 1;
 

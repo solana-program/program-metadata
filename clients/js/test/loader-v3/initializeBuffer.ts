@@ -16,11 +16,8 @@ import {
   type ReadonlyAccount,
   type WritableAccount,
 } from '@solana/web3.js';
-import {
-  getAccountMetaFactory,
-  type ResolvedAccount,
-  LOADER_V3_PROGRAM_ADDRESS,
-} from './shared';
+import { getAccountMetaFactory, type ResolvedAccount } from './shared';
+import { LOADER_V3_PROGRAM_ADDRESS } from '../../src';
 
 export const INITIALIZE_BUFFER_DISCRIMINATOR = 0;
 
