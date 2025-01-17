@@ -12,9 +12,7 @@ import {
   createSolanaRpcSubscriptions,
   createTransactionMessage,
   generateKeyPairSigner,
-  getAddressEncoder,
   getBase64Encoder,
-  getProgramDerivedAddress,
   getSignatureFromTransaction,
   IInstruction,
   isOption,
@@ -43,13 +41,14 @@ import {
   Format,
   getAllocateInstruction,
   getInitializeInstruction,
+  getProgramDataPda,
   getWriteInstruction,
   InitializeInput,
+  LOADER_V3_PROGRAM_ADDRESS,
   SeedArgs,
 } from '../src';
 import { getDeployWithMaxDataLenInstruction as getLoaderV3DeployInstruction } from './loader-v3/deploy';
 import { getInitializeBufferInstruction as getLoaderV3InitializeBufferInstruction } from './loader-v3/initializeBuffer';
-import { LOADER_V3_PROGRAM_ADDRESS } from './loader-v3/shared';
 import { getWriteInstruction as getLoaderV3WriteInstruction } from './loader-v3/write';
 
 const SMALLER_VALID_PROGRAM_BINARY =
@@ -130,10 +129,7 @@ export const createDeployedProgram = async (
       client.rpc.getMinimumBalanceForRentExemption(programSize).send(),
       createDefaultTransaction(client, payer),
     ]);
-  const [programData] = await getProgramDerivedAddress({
-    programAddress: LOADER_V3_PROGRAM_ADDRESS,
-    seeds: [getAddressEncoder().encode(program.address)],
-  });
+  const [programData] = await getProgramDataPda(program.address);
 
   // Create instructions.
   const createBufferIx = getCreateAccountInstruction({

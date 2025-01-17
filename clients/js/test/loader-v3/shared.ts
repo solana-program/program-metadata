@@ -10,9 +10,6 @@ import {
   upgradeRoleToSigner,
 } from '@solana/web3.js';
 
-export const LOADER_V3_PROGRAM_ADDRESS =
-  'BPFLoaderUpgradeab1e11111111111111111111111' as Address<'BPFLoaderUpgradeab1e11111111111111111111111'>;
-
 /**
  * Asserts that the given value is not null or undefined.
  * @internal
