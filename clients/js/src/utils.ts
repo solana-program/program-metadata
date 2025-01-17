@@ -1,15 +1,20 @@
 import {
   Address,
+  assertAccountExists,
   EncodedAccount,
+  fetchEncodedAccount,
   GetAccountInfoApi,
   getAddressDecoder,
   getAddressEncoder,
   GetEpochInfoApi,
   GetLatestBlockhashApi,
   GetMinimumBalanceForRentExemptionApi,
+  getOptionDecoder,
   getProgramDerivedAddress,
   GetSignatureStatusesApi,
+  getStructDecoder,
   getU32Decoder,
+  getU64Decoder,
   ReadonlyUint8Array,
   Rpc,
   RpcSubscriptions,
@@ -17,6 +22,7 @@ import {
   SignatureNotificationsApi,
   SlotNotificationsApi,
   TransactionSigner,
+  unwrapOption,
 } from '@solana/web3.js';
 import {
   CompressionArgs,
@@ -27,8 +33,15 @@ import {
 } from './generated';
 
 export const ACCOUNT_HEADER_LENGTH = 96;
+
+export const LOADER_V1_PROGRAM_ADDRESS =
+  'BPFLoader1111111111111111111111111111111111' as Address<'BPFLoader1111111111111111111111111111111111'>;
+export const LOADER_V2_PROGRAM_ADDRESS =
+  'BPFLoader2111111111111111111111111111111111' as Address<'BPFLoader2111111111111111111111111111111111'>;
 export const LOADER_V3_PROGRAM_ADDRESS =
   'BPFLoaderUpgradeab1e11111111111111111111111' as Address<'BPFLoaderUpgradeab1e11111111111111111111111'>;
+export const LOADER_V4_PROGRAM_ADDRESS =
+  'CoreBPFLoaderV41111111111111111111111111111' as Address<'CoreBPFLoaderV41111111111111111111111111111'>;
 
 export type MetadataInput = {
   rpc: Rpc<
@@ -57,57 +70,95 @@ export function getAccountSize(dataLength: bigint | number) {
   return BigInt(ACCOUNT_HEADER_LENGTH) + BigInt(dataLength);
 }
 
-export async function getProgramDataPda(
-  program: Address,
-  programOwner: Address
-) {
+export async function getProgramDataPda(program: Address) {
   return await getProgramDerivedAddress({
-    programAddress: programOwner,
+    programAddress: LOADER_V3_PROGRAM_ADDRESS,
     seeds: [getAddressEncoder().encode(program)],
   });
 }
 
-export function isProgramAuthority(
-  programAccount: EncodedAccount,
-  programDataAccount: EncodedAccount,
-  authority: Address
-) {
-  // Ensure they are valid.
+export async function getProgramAuthority(
+  rpc: Rpc<GetAccountInfoApi>,
+  program: Address
+): Promise<{ authority?: Address; programData?: Address }> {
+  // Fetch the program account.
+  const programAccount = await fetchEncodedAccount(rpc, program);
+  assertAccountExists(programAccount);
+
+  // Ensure the program is executable.
   if (!programAccount.executable) {
     throw Error('Program account must be executable');
   }
+
+  // Check all the loader programs.
+  switch (programAccount.programAddress) {
+    case LOADER_V1_PROGRAM_ADDRESS:
+    case LOADER_V2_PROGRAM_ADDRESS:
+      return { authority: program };
+    case LOADER_V3_PROGRAM_ADDRESS:
+      return await getProgramAuthorityForLoaderV3(rpc, programAccount);
+    case LOADER_V4_PROGRAM_ADDRESS:
+    default:
+      throw new Error(
+        'Unsupported loader program: ' + programAccount.programAddress
+      );
+  }
+}
+
+async function getProgramAuthorityForLoaderV3(
+  rpc: Rpc<GetAccountInfoApi>,
+  programAccount: EncodedAccount
+) {
+  if (programAccount.programAddress !== LOADER_V3_PROGRAM_ADDRESS) {
+    throw Error('Invalid loader program, expected loader v3');
+  }
+
+  // Fetch the program data account.
+  const [programData] = await getProgramDataPda(programAccount.address);
+  const programDataAccount = await fetchEncodedAccount(rpc, programData);
+  assertAccountExists(programDataAccount);
+
+  // Ensure the program data account is not executable.
   if (programDataAccount.executable) {
     throw Error(
       'The data account associated with the program account must not be executable'
     );
   }
-  if (programAccount.programAddress !== programDataAccount.programAddress) {
-    throw Error(
-      'Program and program data accounts must have the same program owner'
-    );
-  }
-  const u32 = getU32Decoder();
-  const programDiscriminator = u32.decode(programAccount.data);
-  const programDataDiscriminator = u32.decode(programDataAccount.data);
-  if (programDiscriminator !== 2) {
+
+  // Decode the program and program data accounts.
+  const [programDecoder, programDataDecoder] = getLoaderV3Decoders();
+  const programAccountData = programDecoder.decode(programAccount.data);
+  const programDataAccountData = programDataDecoder.decode(
+    programDataAccount.data
+  );
+
+  // Ensure both accounts are valid.
+  if (programAccountData.discriminator !== 2) {
     throw Error('Invalid program discriminator');
   }
-  if (programDataDiscriminator !== 3) {
+  if (programDataAccountData.discriminator !== 3) {
     throw Error('Invalid program data discriminator');
   }
-  const expectedProgramDataAddress = getAddressDecoder().decode(
-    programAccount.data.slice(4, 36)
-  );
-  if (expectedProgramDataAddress !== programDataAccount.address) {
-    throw Error('Invalid program data address');
+  if (programAccountData.programData !== programDataAccount.address) {
+    throw Error('Invalid associated program data address');
   }
 
-  // Get the authority from the program data account.
-  if (programDataAccount.data[12] !== 1) {
-    return false;
-  }
-  const expectedAuthority = getAddressDecoder().decode(
-    programDataAccount.data.slice(13, 45)
-  );
-  return expectedAuthority === authority;
+  return {
+    authority: unwrapOption(programDataAccountData.authority) ?? undefined,
+    programData,
+  };
+}
+
+function getLoaderV3Decoders() {
+  return [
+    getStructDecoder([
+      ['discriminator', getU32Decoder()],
+      ['programData', getAddressDecoder()],
+    ]),
+    getStructDecoder([
+      ['discriminator', getU32Decoder()],
+      ['slot', getU64Decoder()],
+      ['authority', getOptionDecoder(getAddressDecoder())],
+    ]),
+  ] as const;
 }

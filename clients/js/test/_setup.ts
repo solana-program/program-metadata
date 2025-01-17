@@ -41,7 +41,7 @@ import {
   Format,
   getAllocateInstruction,
   getInitializeInstruction,
-  getProgramDataPda,
+  getProgramDataPda as getLoaderV3ProgramDataPda,
   getWriteInstruction,
   InitializeInput,
   LOADER_V3_PROGRAM_ADDRESS,
@@ -129,10 +129,7 @@ export const createDeployedProgram = async (
       client.rpc.getMinimumBalanceForRentExemption(programSize).send(),
       createDefaultTransaction(client, payer),
     ]);
-  const [programData] = await getProgramDataPda(
-    program.address,
-    LOADER_V3_PROGRAM_ADDRESS
-  );
+  const [programData] = await getLoaderV3ProgramDataPda(program.address);
 
   // Create instructions.
   const createBufferIx = getCreateAccountInstruction({

@@ -1,11 +1,9 @@
 import {
   Address,
   appendTransactionMessageInstructions,
-  assertAccountExists,
   Commitment,
   CompilableTransactionMessage,
   createTransactionMessage,
-  fetchEncodedAccount,
   GetAccountInfoApi,
   GetEpochInfoApi,
   GetLatestBlockhashApi,
@@ -24,13 +22,13 @@ import {
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/web3.js';
-import { getProgramDataPda, isProgramAuthority } from './utils';
 import { findCanonicalPda, findNonCanonicalPda, SeedArgs } from './generated';
+import { getProgramAuthority } from './utils';
 
 export type PdaDetails = {
   metadata: Address;
   isCanonical: boolean;
-  programData: Address;
+  programData?: Address;
 };
 
 export async function getPdaDetails(input: {
@@ -43,19 +41,11 @@ export async function getPdaDetails(input: {
     typeof input.authority === 'string'
       ? input.authority
       : input.authority.address;
-  const programAccount = await fetchEncodedAccount(input.rpc, input.program);
-  assertAccountExists(programAccount);
-  const [programData] = await getProgramDataPda(
-    programAccount.address,
-    programAccount.programAddress
+  const { authority, programData } = await getProgramAuthority(
+    input.rpc,
+    input.program
   );
-  const programDataAccount = await fetchEncodedAccount(input.rpc, programData);
-  assertAccountExists(programDataAccount);
-  const isCanonical = isProgramAuthority(
-    programAccount,
-    programDataAccount,
-    authorityAddress
-  );
+  const isCanonical = !!authority && authority === authorityAddress;
   const [metadata] = isCanonical
     ? await findCanonicalPda({ program: input.program, seed: input.seed })
     : await findNonCanonicalPda({
