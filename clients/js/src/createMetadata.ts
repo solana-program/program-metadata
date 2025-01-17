@@ -92,8 +92,6 @@ export function getCreateMetadataInstructions(
     })
   );
 
-  // TODO: Trim to withdraw excess lamports from buffer (only if useBuffer is true).
-
   instructions.push(currentInstructionBatch);
   return instructions;
 }

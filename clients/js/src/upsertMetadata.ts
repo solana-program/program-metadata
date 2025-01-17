@@ -1,3 +1,4 @@
+import { lamports } from '@solana/web3.js';
 import { getCreateMetadataInstructions } from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
 import {
@@ -32,14 +33,21 @@ export async function upsertMetadata(input: MetadataInput) {
   if (!metadataAccount.data.mutable) {
     throw new Error('Metadata account is immutable');
   }
-  const currentDataLength = getAccountSize(metadataAccount.data.data.length);
-  const newDataLength = getAccountSize(input.data.length);
-  const strategy = await getUpdateMetadataStrategy(
-    input.rpc,
-    currentDataLength,
-    newDataLength
-  );
-  const extendedInput = { strategy, ...input, ...pdaDetails };
+  const newDataLength = BigInt(input.data.length);
+  const sizeDifference =
+    newDataLength - BigInt(metadataAccount.data.data.length);
+  const extraRent =
+    sizeDifference > 0
+      ? await input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
+      : lamports(0n);
+  const strategy = await getUpdateMetadataStrategy(input.rpc, newDataLength);
+  const extendedInput = {
+    sizeDifference,
+    extraRent,
+    strategy,
+    ...input,
+    ...pdaDetails,
+  };
   const instructions = getUpdateMetadataInstructions(extendedInput);
   await sendInstructionsInSequentialTransactions({ instructions, ...input });
   return extendedInput.metadata;
