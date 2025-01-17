@@ -22,7 +22,7 @@ import {
 import { getAccountSize, MetadataInput } from './utils';
 
 const SIZE_THRESHOLD_FOR_UPDATING_WITH_BUFFER = 200;
-const WRITE_CHUNK_SIZE = 800;
+const WRITE_CHUNK_SIZE = 1000;
 
 export async function updateMetadata(input: MetadataInput) {
   const pdaDetails = await getPdaDetails(input);

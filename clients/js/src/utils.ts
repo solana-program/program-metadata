@@ -1,14 +1,12 @@
 import {
   Address,
-  assertAccountsExist,
-  fetchEncodedAccounts,
+  EncodedAccount,
   GetAccountInfoApi,
   getAddressDecoder,
   getAddressEncoder,
   GetEpochInfoApi,
   GetLatestBlockhashApi,
   GetMinimumBalanceForRentExemptionApi,
-  GetMultipleAccountsApi,
   getProgramDerivedAddress,
   GetSignatureStatusesApi,
   getU32Decoder,
@@ -39,7 +37,6 @@ export type MetadataInput = {
       GetSignatureStatusesApi &
       SendTransactionApi &
       GetAccountInfoApi &
-      GetMultipleAccountsApi &
       GetMinimumBalanceForRentExemptionApi
   >;
   rpcSubscriptions: RpcSubscriptions<
@@ -60,24 +57,21 @@ export function getAccountSize(dataLength: bigint | number) {
   return BigInt(ACCOUNT_HEADER_LENGTH) + BigInt(dataLength);
 }
 
-export async function getProgramDataPda(program: Address) {
+export async function getProgramDataPda(
+  program: Address,
+  programOwner: Address
+) {
   return await getProgramDerivedAddress({
-    programAddress: LOADER_V3_PROGRAM_ADDRESS,
+    programAddress: programOwner,
     seeds: [getAddressEncoder().encode(program)],
   });
 }
 
-export async function isProgramAuthority(
-  rpc: Rpc<GetMultipleAccountsApi>,
-  program: Address,
-  programData: Address,
+export function isProgramAuthority(
+  programAccount: EncodedAccount,
+  programDataAccount: EncodedAccount,
   authority: Address
 ) {
-  // Fetch the program and program data accounts.
-  const accounts = await fetchEncodedAccounts(rpc, [program, programData]);
-  assertAccountsExist(accounts);
-  const [programAccount, programDataAccount] = accounts;
-
   // Ensure they are valid.
   if (!programAccount.executable) {
     throw Error('Program account must be executable');
@@ -104,7 +98,7 @@ export async function isProgramAuthority(
   const expectedProgramDataAddress = getAddressDecoder().decode(
     programAccount.data.slice(4, 36)
   );
-  if (expectedProgramDataAddress !== programData) {
+  if (expectedProgramDataAddress !== programDataAccount.address) {
     throw Error('Invalid program data address');
   }
 

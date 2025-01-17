@@ -1,12 +1,14 @@
 import {
   Address,
   appendTransactionMessageInstructions,
+  assertAccountExists,
   Commitment,
   CompilableTransactionMessage,
   createTransactionMessage,
+  fetchEncodedAccount,
+  GetAccountInfoApi,
   GetEpochInfoApi,
   GetLatestBlockhashApi,
-  GetMultipleAccountsApi,
   GetSignatureStatusesApi,
   IInstruction,
   pipe,
@@ -32,7 +34,7 @@ export type PdaDetails = {
 };
 
 export async function getPdaDetails(input: {
-  rpc: Rpc<GetMultipleAccountsApi>;
+  rpc: Rpc<GetAccountInfoApi>;
   program: Address;
   authority: TransactionSigner | Address;
   seed: SeedArgs;
@@ -41,11 +43,17 @@ export async function getPdaDetails(input: {
     typeof input.authority === 'string'
       ? input.authority
       : input.authority.address;
-  const [programData] = await getProgramDataPda(input.program);
-  const isCanonical = await isProgramAuthority(
-    input.rpc,
-    input.program,
-    programData,
+  const programAccount = await fetchEncodedAccount(input.rpc, input.program);
+  assertAccountExists(programAccount);
+  const [programData] = await getProgramDataPda(
+    programAccount.address,
+    programAccount.programAddress
+  );
+  const programDataAccount = await fetchEncodedAccount(input.rpc, programData);
+  assertAccountExists(programDataAccount);
+  const isCanonical = isProgramAuthority(
+    programAccount,
+    programDataAccount,
     authorityAddress
   );
   const [metadata] = isCanonical

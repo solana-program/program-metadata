@@ -129,7 +129,10 @@ export const createDeployedProgram = async (
       client.rpc.getMinimumBalanceForRentExemption(programSize).send(),
       createDefaultTransaction(client, payer),
     ]);
-  const [programData] = await getProgramDataPda(program.address);
+  const [programData] = await getProgramDataPda(
+    program.address,
+    LOADER_V3_PROGRAM_ADDRESS
+  );
 
   // Create instructions.
   const createBufferIx = getCreateAccountInstruction({

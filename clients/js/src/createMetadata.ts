@@ -17,7 +17,7 @@ import {
 import { getAccountSize, MetadataInput } from './utils';
 
 const SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER = 200;
-const WRITE_CHUNK_SIZE = 800;
+const WRITE_CHUNK_SIZE = 1000;
 
 export async function createMetadata(input: MetadataInput) {
   const [pdaDetails, rent] = await Promise.all([
