@@ -993,7 +993,7 @@
             },
             {
               "kind": "enumEmptyVariantTypeNode",
-              "name": "zstd"
+              "name": "zlib"
             }
           ],
           "size": {

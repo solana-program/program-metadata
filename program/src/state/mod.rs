@@ -94,7 +94,7 @@ impl TryFrom<u8> for Encoding {
 pub enum Compression {
     None,
     Gzip,
-    Zstd,
+    Zlib,
 }
 
 impl TryFrom<u8> for Compression {
@@ -104,7 +104,7 @@ impl TryFrom<u8> for Compression {
         match value {
             0 => Ok(Compression::None),
             1 => Ok(Compression::Gzip),
-            2 => Ok(Compression::Zstd),
+            2 => Ok(Compression::Zlib),
             _ => Err(ProgramError::InvalidAccountData),
         }
     }

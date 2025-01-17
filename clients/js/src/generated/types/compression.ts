@@ -18,7 +18,7 @@ import {
 export enum Compression {
   None,
   Gzip,
-  Zstd,
+  Zlib,
 }
 
 export type CompressionArgs = Compression;
