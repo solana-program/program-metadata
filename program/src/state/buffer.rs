@@ -1,6 +1,6 @@
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
-use super::{AccountDiscriminator, PdaInfo, ZeroableOption, SEED_LEN};
+use super::{Account, AccountDiscriminator, ZeroableOption, SEED_LEN};
 
 /// Buffer account header.
 #[repr(C)]
@@ -66,16 +66,12 @@ impl Buffer {
     }
 }
 
-impl PdaInfo for Buffer {
-    fn program(&self) -> Option<&Pubkey> {
-        self.program.as_ref()
-    }
-
-    fn authority(&self) -> Option<&Pubkey> {
+impl Account for Buffer {
+    fn get_authority(&self) -> Option<&Pubkey> {
         self.authority.as_ref()
     }
 
-    fn is_canonical(&self) -> bool {
-        self.canonical()
+    fn is_canonical(&self, program: &Pubkey) -> bool {
+        self.canonical() && self.program.as_ref() == Some(program)
     }
 }

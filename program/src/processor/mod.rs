@@ -1,6 +1,6 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
-use crate::state::{header::Header, AccountDiscriminator, PdaInfo};
+use crate::state::{header::Header, Account, AccountDiscriminator};
 
 pub mod allocate;
 pub mod close;
@@ -113,8 +113,8 @@ fn validate_metadata(metadata: &AccountInfo) -> Result<&Header, ProgramError> {
 /// - [explicit] The `authority` account must match the authority set on the `metadata` account OR
 ///   it must be the program upgrade authority if the `metadata` account is canonical (see `is_program_authority`).
 #[inline(always)]
-fn validate_authority<T: PdaInfo>(
-    pda_info: &T,
+fn validate_authority<T: Account>(
+    account: &T,
     authority: &AccountInfo,
     program: &AccountInfo,
     program_data: &AccountInfo,
@@ -123,19 +123,21 @@ fn validate_authority<T: PdaInfo>(
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
+
     // The authority is the set authority.
-    let explicitly_authorized = match pda_info.authority() {
+    let explicitly_authorized = match account.get_authority() {
         Some(metadata_authority) => metadata_authority == authority.key(),
         None => false,
     };
+
     // The authority is the program upgrade authority for canonical metadata accounts.
     let authorized = explicitly_authorized
-        || (pda_info.is_canonical()
-            && pda_info.program() == Some(program.key())
+        || (account.is_canonical(program.key())
             && is_program_authority(program, program_data, authority.key())?);
-    if !authorized {
-        return Err(ProgramError::IncorrectAuthority);
-    }
 
-    Ok(())
+    if !authorized {
+        Err(ProgramError::IncorrectAuthority)
+    } else {
+        Ok(())
+    }
 }

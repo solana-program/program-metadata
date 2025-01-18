@@ -32,17 +32,14 @@ impl<'a> Metadata<'a> {
     }
 }
 
-/// Trait representing the common information of a PDA account.
-pub(crate) trait PdaInfo {
-    /// The program that this PDA is associated with.
-    fn program(&self) -> Option<&Pubkey>;
-
-    /// The (optional) authority of the PDA.
-    fn authority(&self) -> Option<&Pubkey>;
+/// Utility trait for an account.
+pub(crate) trait Account {
+    /// Returns the account authority, if there is one.
+    fn get_authority(&self) -> Option<&Pubkey>;
 
     /// Indicates whether the PDA represents a canonical PDA for
-    /// the program.
-    fn is_canonical(&self) -> bool;
+    /// the given program.
+    fn is_canonical(&self, program: &Pubkey) -> bool;
 }
 
 /// Account discriminators.

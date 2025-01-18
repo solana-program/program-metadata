@@ -1,7 +1,7 @@
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
 use super::{
-    AccountDiscriminator, Compression, DataSource, Encoding, Format, PdaInfo, ZeroableOption,
+    Account, AccountDiscriminator, Compression, DataSource, Encoding, Format, ZeroableOption,
     SEED_LEN,
 };
 
@@ -108,16 +108,12 @@ impl Header {
     }
 }
 
-impl PdaInfo for Header {
-    fn program(&self) -> Option<&Pubkey> {
-        Some(&self.program)
-    }
-
-    fn authority(&self) -> Option<&Pubkey> {
+impl Account for Header {
+    fn get_authority(&self) -> Option<&Pubkey> {
         self.authority.as_ref()
     }
 
-    fn is_canonical(&self) -> bool {
-        self.canonical()
+    fn is_canonical(&self, program: &Pubkey) -> bool {
+        self.canonical() && self.program == *program
     }
 }
