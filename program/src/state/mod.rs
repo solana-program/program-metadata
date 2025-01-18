@@ -32,6 +32,16 @@ impl<'a> Metadata<'a> {
     }
 }
 
+/// Utility trait for an account.
+pub(crate) trait Account {
+    /// Returns the account authority, if there is one.
+    fn get_authority(&self) -> Option<&Pubkey>;
+
+    /// Indicates whether the PDA represents a canonical PDA for
+    /// the given program.
+    fn is_canonical(&self, program: &Pubkey) -> bool;
+}
+
 /// Account discriminators.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]

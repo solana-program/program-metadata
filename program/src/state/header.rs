@@ -1,7 +1,8 @@
 use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
 
 use super::{
-    AccountDiscriminator, Compression, DataSource, Encoding, Format, ZeroableOption, SEED_LEN,
+    Account, AccountDiscriminator, Compression, DataSource, Encoding, Format, ZeroableOption,
+    SEED_LEN,
 };
 
 /// Metadata account header.
@@ -104,5 +105,15 @@ impl Header {
 
     pub(crate) unsafe fn load_mut_unchecked(bytes: &mut [u8]) -> &mut Self {
         &mut *(bytes.as_mut_ptr() as *mut Self)
+    }
+}
+
+impl Account for Header {
+    fn get_authority(&self) -> Option<&Pubkey> {
+        self.authority.as_ref()
+    }
+
+    fn is_canonical(&self, program: &Pubkey) -> bool {
+        self.canonical() && self.program == *program
     }
 }

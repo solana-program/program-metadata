@@ -1,6 +1,6 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
-use crate::state::AccountDiscriminator;
+use crate::state::{buffer::Buffer, AccountDiscriminator};
 
 use super::{validate_authority, validate_metadata};
 
@@ -15,6 +15,10 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
+    if !authority.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
     let account_data = if account.data_is_empty() {
         return Err(ProgramError::UninitializedAccount);
     } else {
@@ -25,19 +29,20 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
     //  - account: program owned is implicitly checked since we are writing
     //    to the account
 
-    match AccountDiscriminator::try_from(account_data[0])? {
-        AccountDiscriminator::Buffer => {
-            // The authority of a buffer account must be the buffer account
-            // itself.
-            if !(account.key() == authority.key() && authority.is_signer()) {
-                return Err(ProgramError::MissingRequiredSignature);
+    // We only need to validate the authority if it is not a keypair buffer,
+    // since we already validated that the authority is a signer.
+    if account.key() != authority.key() {
+        match AccountDiscriminator::try_from(account_data[0])? {
+            AccountDiscriminator::Buffer => {
+                let buffer = unsafe { Buffer::load_unchecked(account_data) };
+                validate_authority(buffer, authority, program, program_data)?
             }
+            AccountDiscriminator::Metadata => {
+                let header = validate_metadata(account)?;
+                validate_authority(header, authority, program, program_data)?
+            }
+            _ => return Err(ProgramError::InvalidAccountData),
         }
-        AccountDiscriminator::Metadata => {
-            let header = validate_metadata(account)?;
-            validate_authority(header, authority, program, program_data)?
-        }
-        _ => return Err(ProgramError::InvalidAccountData),
     }
 
     // Move the lamports to the destination account.
