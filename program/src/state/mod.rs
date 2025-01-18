@@ -19,15 +19,25 @@ pub struct Metadata<'a> {
 }
 
 impl<'a> Metadata<'a> {
-    pub fn load(bytes: &'a [u8]) -> Result<Self, ProgramError> {
-        let header = Header::load(bytes)?;
-        let data = Data::load(header.data_source()?, &bytes[Header::LEN..])?;
+    /// Return a `Metadata` from the given bytes.
+    ///
+    /// This method validates that `bytes` has at least the minimum required
+    /// length.
+    pub fn from_bytes(bytes: &'a [u8]) -> Result<Self, ProgramError> {
+        let header = Header::from_bytes(bytes)?;
+        // `bytes` has at least `Header::LEN` at this point.
+        let data = Data::from_bytes(header.data_source()?, &bytes[Header::LEN..])?;
         Ok(Self { header, data })
     }
 
-    pub(crate) unsafe fn load_unchecked(bytes: &'a [u8]) -> Self {
-        let header = Header::load_unchecked(bytes);
-        let data = Data::load_unchecked(header.data_source().unwrap(), &bytes[Header::LEN..]);
+    /// Return a `Metadata` from the given bytes.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `bytes` contains a valid representation of `Metadata`.
+    pub(crate) unsafe fn from_bytes_unchecked(bytes: &'a [u8]) -> Self {
+        let header = Header::from_bytes_unchecked(bytes);
+        let data = Data::from_bytes_unchecked(header.data_source().unwrap(), &bytes[Header::LEN..]);
         Self { header, data }
     }
 }

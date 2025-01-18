@@ -43,7 +43,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
     // If the authority is not the buffer account, the buffer account is a
     // PDA and signer authority must match the buffer authority.
     if buffer.key() != authority.key() {
-        let buffer_header = unsafe { Buffer::load_unchecked(data) };
+        let buffer_header = unsafe { Buffer::from_bytes_unchecked(data) };
         if Some(authority.key()) != buffer_header.authority.as_ref() {
             return Err(ProgramError::IncorrectAuthority);
         }

@@ -138,7 +138,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     };
 
     // Initialize the metadata account.
-    let header = unsafe { Header::load_mut_unchecked(metadata_account_data) };
+    let header = unsafe { Header::from_bytes_mut_unchecked(metadata_account_data) };
     header.discriminator = AccountDiscriminator::Metadata as u8;
     header.program = *program.key();
     header.authority = match canonical {

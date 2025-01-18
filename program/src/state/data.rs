@@ -10,22 +10,36 @@ pub enum Data<'a> {
 }
 
 impl<'a> Data<'a> {
-    pub fn load(data_source: DataSource, bytes: &'a [u8]) -> Result<Data<'a>, ProgramError> {
+    /// Return a `Data` from the given bytes.
+    ///
+    /// This method validates that `bytes` has at least the minimum required
+    /// length.
+    pub fn from_bytes(data_source: DataSource, bytes: &'a [u8]) -> Result<Data<'a>, ProgramError> {
         Ok(match data_source {
             DataSource::Direct => Data::Direct(DirectData(bytes)),
             DataSource::Url => Data::Url(UrlData(
-                core::str::from_utf8(bytes).map_err(|_| ProgramError::InvalidAccountData)?,
+                core::str::from_utf8(bytes).map_err(|_| ProgramError::InvalidArgument)?,
             )),
             DataSource::External => {
                 if bytes.len() < ExternalData::LEN {
-                    return Err(ProgramError::InvalidAccountData);
+                    return Err(ProgramError::InvalidArgument);
                 }
+                // SAFETY: `bytes` was validated to have the expected length
+                // to hold a `Data::External` reference.
                 Data::External(unsafe { &*(bytes.as_ptr() as *const ExternalData) })
             }
         })
     }
 
-    pub(crate) unsafe fn load_unchecked(data_source: DataSource, bytes: &'a [u8]) -> Data<'a> {
+    /// Return a `Data` from the given bytes.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure that `bytes` contains a valid representation of `Data`.
+    pub(crate) unsafe fn from_bytes_unchecked(
+        data_source: DataSource,
+        bytes: &'a [u8],
+    ) -> Data<'a> {
         match data_source {
             DataSource::Direct => Data::Direct(DirectData(bytes)),
             DataSource::Url => Data::Url(UrlData(core::str::from_utf8_unchecked(bytes))),

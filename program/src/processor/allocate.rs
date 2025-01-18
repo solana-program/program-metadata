@@ -94,7 +94,8 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
     }
 
     // Writes the buffer header.
-    let buffer_header = unsafe { Buffer::load_mut_unchecked(buffer.borrow_mut_data_unchecked()) };
+    let buffer_header =
+        unsafe { Buffer::from_bytes_mut_unchecked(buffer.borrow_mut_data_unchecked()) };
     buffer_header.discriminator = AccountDiscriminator::Buffer as u8;
 
     if is_pda {

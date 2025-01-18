@@ -52,7 +52,7 @@ pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
 
     // Update header.
     let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
-    let header = unsafe { Header::load_mut_unchecked(metadata_account_data) };
+    let header = unsafe { Header::from_bytes_mut_unchecked(metadata_account_data) };
     header.encoding = Encoding::try_from(args.encoding)? as u8;
     header.compression = Compression::try_from(args.compression)? as u8;
     header.format = Format::try_from(args.format)? as u8;

@@ -21,7 +21,7 @@ pub fn set_immutable(accounts: &[AccountInfo]) -> ProgramResult {
 
     // Make the metadata account immutable.
 
-    let header = unsafe { Header::load_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
+    let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
 
     if header.mutable() {
         header.mutable = 0;

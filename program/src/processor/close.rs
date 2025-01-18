@@ -34,7 +34,7 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
     if account.key() != authority.key() {
         match AccountDiscriminator::try_from(account_data[0])? {
             AccountDiscriminator::Buffer => {
-                let buffer = unsafe { Buffer::load_unchecked(account_data) };
+                let buffer = unsafe { Buffer::from_bytes_unchecked(account_data) };
                 validate_authority(buffer, authority, program, program_data)?
             }
             AccountDiscriminator::Metadata => {

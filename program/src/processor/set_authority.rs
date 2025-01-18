@@ -27,7 +27,7 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
     let header = validate_metadata(metadata)?;
     validate_authority(header, authority, program, program_data)?;
 
-    let header = unsafe { Header::load_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
+    let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
 
     if !header.canonical() {
         // TODO: use custom error (non canonical account)
