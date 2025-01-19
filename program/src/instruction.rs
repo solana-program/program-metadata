@@ -124,8 +124,11 @@ pub enum ProgramMetadataInstruction {
     /// It must be pre-funded with enough lamports to cover the storage
     /// cost.
     ///
-    /// This instruction is used when the data to be stored is greater than
-    /// the maximum size of a single realloc.
+    /// This instruction is used to setup up a buffer account before data can be
+    /// written to it. This is required when either initializing or updating a metadata
+    /// account with data that exceeds the maximum transaction size.
+    ///
+    /// A `seed` value is required for PDA buffer accounts.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -137,7 +140,7 @@ pub enum ProgramMetadataInstruction {
     ///
     /// Instruction data:
     ///
-    /// - `[u8; 16]`: (optional) seed
+    /// - `[u8; 16]`: seed (optional)
     Allocate,
 }
 

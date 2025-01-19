@@ -2,8 +2,8 @@ use pinocchio::program_error::ProgramError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProgramMetadataError {
-    /// 0 - Error deserializing an account
-    DeserializationError,
+    /// 0 - The program account is not executable.
+    NotExecutableAccount,
 }
 
 impl From<ProgramMetadataError> for ProgramError {

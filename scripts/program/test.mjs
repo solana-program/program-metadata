@@ -20,8 +20,8 @@ for (const folder of getProgramFolders()) {
   const manifestPath = path.join(workingDirectory, folder, 'Cargo.toml');
 
   if (hasSolfmt) {
-    await $`RUST_LOG=error cargo test-sbf --manifest-path ${manifestPath} ${testArgs} 2>&1 | solfmt`;
+    await $`cargo test-sbf --manifest-path ${manifestPath} ${testArgs} 2>&1 | solfmt`;
   } else {
-    await $`RUST_LOG=error cargo test-sbf --manifest-path ${manifestPath} ${testArgs}`;
+    await $`cargo test-sbf --manifest-path ${manifestPath} ${testArgs}`;
   }
 }
