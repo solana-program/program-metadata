@@ -35,6 +35,12 @@ const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const LOCALHOST_WEBSOCKET_URL = 'ws://127.0.0.1:8900';
 
 // Define the CLI program.
+type GlobalOptions = {
+  keypair?: string;
+  payer?: string;
+  rpc?: string;
+  priorityFees?: string;
+};
 const program = new Command();
 program
   .name('program-metadata')
@@ -42,26 +48,19 @@ program
   .version(__VERSION__)
   .option(
     '-k, --keypair <path>',
-    'Path to keypair file (default: solana config)'
+    'Path to keypair file. (default: solana config)'
   )
   .option(
     '-p, --payer <path>',
-    'Path to keypair file of transaction fee and storage payer (default: keypair)'
+    'Path to keypair file of transaction fee and storage payer. (default: keypair)'
   )
-  .option('--rpc <string>', 'RPC URL (default: solana config or localhost)')
+  .option('--rpc <string>', 'RPC URL. (default: solana config or localhost)')
   // TODO: Support priority fees.
   .option(
     '--priority-fees <number>',
     'Priority fees per compute unit for sending transactions',
     '100000'
   );
-
-type GlobalOptions = {
-  keypair?: string;
-  payer?: string;
-  rpc?: string;
-  priorityFees?: string;
-};
 
 // Upload metadata command.
 type UploadOptions = GlobalOptions & {
@@ -95,28 +94,28 @@ program
   )
   .option(
     '--account-offset <number>',
-    'The offset in which the data start on the provided account (default to 0).'
+    'The offset in which the data start on the provided account. (default: 0)'
   )
   .option(
     '--account-length <number>',
-    'The length of the data on the provided account (default: the rest of the data).'
+    'The length of the data on the provided account. (default: the rest of the data)'
   )
   .addOption(
     new Option(
       '--format <format>',
-      'The format of the provided data (default: the file extension or "none").'
+      'The format of the provided data. (default: the file extension or "none")'
     ).choices(['none', 'json', 'yaml', 'toml'])
   )
   .addOption(
     new Option(
       '--encoding <encoding>',
-      'Describes how to encode the data (default: "utf8").'
+      'Describes how to encode the data. (default: "utf8")'
     ).choices(['none', 'utf8', 'base58', 'base64'])
   )
   .addOption(
     new Option(
       '--compression <compression>',
-      'Describes how to compress the data (default: "zlib").'
+      'Describes how to compress the data. (default: "zlib")'
     ).choices(['none', 'gzip', 'zlib'])
   )
   // TODO: Support buffer-only uploads.
