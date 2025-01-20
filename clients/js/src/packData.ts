@@ -112,6 +112,14 @@ export function unpackUrlData(input: Omit<PackedData, 'dataSource'>): string {
   );
 }
 
+export async function unpackAndFetchUrlData(
+  input: Omit<PackedData, 'dataSource'>
+): Promise<string> {
+  const url = unpackUrlData(input);
+  const response = await fetch(url);
+  return await response.text();
+}
+
 export function unpackExternalData(data: ReadonlyUint8Array): {
   address: Address;
   offset?: number;
@@ -143,6 +151,21 @@ export async function unpackAndFetchExternalData(
     (d) => uncompressData(d, input.compression),
     (d) => decodeData(d, input.encoding)
   );
+}
+
+export async function unpackAndFetchData(
+  input: PackedData & { rpc: Rpc<GetAccountInfoApi> }
+): Promise<string> {
+  switch (input.dataSource) {
+    case DataSource.Direct:
+      return unpackDirectData(input);
+    case DataSource.Url:
+      return await unpackAndFetchUrlData(input);
+    case DataSource.External:
+      return await unpackAndFetchExternalData(input);
+    default:
+      throw new Error('Unsupported data source');
+  }
 }
 
 export function compressData(
