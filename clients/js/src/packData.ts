@@ -146,6 +146,9 @@ export async function unpackAndFetchExternalData(
   if (externalData.length !== undefined) {
     data = data.slice(0, externalData.length);
   }
+  if (data.length === 0) {
+    return '';
+  }
   return pipe(
     data,
     (d) => uncompressData(d, input.compression),
