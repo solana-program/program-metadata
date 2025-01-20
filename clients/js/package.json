@@ -14,6 +14,9 @@
       "require": "./dist/src/index.js"
     }
   },
+  "bin": {
+    "program-metadata": "./dist/src/cli.js"
+  },
   "files": [
     "./dist/src",
     "./dist/types"
@@ -46,7 +49,9 @@
   },
   "dependencies": {
     "@solana-program/system": "^0.6.2",
-    "pako": "^2.1.0"
+    "commander": "^13.0.0",
+    "pako": "^2.1.0",
+    "yaml": "^2.7.0"
   },
   "devDependencies": {
     "@ava/typescript": "^4.1.0",

@@ -15,6 +15,9 @@ export default defineConfig(() => [
   { ...SHARED_OPTIONS, format: 'cjs' },
   { ...SHARED_OPTIONS, format: 'esm' },
 
+  // CLI.
+  { ...SHARED_OPTIONS, format: 'cjs', entry: ['./src/cli.ts'] },
+
   // Tests.
   {
     ...SHARED_OPTIONS,
