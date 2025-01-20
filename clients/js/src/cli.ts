@@ -18,7 +18,7 @@ import {
   SolanaRpcSubscriptionsApi,
 } from '@solana/web3.js';
 import chalk from 'chalk';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { parse as parseYaml } from 'yaml';
 import { fetchMetadataWithContent } from './fetchMetadataWithContent';
 import { Compression, Encoding, Format } from './generated';
@@ -34,14 +34,6 @@ import { getProgramAuthority } from './utils';
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const LOCALHOST_WEBSOCKET_URL = 'ws://127.0.0.1:8900';
 
-// .addOption(new Option('-s, --secret').hideHelp())
-// .addOption(new Option('-t, --timeout <delay>', 'timeout in seconds').default(60, 'one minute'))
-// .addOption(new Option('-d, --drink <size>', 'drink size').choices(['small', 'medium', 'large']))
-// .addOption(new Option('-p, --port <number>', 'port number').env('PORT'))
-// .addOption(new Option('--donate [amount]', 'optional donation in dollars').preset('20').argParser(parseFloat))
-// .addOption(new Option('--disable-server', 'disables the server').conflicts('port'))
-// .addOption(new Option('--free-drink', 'small drink included free ').implies({ drink: 'small' }));
-
 // Define the CLI program.
 const program = new Command();
 program
@@ -50,13 +42,13 @@ program
   .version(__VERSION__)
   .option(
     '-k, --keypair <path>',
-    'Path to keypair file (defaults to solana config)'
+    'Path to keypair file (default: solana config)'
   )
   .option(
     '-p, --payer <path>',
-    'Path to keypair file of transaction fee and storage payer (defaults to keypair)'
+    'Path to keypair file of transaction fee and storage payer (default: keypair)'
   )
-  .option('--rpc <string>', 'RPC URL (defaults to solana config or localhost)')
+  .option('--rpc <string>', 'RPC URL (default: solana config or localhost)')
   // TODO: Support priority fees.
   .option(
     '--priority-fees <number>',
@@ -107,19 +99,25 @@ program
   )
   .option(
     '--account-length <number>',
-    'The length of the data on the provided account (defaults to the rest of the data).'
+    'The length of the data on the provided account (default: the rest of the data).'
   )
-  .option(
-    '--format <string>',
-    'The format of the provided data (defaults to the file extension or none).'
+  .addOption(
+    new Option(
+      '--format <format>',
+      'The format of the provided data (default: the file extension or "none").'
+    ).choices(['none', 'json', 'yaml', 'toml'])
   )
-  .option(
-    '--encoding <string>',
-    'Describes how to encode the data. Can be: `none` (i.e. base16), `utf8`, `base58` or `base64` (defaults to `utf8`).'
+  .addOption(
+    new Option(
+      '--encoding <encoding>',
+      'Describes how to encode the data (default: "utf8").'
+    ).choices(['none', 'utf8', 'base58', 'base64'])
   )
-  .option(
-    '--compression <string>',
-    'Describes how to compress the data. Can be: `none`, `gzip`, `zlib` (defaults to `zlib`).'
+  .addOption(
+    new Option(
+      '--compression <compression>',
+      'Describes how to compress the data (default: "zlib").'
+    ).choices(['none', 'gzip', 'zlib'])
   )
   // TODO: Support buffer-only uploads.
   .option(
