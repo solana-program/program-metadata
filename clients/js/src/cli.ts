@@ -203,6 +203,33 @@ program
   );
 
 program
+  .command('set-authority <seed> <program-id>')
+  .description(
+    'Set, update or remove an additional authority on canonical metadata accounts'
+  )
+  .action(async () => {
+    // TODO
+  });
+
+program
+  .command('set-immutable <seed> <program-id>')
+  .description(
+    'Make the metadata account immutable, preventing any further updates'
+  )
+  .action(async () => {
+    // TODO
+  });
+
+program
+  .command('trim <seed> <program-id>')
+  .description(
+    'Trim the metadata account data to the minimum required size and recover rent'
+  )
+  .action(async () => {
+    // TODO
+  });
+
+program
   .command('close <seed> <program-id>')
   .description('Close metadata account and recover rent')
   .action(async () => {
@@ -218,7 +245,7 @@ program
 
 program
   .command('list')
-  .description('List all metadata PDAs owned by an authority')
+  .description('List all metadata accounts owned by an authority')
   .action(async () => {
     // TODO
   });

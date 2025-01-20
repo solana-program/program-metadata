@@ -92,6 +92,8 @@ export function getUpdateMetadataInstructions(
     );
   }
 
+  // TODO: Use extend instruction if sizeDifference > 10KB.
+
   if (input.strategy.use === 'buffer') {
     currentInstructionBatch.push(
       getTransferSolInstruction({
