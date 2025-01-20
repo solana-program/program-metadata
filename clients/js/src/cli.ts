@@ -17,10 +17,10 @@ import {
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
 } from '@solana/web3.js';
-import { Command } from 'commander';
 import chalk from 'chalk';
+import { Command } from 'commander';
 import { parse as parseYaml } from 'yaml';
-import { upsertMetadata } from './upsertMetadata';
+import { fetchMetadataWithContent } from './fetchMetadataWithContent';
 import { Compression, Encoding, Format } from './generated';
 import {
   packDirectData,
@@ -28,7 +28,8 @@ import {
   packExternalData,
   packUrlData,
 } from './packData';
-import { fetchMetadataWithContent } from './fetchMetadataWithContent';
+import { upsertMetadata } from './upsertMetadata';
+import { getProgramAuthority } from './utils';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const LOCALHOST_WEBSOCKET_URL = 'ws://127.0.0.1:8900';
@@ -72,6 +73,7 @@ type GlobalOptions = {
 
 // Upload metadata command.
 type UploadOptions = GlobalOptions & {
+  thirdParty: boolean;
   file?: string;
   url?: string;
   account?: string;
@@ -80,11 +82,16 @@ type UploadOptions = GlobalOptions & {
   format?: string;
   encoding?: string;
   compression?: string;
-  bufferOnly?: boolean;
+  bufferOnly: boolean;
 };
 program
   .command('upload <seed> <program-id> [content]')
   .description('Upload metadata')
+  .option(
+    '--third-party',
+    'When provided, a non-canonical metadata account will be uploaded using the active keypair as the authority.',
+    false
+  )
   .option(
     '--file <string>',
     'The path to the file to upload (creates a "direct" data source).'
@@ -123,24 +130,32 @@ program
   .action(
     async (
       seed: string,
-      programId: string,
+      programAddress: string,
       content: string | undefined,
       options: UploadOptions
     ) => {
       const client = getClient(options);
       const [keypair, payer] = await getKeyPairSigners(options, client.configs);
-      // TODO: Ask to confirm before creating a non-canonical metadata account.
+      const { authority: programAuthority } = await getProgramAuthority(
+        client.rpc,
+        address(programAddress)
+      );
+      if (!options.thirdParty && keypair.address !== programAuthority) {
+        logErrorAndExit(
+          'You must be the program authority to upload a canonical metadata account. Use `--third-party` option to upload as a third party.'
+        );
+      }
       await upsertMetadata({
         ...client,
         ...getPackedData(content, options),
         payer,
         authority: keypair,
-        program: address(programId),
+        program: address(programAddress),
         seed,
         format: getFormat(options),
       });
       logSuccess(
-        `Metadata uploaded successfully for program ${chalk.bold(programId)} and seed "${chalk.bold(seed)}"!`
+        `Metadata uploaded successfully for program ${chalk.bold(programAddress)} and seed "${chalk.bold(seed)}"!`
       );
     }
   );
@@ -148,37 +163,46 @@ program
 // Download metadata command.
 type DownloadOptions = GlobalOptions & {
   output?: string;
-  authority?: string;
+  thirdParty?: string | true;
 };
 program
   .command('download <seed> <program-id>')
   .description('Download IDL to file')
   .option('-o, --output <path>', 'Path to save the IDL file')
   .option(
-    '--authority <address>',
-    'The authority that manages this metadata. That is, we are downloading a non-canonical metadata account.'
+    '--third-party [address]',
+    'When provided, a non-canonical metadata account will be downloaded using the provided address or the active keypair as the authority.',
+    false
   )
-  .action(async (seed: string, programId: string, options: DownloadOptions) => {
-    const client = getClient(options);
-    try {
-      const account = await fetchMetadataWithContent(
-        client.rpc,
-        address(programId),
-        seed,
-        options.authority ? address(options.authority) : undefined
-      );
-      const content = account.content;
-      if (options.output) {
-        fs.writeFileSync(options.output, content);
-        logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);
-      } else {
-        console.log(content);
+  .action(
+    async (seed: string, programAddress: string, options: DownloadOptions) => {
+      const client = getClient(options);
+      const authority =
+        options.thirdParty === true
+          ? (await getKeyPairSigners(options, client.configs))[0].address
+          : options.thirdParty
+            ? address(options.thirdParty)
+            : undefined;
+      try {
+        const account = await fetchMetadataWithContent(
+          client.rpc,
+          address(programAddress),
+          seed,
+          authority
+        );
+        const content = account.content;
+        if (options.output) {
+          fs.writeFileSync(options.output, content);
+          logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);
+        } else {
+          console.log(content);
+        }
+      } catch (error) {
+        if (isSolanaError(error)) logErrorAndExit(error.message);
+        throw error;
       }
-    } catch (error) {
-      if (isSolanaError(error)) logErrorAndExit(error.message);
-      throw error;
     }
-  });
+  );
 
 program
   .command('close <seed> <program-id>')
