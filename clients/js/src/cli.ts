@@ -190,6 +190,7 @@ program
         );
         const content = account.content;
         if (options.output) {
+          fs.mkdirSync(path.dirname(options.output), { recursive: true });
           fs.writeFileSync(options.output, content);
           logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);
         } else {
