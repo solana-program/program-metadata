@@ -91,7 +91,7 @@ test('it can close non-canonical metadata accounts', async (t) => {
   t.false(account.exists);
 });
 
-test.skip('it can close canonical buffers', async (t) => {
+test('it can close canonical buffers', async (t) => {
   // Given the following authority and deployed program.
   const client = createDefaultSolanaClient();
   const authority = await generateKeyPairSignerWithSol(client);
@@ -133,7 +133,7 @@ test.todo(
   'the current upgrade authority of program can close its canonical metadata account even if created by a different previous authority'
 );
 
-test.skip('it can close non-canonical buffers', async (t) => {
+test('it can close non-canonical buffers', async (t) => {
   // Given the following authority and deployed program.
   const client = createDefaultSolanaClient();
   const authority = await generateKeyPairSignerWithSol(client);
