@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@solana-program/system": "^0.6.2",
+    "chalk": "^4.1.0",
     "commander": "^13.0.0",
     "pako": "^2.1.0",
     "yaml": "^2.7.0"

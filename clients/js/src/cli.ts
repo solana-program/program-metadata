@@ -5,10 +5,12 @@ import os from 'os';
 import path from 'path';
 
 import {
+  address,
   Commitment,
   createKeyPairSignerFromBytes,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  isSolanaError,
   KeyPairSigner,
   Rpc,
   RpcSubscriptions,
@@ -16,10 +18,28 @@ import {
   SolanaRpcSubscriptionsApi,
 } from '@solana/web3.js';
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { parse as parseYaml } from 'yaml';
+import { upsertMetadata } from './upsertMetadata';
+import { Compression, Encoding, Format } from './generated';
+import {
+  packDirectData,
+  PackedData,
+  packExternalData,
+  packUrlData,
+} from './packData';
+import { fetchMetadataWithContent } from './fetchMetadataWithContent';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const LOCALHOST_WEBSOCKET_URL = 'ws://127.0.0.1:8900';
+
+// .addOption(new Option('-s, --secret').hideHelp())
+// .addOption(new Option('-t, --timeout <delay>', 'timeout in seconds').default(60, 'one minute'))
+// .addOption(new Option('-d, --drink <size>', 'drink size').choices(['small', 'medium', 'large']))
+// .addOption(new Option('-p, --port <number>', 'port number').env('PORT'))
+// .addOption(new Option('--donate [amount]', 'optional donation in dollars').preset('20').argParser(parseFloat))
+// .addOption(new Option('--disable-server', 'disables the server').conflicts('port'))
+// .addOption(new Option('--free-drink', 'small drink included free ').implies({ drink: 'small' }));
 
 // Define the CLI program.
 const program = new Command();
@@ -29,253 +49,159 @@ program
   .version(__VERSION__)
   .option(
     '-k, --keypair <path>',
-    'Path to keypair file (default to solana config)'
+    'Path to keypair file (defaults to solana config)'
   )
   .option(
     '-p, --payer <path>',
-    'Path to keypair file of transaction fee and storage payer (default to keypair)'
+    'Path to keypair file of transaction fee and storage payer (defaults to keypair)'
   )
-  .option('--rpc <string>', 'RPC URL (default to solana config or localhost)')
+  .option('--rpc <string>', 'RPC URL (defaults to solana config or localhost)')
+  // TODO: Support priority fees.
   .option(
     '--priority-fees <number>',
     'Priority fees per compute unit for sending transactions',
     '100000'
   );
 
-// Upload metadata command.
-program
-  .command('upload <seed> <program-id> <content>')
-  .description('Upload metadata')
-  // .option(
-  //   '-a, --add-signer-seed',
-  //   "Add signer's public key as additional seed. This will create a non associated metadata account. ",
-  //   false
-  // )
-  // .option(
-  //   '--export-transaction',
-  //   'Only create buffer and export setBuffer transaction'
-  // )
-  .action(async (/*file, programId, options*/) => {
-    // TODO: Ask to confirm before creating a non-canonical metadata account.
-    // try {
-    //   const rpcUrl = getRpcUrl(options);
-    //   const keypair = options.keypair
-    //     ? Keypair.fromSecretKey(
-    //         new Uint8Array(
-    //           JSON.parse(fs.readFileSync(options.keypair, 'utf-8'))
-    //         )
-    //       )
-    //     : loadDefaultKeypair();
-    //   const isAuthority = await checkProgramAuthority(
-    //     new PublicKey(programId),
-    //     keypair.publicKey,
-    //     rpcUrl
-    //   );
-    //   if (!isAuthority) {
-    //     console.warn(AUTHORITY_WARNING_MESSAGE);
-    //     return;
-    //   }
-    //   const result = await uploadIdlByJsonPath(
-    //     file,
-    //     new PublicKey(programId),
-    //     keypair,
-    //     rpcUrl,
-    //     parseInt(options.priorityFees),
-    //     options.addSignerSeed,
-    //     options.exportTransaction
-    //   );
-    //   if (options.exportTransaction && result) {
-    //     console.log(
-    //       'Exported setBuffer transaction with programAuthority as signer:'
-    //     );
-    //     console.log('Base58:', result.base58);
-    //     console.log('Base64:', result.base64);
-    //   } else {
-    //     console.log('IDL uploaded successfully!');
-    //   }
-    // } catch (error) {
-    //   console.error(
-    //     'Error:',
-    //     error instanceof Error ? error.message : 'Unknown error occurred'
-    //   );
-    //   process.exit(1);
-    // }
-  });
+type GlobalOptions = {
+  keypair?: string;
+  payer?: string;
+  rpc?: string;
+  priorityFees?: string;
+};
 
+// Upload metadata command.
+type UploadOptions = GlobalOptions & {
+  file?: string;
+  url?: string;
+  account?: string;
+  accountOffset?: string;
+  accountLength?: string;
+  format?: string;
+  encoding?: string;
+  compression?: string;
+  bufferOnly?: boolean;
+};
 program
-  .command('download <seed> <program-id> [output]')
-  .description('Download IDL to file')
+  .command('upload <seed> <program-id> [content]')
+  .description('Upload metadata')
   .option(
-    '-s, --signer <pubkey>',
-    'Additional signer public key to find non-associated PDAs'
+    '--file <string>',
+    'The path to the file to upload (creates a "direct" data source).'
   )
-  .action(async (/*seed, programId, output, options*/) => {
-    // try {
-    //   const rpcUrl = getRpcUrl(options);
-    //   const signerPubkey = options.signer
-    //     ? new PublicKey(options.signer)
-    //     : undefined;
-    //   const idl = await fetchIDL(
-    //     new PublicKey(programId),
-    //     rpcUrl,
-    //     signerPubkey
-    //   );
-    //   if (!idl) {
-    //     throw new Error('No IDL found');
-    //   }
-    //   fs.writeFileSync(output, idl ?? '');
-    //   console.log(`IDL downloaded to ${output}`);
-    // } catch (error) {
-    //   console.error(
-    //     'Error:',
-    //     error instanceof Error ? error.message : 'Unknown error occurred'
-    //   );
-    //   process.exit(1);
-    // }
+  .option('--url <string>', 'The url to upload (creates a "url" data source).')
+  .option(
+    '--account <address>',
+    'The account address to upload (creates an "external" data source).'
+  )
+  .option(
+    '--account-offset <number>',
+    'The offset in which the data start on the provided account (default to 0).'
+  )
+  .option(
+    '--account-length <number>',
+    'The length of the data on the provided account (defaults to the rest of the data).'
+  )
+  .option(
+    '--format <string>',
+    'The format of the provided data (defaults to the file extension or none).'
+  )
+  .option(
+    '--encoding <string>',
+    'Describes how to encode the data. Can be: `none` (i.e. base16), `utf8`, `base58` or `base64` (defaults to `utf8`).'
+  )
+  .option(
+    '--compression <string>',
+    'Describes how to compress the data. Can be: `none`, `gzip`, `zlib` (defaults to `zlib`).'
+  )
+  // TODO: Support buffer-only uploads.
+  .option(
+    '--buffer-only',
+    'Only create the buffer and export the transaction that sets the buffer.',
+    false
+  )
+  .action(
+    async (
+      seed: string,
+      programId: string,
+      content: string | undefined,
+      options: UploadOptions
+    ) => {
+      const client = getClient(options);
+      const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+      // TODO: Ask to confirm before creating a non-canonical metadata account.
+      await upsertMetadata({
+        ...client,
+        ...getPackedData(content, options),
+        payer,
+        authority: keypair,
+        program: address(programId),
+        seed,
+        format: getFormat(options),
+      });
+      logSuccess(
+        `Metadata uploaded successfully for program ${chalk.bold(programId)} and seed "${chalk.bold(seed)}"!`
+      );
+    }
+  );
+
+// Download metadata command.
+type DownloadOptions = GlobalOptions & {
+  output?: string;
+  authority?: string;
+};
+program
+  .command('download <seed> <program-id>')
+  .description('Download IDL to file')
+  .option('-o, --output <path>', 'Path to save the IDL file')
+  .option(
+    '--authority <address>',
+    'The authority that manages this metadata. That is, we are downloading a non-canonical metadata account.'
+  )
+  .action(async (seed: string, programId: string, options: DownloadOptions) => {
+    const client = getClient(options);
+    try {
+      const account = await fetchMetadataWithContent(
+        client.rpc,
+        address(programId),
+        seed,
+        options.authority ? address(options.authority) : undefined
+      );
+      const content = account.content;
+      if (options.output) {
+        fs.writeFileSync(options.output, content);
+        logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);
+      } else {
+        console.log(content);
+      }
+    } catch (error) {
+      if (isSolanaError(error)) logErrorAndExit(error.message);
+      throw error;
+    }
   });
 
 program
   .command('close <seed> <program-id>')
   .description('Close metadata account and recover rent')
   .action(async () => {
-    // try {
-    //   const rpcUrl = getRpcUrl(options);
-    //   const keypair = options.keypair
-    //     ? Keypair.fromSecretKey(
-    //         new Uint8Array(
-    //           JSON.parse(fs.readFileSync(options.keypair, 'utf-8'))
-    //         )
-    //       )
-    //     : loadDefaultKeypair();
-    //   const isAuthority = await checkProgramAuthority(
-    //     new PublicKey(programId),
-    //     keypair.publicKey,
-    //     rpcUrl
-    //   );
-    //   if (!isAuthority) {
-    //     console.warn(AUTHORITY_WARNING_MESSAGE);
-    //     return;
-    //   }
-    //   await closeProgramMetadata2(
-    //     new PublicKey(programId),
-    //     keypair,
-    //     rpcUrl,
-    //     options.seed,
-    //     parseInt(options.priorityFees),
-    //     options.addSignerSeed
-    //   );
-    //   console.log('Metadata account closed successfully!');
-    // } catch (error) {
-    //   console.error(
-    //     'Error:',
-    //     error instanceof Error ? error.message : 'Unknown error occurred'
-    //   );
-    //   process.exit(1);
-    // }
+    // TODO
   });
 
 program
   .command('list-buffers')
   .description('List all buffer accounts owned by an authority')
   .action(async () => {
-    //     try {
-    //       const rpcUrl = getRpcUrl(options);
-    //       const keypair = options.keypair
-    //         ? Keypair.fromSecretKey(
-    //             new Uint8Array(
-    //               JSON.parse(fs.readFileSync(options.keypair, 'utf-8'))
-    //             )
-    //           )
-    //         : loadDefaultKeypair();
-    //       const buffers = await listBuffers(keypair.publicKey, rpcUrl);
-    //       if (buffers.length === 0) {
-    //         console.log('No buffers found for this authority');
-    //         return;
-    //       }
-    //       console.log('\nFound buffers:');
-    //       buffers.forEach(
-    //         ({
-    //           address,
-    //           dataLength,
-    //           dataType,
-    //           encoding,
-    //           compression,
-    //           format,
-    //           dataSource,
-    //         }) => {
-    //           console.log(`\n
-    // Address: ${address.toBase58()}
-    // Data Length: ${dataLength} bytes
-    // Data Type: ${dataType}
-    // Encoding: ${JSON.stringify(encoding, null, 2)}
-    // Compression: ${JSON.stringify(compression, null, 2)}
-    // Format: ${JSON.stringify(format, null, 2)}
-    // Data Source: ${JSON.stringify(dataSource, null, 2)}
-    // `);
-    //         }
-    //       );
-    //     } catch (error) {
-    //       console.error(
-    //         'Error:',
-    //         error instanceof Error ? error.message : 'Unknown error occurred'
-    //       );
-    //       process.exit(1);
-    //     }
+    // TODO
   });
 
 program
   .command('list')
   .description('List all metadata PDAs owned by an authority')
   .action(async () => {
-    //     try {
-    //       const rpcUrl = getRpcUrl(options);
-    //       const keypair = options.keypair
-    //         ? Keypair.fromSecretKey(
-    //             new Uint8Array(
-    //               JSON.parse(fs.readFileSync(options.keypair, 'utf-8'))
-    //             )
-    //           )
-    //         : loadDefaultKeypair();
-    //       const pdas = await listPDAs(keypair.publicKey, rpcUrl);
-    //       if (pdas.length === 0) {
-    //         console.log('No PDAs found for this authority');
-    //         return;
-    //       }
-    //       console.log('\nFound PDAs:');
-    //       pdas.forEach(
-    //         ({
-    //           address,
-    //           dataLength,
-    //           dataType,
-    //           programId,
-    //           encoding,
-    //           compression,
-    //           format,
-    //           dataSource,
-    //         }) => {
-    //           console.log(
-    //             `\n
-    // Address: ${address.toBase58()}
-    // Program ID: ${programId.toBase58()}
-    // Data Length: ${dataLength} bytes
-    // Data Type: ${dataType}
-    // Encoding: ${JSON.stringify(encoding, null, 2)}
-    // Compression: ${JSON.stringify(compression, null, 2)}
-    // Format: ${JSON.stringify(format, null, 2)}
-    // Data Source: ${JSON.stringify(dataSource, null, 2)}`
-    //           );
-    //         }
-    //       );
-    //     } catch (error) {
-    //       console.error(
-    //         'Error:',
-    //         error instanceof Error ? error.message : 'Unknown error occurred'
-    //       );
-    //       process.exit(1);
-    //     }
+    // TODO
   });
 
-export async function getKeyPairSigners(
+async function getKeyPairSigners(
   options: { keypair?: string; payer?: string },
   configs: SolanaConfigs
 ): Promise<[KeyPairSigner, KeyPairSigner]> {
@@ -300,7 +226,7 @@ async function getKeyPairSignerFromPath(
   keypairPath: string
 ): Promise<KeyPairSigner> {
   if (!fs.existsSync(keypairPath)) {
-    throw new Error(`Keypair file not found at: ${keypairPath}`);
+    logErrorAndExit(`Keypair file not found at: ${keypairPath}`);
   }
   const keypairString = fs.readFileSync(keypairPath, 'utf-8');
   const keypairData = new Uint8Array(JSON.parse(keypairString));
@@ -313,7 +239,7 @@ type Client = {
   configs: SolanaConfigs;
 };
 
-export function getClient(options: { rpc?: string }): Client {
+function getClient(options: { rpc?: string }): Client {
   const configs = getSolanaConfigs();
   const rpcUrl = getRpcUrl(options, configs);
   const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
@@ -349,7 +275,7 @@ type SolanaConfigs = {
 function getSolanaConfigs(): SolanaConfigs {
   const path = getSolanaConfigPath();
   if (!fs.existsSync(path)) {
-    console.warn('Solana config file not found');
+    logWarning('Solana config file not found');
     return {};
   }
   return parseYaml(fs.readFileSync(getSolanaConfigPath(), 'utf8'));
@@ -357,6 +283,140 @@ function getSolanaConfigs(): SolanaConfigs {
 
 function getSolanaConfigPath(): string {
   return path.join(os.homedir(), '.config', 'solana', 'cli', 'config.yml');
+}
+
+function getCompression(options: { compression?: string }): Compression {
+  switch (options.compression) {
+    case 'none':
+      return Compression.None;
+    case 'gzip':
+      return Compression.Gzip;
+    case undefined:
+    case 'zlib':
+      return Compression.Zlib;
+    default:
+      logErrorAndExit(`Invalid compression option: ${options.compression}`);
+  }
+}
+
+function getEncoding(options: { encoding?: string }): Encoding {
+  switch (options.encoding) {
+    case 'none':
+      return Encoding.None;
+    case undefined:
+    case 'utf8':
+      return Encoding.Utf8;
+    case 'base58':
+      return Encoding.Base58;
+    case 'base64':
+      return Encoding.Base64;
+    default:
+      logErrorAndExit(`Invalid encoding option: ${options.encoding}`);
+  }
+}
+
+function getFormat(options: { format?: string; file?: string }): Format {
+  switch (options.format) {
+    case undefined:
+      return getFormatFromFile(options.file);
+    case 'none':
+      return Format.None;
+    case 'json':
+      return Format.Json;
+    case 'yaml':
+      return Format.Yaml;
+    case 'toml':
+      return Format.Toml;
+    default:
+      logErrorAndExit(`Invalid format option: ${options.format}`);
+  }
+}
+
+function getFormatFromFile(file: string | undefined): Format {
+  if (!file) return Format.None;
+  const extension = path.extname(file);
+  switch (extension) {
+    case '.json':
+      return Format.Json;
+    case '.yaml':
+    case '.yml':
+      return Format.Yaml;
+    case '.toml':
+      return Format.Toml;
+    default:
+      return Format.None;
+  }
+}
+
+function getPackedData(
+  content: string | undefined,
+  options: UploadOptions
+): PackedData {
+  const compression = getCompression(options);
+  const encoding = getEncoding(options);
+  let packData: PackedData | null = null;
+  const assertSingleUse = () => {
+    if (packData) {
+      logErrorAndExit(
+        'Multiple data sources provided. Use only one of: `[content]`, `--file <filepath>`, `--url <url>` or `--account <address>` to provide data.'
+      );
+    }
+  };
+
+  if (content) {
+    packData = packDirectData({ content, compression, encoding });
+  }
+  if (options.file) {
+    assertSingleUse();
+    if (!fs.existsSync(options.file)) {
+      logErrorAndExit(`File not found: ${options.file}`);
+    }
+    const fileContent = fs.readFileSync(options.file, 'utf-8');
+    packData = packDirectData({ content: fileContent, compression, encoding });
+  }
+  if (options.url) {
+    assertSingleUse();
+    packData = packUrlData({ url: options.url, compression, encoding });
+  }
+  if (options.account) {
+    assertSingleUse();
+    packData = packExternalData({
+      address: address(options.account),
+      offset: options.accountOffset
+        ? parseInt(options.accountOffset)
+        : undefined,
+      length: options.accountLength
+        ? parseInt(options.accountLength)
+        : undefined,
+      compression,
+      encoding,
+    });
+  }
+
+  if (!packData) {
+    logErrorAndExit(
+      'No data provided. Use `[content]`, `--file <filepath>`, `--url <url>` or `--account <address>` to provide data.'
+    );
+  }
+
+  return packData;
+}
+
+function logSuccess(message: string): void {
+  console.warn(chalk.green(`[Success] `) + message);
+}
+
+function logWarning(message: string): void {
+  console.warn(chalk.yellow(`[Warning] `) + message);
+}
+
+function logError(message: string): void {
+  console.error(chalk.red(`[Error] `) + message);
+}
+
+function logErrorAndExit(message: string): never {
+  logError(message);
+  process.exit(1);
 }
 
 program.parse();

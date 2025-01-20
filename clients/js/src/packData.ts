@@ -25,7 +25,7 @@ import {
   getExternalDataEncoder,
 } from './generated';
 
-type PackedData = {
+export type PackedData = {
   compression: Compression;
   encoding: Encoding;
   dataSource: DataSource;
