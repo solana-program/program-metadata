@@ -10,7 +10,7 @@ import {
   findCanonicalPda,
   Format,
   Metadata,
-  upsertMetadata,
+  uploadMetadata,
 } from '../src';
 import {
   createDefaultSolanaClient,
@@ -28,9 +28,9 @@ test('it creates a new metadata account if it does not exist', async (t) => {
   const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
   t.false((await fetchEncodedAccount(client.rpc, metadata)).exists);
 
-  // When we upsert this canonical metadata account.
+  // When we upload this canonical metadata account.
   const data = getUtf8Encoder().encode('Some data');
-  await upsertMetadata({
+  await uploadMetadata({
     ...client,
     payer: authority,
     authority,
@@ -81,9 +81,9 @@ test('it updates a metadata account if it exists', async (t) => {
     data: getUtf8Encoder().encode('OLD'),
   });
 
-  // When we upsert this canonical metadata account with different data.
+  // When we upload this canonical metadata account with different data.
   const newData = getUtf8Encoder().encode('NEW DATA WITH MORE BYTES');
-  const metadata = await upsertMetadata({
+  const metadata = await uploadMetadata({
     ...client,
     payer: authority,
     authority,

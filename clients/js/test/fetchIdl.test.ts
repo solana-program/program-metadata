@@ -1,6 +1,6 @@
 import { address } from '@solana/web3.js';
 import test from 'ava';
-import { fetchIdl, Format, packDirectData, upsertMetadata } from '../src';
+import { fetchIdl, Format, packDirectData, uploadMetadata } from '../src';
 import {
   createDefaultSolanaClient,
   createDeployedProgram,
@@ -15,7 +15,7 @@ test('it fetches and parses direct IDLs from canonical metadata accounts', async
 
   // And given the following IDL exists for the program.
   const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
-  await upsertMetadata({
+  await uploadMetadata({
     ...client,
     ...packDirectData({ content: idl }),
     payer: authority,
@@ -44,7 +44,7 @@ test('it fetches and parses direct IDLs from non-canonical metadata accounts', a
 
   // And given the following IDL exists for the program.
   const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
-  await upsertMetadata({
+  await uploadMetadata({
     ...client,
     ...packDirectData({ content: idl }),
     payer: authority,

@@ -11,7 +11,7 @@ import {
 } from './updateMetadata';
 import { getAccountSize, MetadataInput } from './utils';
 
-export async function upsertMetadata(input: MetadataInput) {
+export async function uploadMetadata(input: MetadataInput) {
   const pdaDetails = await getPdaDetails(input);
   const metadataAccount = await fetchMaybeMetadata(
     input.rpc,
