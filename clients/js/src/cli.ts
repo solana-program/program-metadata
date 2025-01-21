@@ -20,7 +20,7 @@ import {
 import chalk from 'chalk';
 import { Command, Option } from 'commander';
 import { parse as parseYaml } from 'yaml';
-import { fetchMetadataWithContent } from './fetchMetadataWithContent';
+import { downloadMetadata } from './downloadMetadata';
 import { Compression, Encoding, Format } from './generated';
 import {
   packDirectData,
@@ -181,13 +181,12 @@ program
             ? address(options.thirdParty)
             : undefined;
       try {
-        const account = await fetchMetadataWithContent(
+        const content = await downloadMetadata(
           client.rpc,
           address(programAddress),
           seed,
           authority
         );
-        const content = account.content;
         if (options.output) {
           fs.mkdirSync(path.dirname(options.output), { recursive: true });
           fs.writeFileSync(options.output, content);

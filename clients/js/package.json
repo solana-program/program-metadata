@@ -48,6 +48,7 @@
     "@solana/web3.js": "^2.0.0"
   },
   "dependencies": {
+    "@iarna/toml": "^2.2.5",
     "@solana-program/system": "^0.6.2",
     "chalk": "^4.1.0",
     "commander": "^13.0.0",

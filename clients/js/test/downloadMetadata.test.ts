@@ -1,6 +1,11 @@
 import { address } from '@solana/web3.js';
 import test from 'ava';
-import { fetchIdl, Format, packDirectData, uploadMetadata } from '../src';
+import {
+  downloadAndParseMetadata,
+  Format,
+  packDirectData,
+  uploadMetadata,
+} from '../src';
 import {
   createDefaultSolanaClient,
   createDeployedProgram,
@@ -26,7 +31,7 @@ test('it fetches and parses direct IDLs from canonical metadata accounts', async
   });
 
   // When we fetch the canonical IDL for the program.
-  const result = await fetchIdl(client.rpc, program);
+  const result = await downloadAndParseMetadata(client.rpc, program, 'idl');
 
   // Then we expect the following IDL to be fetched and parsed.
   t.deepEqual(result, {
@@ -55,7 +60,12 @@ test('it fetches and parses direct IDLs from non-canonical metadata accounts', a
   });
 
   // When we fetch the non-canonical IDL for the program.
-  const result = await fetchIdl(client.rpc, program, authority.address);
+  const result = await downloadAndParseMetadata(
+    client.rpc,
+    program,
+    'idl',
+    authority.address
+  );
 
   // Then we expect the following IDL to be fetched and parsed.
   t.deepEqual(result, {
