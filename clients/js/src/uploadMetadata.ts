@@ -1,5 +1,9 @@
 import { lamports } from '@solana/web3.js';
-import { getCreateMetadataInstructions } from './createMetadata';
+import {
+  CreateMetadataStrategy,
+  getCreateMetadataInstructions,
+  SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER,
+} from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
 import {
   getPdaDetails,
@@ -23,7 +27,11 @@ export async function uploadMetadata(input: MetadataInput) {
     const rent = await input.rpc
       .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
       .send();
-    const extendedInput = { rent, ...input, ...pdaDetails };
+    const strategy: CreateMetadataStrategy =
+      input.data.length >= SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER
+        ? { use: 'buffer', extractLastTransaction: false }
+        : { use: 'instructionData' };
+    const extendedInput = { rent, strategy, ...input, ...pdaDetails };
     const instructions = getCreateMetadataInstructions(extendedInput);
     await sendInstructionsInSequentialTransactions({ instructions, ...input });
     return extendedInput.metadata;

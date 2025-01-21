@@ -50,9 +50,14 @@ export async function updateMetadata(input: MetadataInput) {
   return extendedInput.metadata;
 }
 
-type UpdateMetadataStrategy =
+export type UpdateMetadataStrategy =
   | { use: 'instructionData' }
-  | { use: 'buffer'; rent: Lamports; buffer: TransactionSigner };
+  | {
+      use: 'buffer';
+      bufferRent: Lamports;
+      buffer: TransactionSigner;
+      extractLastTransaction: boolean; // TODO: use this.
+    };
 
 export async function getUpdateMetadataStrategy(
   rpc: Rpc<GetMinimumBalanceForRentExemptionApi>,
@@ -65,7 +70,12 @@ export async function getUpdateMetadataStrategy(
       generateKeyPairSigner(),
       rpc.getMinimumBalanceForRentExemption(newAccountSize).send(),
     ]);
-    return { use: 'buffer', rent, buffer };
+    return {
+      use: 'buffer',
+      bufferRent: rent,
+      buffer,
+      extractLastTransaction: false,
+    };
   }
   return { use: 'instructionData' };
 }
@@ -99,7 +109,7 @@ export function getUpdateMetadataInstructions(
       getTransferSolInstruction({
         source: input.payer,
         destination: input.strategy.buffer.address,
-        amount: input.strategy.rent,
+        amount: input.strategy.bufferRent,
       }),
       getAllocateInstruction({
         buffer: input.strategy.buffer.address,

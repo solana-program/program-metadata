@@ -16,7 +16,7 @@ import {
 } from './internals';
 import { getAccountSize, MetadataInput } from './utils';
 
-const SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER = 200;
+export const SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER = 200;
 const WRITE_CHUNK_SIZE = 1000;
 
 export async function createMetadata(input: MetadataInput) {
@@ -26,15 +26,29 @@ export async function createMetadata(input: MetadataInput) {
       .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
       .send(),
   ]);
-  const extendedInput = { rent, ...input, ...pdaDetails };
+  const strategy: CreateMetadataStrategy =
+    input.data.length >= SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER
+      ? { use: 'buffer', extractLastTransaction: false }
+      : { use: 'instructionData' };
+  const extendedInput = { rent, strategy, ...input, ...pdaDetails };
   const instructions = getCreateMetadataInstructions(extendedInput);
   await sendInstructionsInSequentialTransactions({ instructions, ...input });
   return extendedInput.metadata;
 }
 
+export type CreateMetadataStrategy =
+  | { use: 'instructionData' }
+  | {
+      use: 'buffer';
+      extractLastTransaction: boolean; // TODO: use this.
+    };
+
 export function getCreateMetadataInstructions(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
-    PdaDetails & { rent: Lamports }
+    PdaDetails & {
+      rent: Lamports;
+      strategy: CreateMetadataStrategy;
+    }
 ) {
   const instructions: IInstruction[][] = [];
   let currentInstructionBatch: IInstruction[] = [];
@@ -46,10 +60,7 @@ export function getCreateMetadataInstructions(
     })
   );
 
-  const useBuffer =
-    input.data.length >= SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER;
-
-  if (useBuffer) {
+  if (input.strategy.use === 'buffer') {
     currentInstructionBatch.push(
       getAllocateInstruction({
         buffer: input.metadata,
@@ -85,10 +96,11 @@ export function getCreateMetadataInstructions(
       compression: input.compression,
       format: input.format,
       dataSource: input.dataSource,
-      data: useBuffer ? null : input.data,
-      system: useBuffer
-        ? PROGRAM_METADATA_PROGRAM_ADDRESS
-        : SYSTEM_PROGRAM_ADDRESS,
+      data: input.strategy.use === 'buffer' ? null : input.data,
+      system:
+        input.strategy.use === 'buffer'
+          ? PROGRAM_METADATA_PROGRAM_ADDRESS
+          : SYSTEM_PROGRAM_ADDRESS,
     })
   );
 
