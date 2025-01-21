@@ -40,6 +40,7 @@ import {
   type OptionOrNullable,
   type ReadonlyUint8Array,
 } from '@solana/web3.js';
+import { MetadataSeeds, findMetadataPda } from '../pdas';
 import {
   AccountDiscriminator,
   getAccountDiscriminatorDecoder,
@@ -171,4 +172,24 @@ export async function fetchAllMaybeBuffer(
 ): Promise<MaybeAccount<Buffer>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeBuffer(maybeAccount));
+}
+
+export async function fetchBufferFromSeeds(
+  rpc: Parameters<typeof fetchEncodedAccount>[0],
+  seeds: MetadataSeeds,
+  config: FetchAccountConfig & { programAddress?: Address } = {}
+): Promise<Account<Buffer>> {
+  const maybeAccount = await fetchMaybeBufferFromSeeds(rpc, seeds, config);
+  assertAccountExists(maybeAccount);
+  return maybeAccount;
+}
+
+export async function fetchMaybeBufferFromSeeds(
+  rpc: Parameters<typeof fetchEncodedAccount>[0],
+  seeds: MetadataSeeds,
+  config: FetchAccountConfig & { programAddress?: Address } = {}
+): Promise<MaybeAccount<Buffer>> {
+  const { programAddress, ...fetchConfig } = config;
+  const [address] = await findMetadataPda(seeds, { programAddress });
+  return await fetchMaybeBuffer(rpc, address, fetchConfig);
 }

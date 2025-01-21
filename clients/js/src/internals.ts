@@ -22,7 +22,7 @@ import {
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/web3.js';
-import { findCanonicalPda, findNonCanonicalPda, SeedArgs } from './generated';
+import { findMetadataPda, SeedArgs } from './generated';
 import { getProgramAuthority } from './utils';
 
 export type PdaDetails = {
@@ -46,14 +46,11 @@ export async function getPdaDetails(input: {
     input.program
   );
   const isCanonical = !!authority && authority === authorityAddress;
-  const [metadata] = isCanonical
-    ? await findCanonicalPda({ program: input.program, seed: input.seed })
-    : await findNonCanonicalPda({
-        program: input.program,
-        authority: authorityAddress,
-        seed: input.seed,
-      });
-
+  const [metadata] = await findMetadataPda({
+    program: input.program,
+    authority: isCanonical ? null : authorityAddress,
+    seed: input.seed,
+  });
   return { metadata, isCanonical, programData };
 }
 

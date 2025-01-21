@@ -57,6 +57,38 @@
             "type": { "kind": "definedTypeLinkNode", "name": "seed" }
           }
         ]
+      },
+      {
+        "kind": "pdaNode",
+        "name": "metadata",
+        "docs": [
+          "The derivation for metadata accounts, canonical or not, depending if an authority is provided."
+        ],
+        "seeds": [
+          {
+            "kind": "variablePdaSeedNode",
+            "name": "program",
+            "docs": ["The program to which the metadata belongs."],
+            "type": { "kind": "publicKeyTypeNode" }
+          },
+          {
+            "kind": "variablePdaSeedNode",
+            "name": "authority",
+            "docs": [
+              "The third-party authority managing this metadata account, if non-canonical."
+            ],
+            "type": {
+              "kind": "remainderOptionTypeNode",
+              "item": { "kind": "publicKeyTypeNode" }
+            }
+          },
+          {
+            "kind": "variablePdaSeedNode",
+            "name": "seed",
+            "docs": ["The seed deriving the metadata account."],
+            "type": { "kind": "definedTypeLinkNode", "name": "seed" }
+          }
+        ]
       }
     ],
     "accounts": [
@@ -134,7 +166,8 @@
               "type": { "kind": "bytesTypeNode" }
             }
           ]
-        }
+        },
+        "pda": { "kind": "pdaLinkNode", "name": "metadata" }
       },
       {
         "kind": "accountNode",
@@ -254,7 +287,8 @@
               "type": { "kind": "bytesTypeNode" }
             }
           ]
-        }
+        },
+        "pda": { "kind": "pdaLinkNode", "name": "metadata" }
       }
     ],
     "instructions": [

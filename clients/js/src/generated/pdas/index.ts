@@ -7,4 +7,5 @@
  */
 
 export * from './canonical';
+export * from './metadata';
 export * from './nonCanonical';
