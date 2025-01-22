@@ -118,6 +118,13 @@ async function getProgramAuthorityForLoaderV3(
   const programDataAccount = await fetchEncodedAccount(rpc, programData);
   assertAccountExists(programDataAccount);
 
+  // Ensure the program data account is not executable.
+  if (programDataAccount.executable) {
+    throw Error(
+      'The data account associated with the program account must not be executable'
+    );
+  }
+
   // Decode the program and program data accounts.
   const [programDecoder, programDataDecoder] = getLoaderV3Decoders();
   const programAccountData = programDecoder.decode(programAccount.data);
