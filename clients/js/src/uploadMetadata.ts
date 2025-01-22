@@ -1,6 +1,11 @@
+import { sendAndConfirmTransactionFactory } from '@solana/web3.js';
 import { getCreateMetadataInstructions } from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
-import { getPdaDetails, sendInstructionPlan } from './internals';
+import {
+  getDefaultCreateMessage,
+  getPdaDetails,
+  sendInstructionPlan,
+} from './internals';
 import { getUpdateMetadataInstructions } from './updateMetadata';
 import { MetadataInput } from './utils';
 
@@ -15,7 +20,10 @@ export async function uploadMetadata(input: MetadataInput) {
   // Create metadata if it doesn't exist.
   if (!metadataAccount.exists) {
     const plan = await getCreateMetadataInstructions(extendedInput);
-    await sendInstructionPlan(plan);
+    const createMessage =
+      input.createMessage ?? getDefaultCreateMessage(input.rpc, input.payer);
+    const sendAndConfirm = sendAndConfirmTransactionFactory(input);
+    await sendInstructionPlan(plan, createMessage, sendAndConfirm);
     return { metadata: extendedInput.metadata };
   }
 
@@ -23,10 +31,13 @@ export async function uploadMetadata(input: MetadataInput) {
   if (!metadataAccount.data.mutable) {
     throw new Error('Metadata account is immutable');
   }
-  const plan = getUpdateMetadataInstructions({
+  const plan = await getUpdateMetadataInstructions({
     ...extendedInput,
     currentDataLength: BigInt(metadataAccount.data.data.length),
   });
-  await sendInstructionPlan(plan);
+  const createMessage =
+    input.createMessage ?? getDefaultCreateMessage(input.rpc, input.payer);
+  const sendAndConfirm = sendAndConfirmTransactionFactory(input);
+  await sendInstructionPlan(plan, createMessage, sendAndConfirm);
   return { metadata: extendedInput.metadata };
 }

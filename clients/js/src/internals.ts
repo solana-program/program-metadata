@@ -5,20 +5,14 @@ import {
   CompilableTransactionMessage,
   createTransactionMessage,
   GetAccountInfoApi,
-  GetEpochInfoApi,
   GetLatestBlockhashApi,
-  GetSignatureStatusesApi,
   IInstruction,
   pipe,
   Rpc,
-  RpcSubscriptions,
   sendAndConfirmTransactionFactory,
-  SendTransactionApi,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  SignatureNotificationsApi,
   signTransactionMessageWithSigners,
-  SlotNotificationsApi,
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/web3.js';
@@ -54,39 +48,46 @@ export async function getPdaDetails(input: {
   return { metadata, isCanonical, programData };
 }
 
-export async function sendInstructionsInSequentialTransactions(input: {
-  rpc: Rpc<
-    GetLatestBlockhashApi &
-      GetEpochInfoApi &
-      GetSignatureStatusesApi &
-      SendTransactionApi
-  >;
-  rpcSubscriptions: RpcSubscriptions<
-    SignatureNotificationsApi & SlotNotificationsApi
-  >;
-  payer: TransactionSigner;
-  instructions: IInstruction[][];
-}) {
-  const sendAndConfirm = sendAndConfirmTransactionFactory(input);
-  for (const instructions of input.instructions) {
-    await pipe(
-      await getBaseTransactionMessage(input.rpc, input.payer),
-      (tx) => appendTransactionMessageInstructions(instructions, tx),
-      (tx) => signAndSendTransaction(tx, sendAndConfirm)
-    );
-  }
-}
-
-async function getBaseTransactionMessage(
+export function getDefaultCreateMessage(
   rpc: Rpc<GetLatestBlockhashApi>,
   payer: TransactionSigner
-) {
-  const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-  return pipe(
-    createTransactionMessage({ version: 0 }),
-    (tx) => setTransactionMessageFeePayerSigner(payer, tx),
-    (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx)
-  );
+): () => Promise<
+  CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
+> {
+  const getBlockhash = getTimedCacheFunction(async () => {
+    const { value } = await rpc.getLatestBlockhash().send();
+    return value;
+  }, 60_000);
+  return async () => {
+    const latestBlockhash = await getBlockhash();
+    return pipe(
+      createTransactionMessage({ version: 0 }),
+      (tx) => setTransactionMessageFeePayerSigner(payer, tx),
+      (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx)
+    );
+  };
+}
+
+function getTimedCacheFunction<T>(
+  fn: () => Promise<T>,
+  timeoutInMilliseconds: number
+): () => Promise<T> {
+  let cache: T | null = null;
+  let cacheExpiryTimer: NodeJS.Timeout | null = null;
+  return async () => {
+    // Cache hit.
+    if (cache && cacheExpiryTimer) {
+      return cache;
+    }
+
+    // Cache miss.
+    cache = await fn();
+    cacheExpiryTimer = setTimeout(() => {
+      cache = null;
+      cacheExpiryTimer = null;
+    }, timeoutInMilliseconds);
+    return cache;
+  };
 }
 
 async function signAndSendTransaction(

@@ -1,8 +1,10 @@
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
   generateKeyPairSigner,
+  isTransactionSigner,
   lamports,
   Lamports,
+  sendAndConfirmTransactionFactory,
   TransactionSigner,
 } from '@solana/web3.js';
 import {
@@ -12,18 +14,21 @@ import {
   getWriteInstruction,
 } from './generated';
 import {
+  getDefaultCreateMessage,
   getPdaDetails,
   InstructionPlan,
   MessageInstructionPlan,
   PdaDetails,
   sendInstructionPlan,
 } from './internals';
-import { getAccountSize, MetadataInput } from './utils';
+import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
 const SIZE_THRESHOLD_FOR_UPDATING_WITH_BUFFER = 200;
 const WRITE_CHUNK_SIZE = 900;
 
-export async function updateMetadata(input: MetadataInput) {
+export async function updateMetadata(
+  input: MetadataInput
+): Promise<MetadataResponse> {
   const pdaDetails = await getPdaDetails(input);
   const metadataAccount = await fetchMetadata(input.rpc, pdaDetails.metadata);
   if (!metadataAccount.data.mutable) {
@@ -34,9 +39,12 @@ export async function updateMetadata(input: MetadataInput) {
     ...input,
     ...pdaDetails,
   };
-  const plan = getUpdateMetadataInstructions(extendedInput);
-  await sendInstructionPlan(plan);
-  return extendedInput.metadata;
+  const plan = await getUpdateMetadataInstructions(extendedInput);
+  const createMessage =
+    input.createMessage ?? getDefaultCreateMessage(input.rpc, input.payer);
+  const sendAndConfirm = sendAndConfirmTransactionFactory(input);
+  await sendInstructionPlan(plan, createMessage, sendAndConfirm);
+  return { metadata: extendedInput.metadata };
 }
 
 export async function getUpdateMetadataInstructions(
@@ -62,7 +70,9 @@ export async function getUpdateMetadataInstructions(
 
   const newAccountSize = getAccountSize(newDataLength);
   const [buffer, bufferRent] = await Promise.all([
-    generateKeyPairSigner(),
+    typeof input.buffer === 'object' && isTransactionSigner(input.buffer)
+      ? Promise.resolve(input.buffer)
+      : generateKeyPairSigner(),
     input.rpc.getMinimumBalanceForRentExemption(newAccountSize).send(),
   ]);
   return getUpdateMetadataInstructionsUsingBuffer({
@@ -112,7 +122,7 @@ export function getUpdateMetadataInstructionsUsingInstructionData(
 }
 
 export function getUpdateMetadataInstructionsUsingBuffer(
-  input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
+  input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions' | 'buffer'> &
     PdaDetails & {
       chunkSize: number;
       sizeDifference: bigint;
