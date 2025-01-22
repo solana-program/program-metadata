@@ -24,7 +24,7 @@ test('it creates a canonical metadata account', async (t) => {
 
   // When we create a canonical metadata account for the program.
   const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
-  const metadata = await createMetadata({
+  const { metadata } = await createMetadata({
     ...client,
     payer: authority,
     authority,
@@ -62,8 +62,11 @@ test('it creates a canonical metadata account with data larger than a transactio
   const [program] = await createDeployedProgram(client, authority);
 
   // When we create a canonical metadata account for the program with a lot of data.
-  const largeData = getUtf8Encoder().encode('x'.repeat(3_000));
-  const metadata = await createMetadata({
+  const largeData = getUtf8Encoder().encode(
+    // TODO: Temporary workaround to avoid sending the exact same data.
+    'x'.repeat(1_000) + 'y'.repeat(1_000) + 'z'.repeat(1_000)
+  );
+  const { metadata } = await createMetadata({
     ...client,
     payer: authority,
     authority,
@@ -102,7 +105,7 @@ test('it creates a non-canonical metadata account', async (t) => {
 
   // When we create a non-canonical metadata account for the program.
   const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
-  const metadata = await createMetadata({
+  const { metadata } = await createMetadata({
     ...client,
     payer: authority,
     authority,
@@ -140,8 +143,11 @@ test('it creates a non-canonical metadata account with data larger than a transa
   const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
   // When we create a non-canonical metadata account for the program with a lot of data.
-  const largeData = getUtf8Encoder().encode('x'.repeat(3_000));
-  const metadata = await createMetadata({
+  const largeData = getUtf8Encoder().encode(
+    // TODO: Temporary workaround to avoid sending the exact same data.
+    'x'.repeat(1_000) + 'y'.repeat(1_000) + 'z'.repeat(1_000)
+  );
+  const { metadata } = await createMetadata({
     ...client,
     payer: authority,
     authority,

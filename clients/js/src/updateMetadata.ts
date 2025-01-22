@@ -161,7 +161,8 @@ export function getUpdateMetadataInstructionsUsingBuffer(
   mainPlan.plans.push(initialMessage);
 
   let offset = 0;
-  const writePlan: InstructionPlan = { kind: 'parallel', plans: [] };
+  // TODO: Use parallel plan when the program supports it.
+  const writePlan: InstructionPlan = { kind: 'sequential', plans: [] };
   while (offset < input.data.length) {
     writePlan.plans.push({
       kind: 'message',
@@ -186,6 +187,7 @@ export function getUpdateMetadataInstructionsUsingBuffer(
       ...input,
       buffer: input.buffer.address,
       programData: input.isCanonical ? input.programData : undefined,
+      data: undefined,
     })
   );
 

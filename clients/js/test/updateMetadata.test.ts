@@ -39,7 +39,7 @@ test('it updates a canonical metadata account', async (t) => {
 
   // When we update the metadata account with new data.
   const newData = getUtf8Encoder().encode('NEW DATA WITH MORE BYTES');
-  const metadata = await updateMetadata({
+  const { metadata } = await updateMetadata({
     ...client,
     payer: authority,
     authority,
@@ -91,8 +91,11 @@ test('it updates a canonical metadata account with data larger than a transactio
   });
 
   // When we update the metadata account with new data with a lot of data.
-  const newData = getUtf8Encoder().encode('x'.repeat(3_000));
-  const metadata = await updateMetadata({
+  const newData = getUtf8Encoder().encode(
+    // TODO: Temporary workaround to avoid sending the exact same data.
+    'x'.repeat(1_000) + 'y'.repeat(1_000) + 'z'.repeat(1_000)
+  );
+  const { metadata } = await updateMetadata({
     ...client,
     payer: authority,
     authority,
@@ -145,7 +148,7 @@ test('it updates a non-canonical metadata account', async (t) => {
 
   // When we update the metadata account with new data.
   const newData = getUtf8Encoder().encode('NEW DATA WITH MORE BYTES');
-  const metadata = await updateMetadata({
+  const { metadata } = await updateMetadata({
     ...client,
     payer: authority,
     authority,
@@ -197,8 +200,11 @@ test('it updates a non-canonical metadata account with data larger than a transa
   });
 
   // When we update the metadata account with new data.
-  const newData = getUtf8Encoder().encode('x'.repeat(3_000));
-  const metadata = await updateMetadata({
+  const newData = getUtf8Encoder().encode(
+    // TODO: Temporary workaround to avoid sending the exact same data.
+    'x'.repeat(1_000) + 'y'.repeat(1_000) + 'z'.repeat(1_000)
+  );
+  const { metadata } = await updateMetadata({
     ...client,
     payer: authority,
     authority,

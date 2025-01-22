@@ -83,7 +83,7 @@ test('it updates a metadata account if it exists', async (t) => {
 
   // When we upload this canonical metadata account with different data.
   const newData = getUtf8Encoder().encode('NEW DATA WITH MORE BYTES');
-  const metadata = await uploadMetadata({
+  const { metadata } = await uploadMetadata({
     ...client,
     payer: authority,
     authority,
