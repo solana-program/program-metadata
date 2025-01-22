@@ -99,10 +99,22 @@ async function signAndSendTransaction(
   await sendAndConfirm(tx, { commitment });
 }
 
+export type SequentialInstructionPlan = {
+  kind: 'sequential';
+  plans: InstructionPlan[];
+};
+export type ParallelInstructionPlan = {
+  kind: 'parallel';
+  plans: InstructionPlan[];
+};
+export type MessageInstructionPlan = {
+  kind: 'message';
+  instructions: IInstruction[];
+};
 export type InstructionPlan =
-  | { kind: 'sequential'; plans: InstructionPlan[] }
-  | { kind: 'parallel'; plans: InstructionPlan[] }
-  | { kind: 'message'; instructions: IInstruction[] };
+  | SequentialInstructionPlan
+  | ParallelInstructionPlan
+  | MessageInstructionPlan;
 
 export async function sendInstructionPlan(
   plan: InstructionPlan,
@@ -136,7 +148,7 @@ export async function sendInstructionPlan(
 }
 
 async function sendSequentialInstructionPlan(
-  plan: InstructionPlan & { kind: 'sequential' },
+  plan: SequentialInstructionPlan,
   createMessage: Parameters<typeof sendInstructionPlan>[1],
   sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
 ) {
@@ -146,7 +158,7 @@ async function sendSequentialInstructionPlan(
 }
 
 async function sendParallelInstructionPlan(
-  plan: InstructionPlan & { kind: 'parallel' },
+  plan: ParallelInstructionPlan,
   createMessage: Parameters<typeof sendInstructionPlan>[1],
   sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
 ) {
@@ -158,7 +170,7 @@ async function sendParallelInstructionPlan(
 }
 
 async function sendMessageInstructionPlan(
-  plan: InstructionPlan & { kind: 'message' },
+  plan: MessageInstructionPlan,
   createMessage: Parameters<typeof sendInstructionPlan>[1],
   sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
 ) {

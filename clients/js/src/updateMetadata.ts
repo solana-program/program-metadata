@@ -1,10 +1,8 @@
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
   generateKeyPairSigner,
-  GetMinimumBalanceForRentExemptionApi,
   lamports,
   Lamports,
-  Rpc,
   TransactionSigner,
 } from '@solana/web3.js';
 import {
@@ -16,8 +14,9 @@ import {
 import {
   getPdaDetails,
   InstructionPlan,
+  MessageInstructionPlan,
   PdaDetails,
-  sendInstructionsInSequentialTransactions,
+  sendInstructionPlan,
 } from './internals';
 import { getAccountSize, MetadataInput } from './utils';
 
@@ -30,74 +29,50 @@ export async function updateMetadata(input: MetadataInput) {
   if (!metadataAccount.data.mutable) {
     throw new Error('Metadata account is immutable');
   }
+  const extendedInput = {
+    currentDataLength: BigInt(metadataAccount.data.data.length),
+    ...input,
+    ...pdaDetails,
+  };
+  const plan = getUpdateMetadataInstructions(extendedInput);
+  await sendInstructionPlan(plan);
+  return extendedInput.metadata;
+}
+
+export async function getUpdateMetadataInstructions(
+  input: Omit<MetadataInput, 'rpcSubscriptions'> &
+    PdaDetails & { currentDataLength: bigint }
+): Promise<InstructionPlan> {
   const newDataLength = BigInt(input.data.length);
-  const sizeDifference =
-    newDataLength - BigInt(metadataAccount.data.data.length);
+  const useBuffer = newDataLength >= SIZE_THRESHOLD_FOR_UPDATING_WITH_BUFFER; // TODO: Compute.
+  const chunkSize = WRITE_CHUNK_SIZE; // TODO: Ask for createMessage to return the chunk size.
+  const sizeDifference = newDataLength - BigInt(input.currentDataLength);
   const extraRent =
     sizeDifference > 0
       ? await input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
       : lamports(0n);
-  const strategy = await getUpdateMetadataStrategy(input.rpc, newDataLength);
-  const extendedInput = {
+
+  if (!useBuffer) {
+    return getUpdateMetadataInstructionsUsingInstructionData({
+      ...input,
+      sizeDifference,
+      extraRent,
+    });
+  }
+
+  const newAccountSize = getAccountSize(newDataLength);
+  const [buffer, bufferRent] = await Promise.all([
+    generateKeyPairSigner(),
+    input.rpc.getMinimumBalanceForRentExemption(newAccountSize).send(),
+  ]);
+  return getUpdateMetadataInstructionsUsingBuffer({
+    ...input,
     sizeDifference,
     extraRent,
-    strategy,
-    ...input,
-    ...pdaDetails,
-  };
-  const instructions = getUpdateMetadataInstructions(extendedInput);
-  await sendInstructionsInSequentialTransactions({ instructions, ...input });
-  return extendedInput.metadata;
-}
-
-export type UpdateMetadataStrategy =
-  | { use: 'instructionData' }
-  | {
-      use: 'buffer';
-      bufferRent: Lamports;
-      buffer: TransactionSigner;
-      extractLastTransaction: boolean; // TODO: use this.
-    };
-
-export async function getUpdateMetadataStrategy(
-  rpc: Rpc<GetMinimumBalanceForRentExemptionApi>,
-  newDataLength: bigint | number
-): Promise<UpdateMetadataStrategy> {
-  const useBuffer = newDataLength >= SIZE_THRESHOLD_FOR_UPDATING_WITH_BUFFER;
-  if (useBuffer) {
-    const newAccountSize = getAccountSize(newDataLength);
-    const [buffer, rent] = await Promise.all([
-      generateKeyPairSigner(),
-      rpc.getMinimumBalanceForRentExemption(newAccountSize).send(),
-    ]);
-    return {
-      use: 'buffer',
-      bufferRent: rent,
-      buffer,
-      extractLastTransaction: false,
-    };
-  }
-  return { use: 'instructionData' };
-}
-
-export function getUpdateMetadataInstructions(
-  input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
-    PdaDetails & {
-      sizeDifference: bigint;
-      extraRent: Lamports;
-      strategy: UpdateMetadataStrategy;
-    }
-): InstructionPlan {
-  return input.strategy.use === 'instructionData'
-    ? getUpdateMetadataInstructionsUsingInstructionData(input)
-    : getUpdateMetadataInstructionsUsingBuffer({
-        ...input,
-        bufferRent: input.strategy.bufferRent,
-        buffer: input.strategy.buffer,
-        chunkSize: WRITE_CHUNK_SIZE,
-        closeBuffer: false,
-        extractLastTransaction: input.strategy.extractLastTransaction,
-      });
+    bufferRent,
+    buffer,
+    chunkSize,
+  });
 }
 
 export function getUpdateMetadataInstructionsUsingInstructionData(
@@ -106,7 +81,7 @@ export function getUpdateMetadataInstructionsUsingInstructionData(
       sizeDifference: bigint;
       extraRent: Lamports;
     }
-): InstructionPlan {
+): MessageInstructionPlan {
   const plan: InstructionPlan = { kind: 'message', instructions: [] };
 
   if (input.sizeDifference > 0) {
@@ -125,6 +100,7 @@ export function getUpdateMetadataInstructionsUsingInstructionData(
     getSetDataInstruction({
       ...input,
       programData: input.isCanonical ? input.programData : undefined,
+      buffer: undefined,
     })
   );
 
@@ -143,8 +119,6 @@ export function getUpdateMetadataInstructionsUsingBuffer(
       extraRent: Lamports;
       bufferRent: Lamports;
       buffer: TransactionSigner;
-      closeBuffer: boolean; // TODO: use this.
-      extractLastTransaction: boolean; // TODO: use this.
     }
 ): InstructionPlan {
   const mainPlan: InstructionPlan = { kind: 'sequential', plans: [] };

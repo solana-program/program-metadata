@@ -1,6 +1,7 @@
 import {
   Address,
   assertAccountExists,
+  CompilableTransactionMessage,
   EncodedAccount,
   fetchEncodedAccount,
   GetAccountInfoApi,
@@ -21,7 +22,9 @@ import {
   SendTransactionApi,
   SignatureNotificationsApi,
   SlotNotificationsApi,
+  Transaction,
   TransactionSigner,
+  TransactionWithBlockhashLifetime,
   unwrapOption,
 } from '@solana/web3.js';
 import {
@@ -64,6 +67,35 @@ export type MetadataInput = {
   format: FormatArgs;
   dataSource: DataSourceArgs;
   data: ReadonlyUint8Array;
+  /**
+   * Whether to use a buffer for creating or updating a metadata account.
+   * If a `TransactionSigner` is provided, the provided buffer will be used for updating only.
+   * Defaults to `true` unless the entire operation can be done in a single transaction.
+   */
+  buffer?: TransactionSigner | boolean;
+  /**
+   * When using a buffer, whether to close the buffer account after the operation.
+   * Defaults to `true`.
+   */
+  closeBuffer?: boolean; // TODO: use this.
+  /**
+   * When using a buffer, whether to extract the last transaction from the buffer
+   * and return it as serialized bytes instead of sending it.
+   * Defaults to `false`.
+   */
+  extractLastTransaction?: boolean; // TODO: use this.
+  /**
+   * The function to use when creating new transaction messages.
+   * Defaults to using transaction message V0 using the latest blockhash.
+   */
+  createMessage?: () => Promise<
+    CompilableTransactionMessage & TransactionWithBlockhashLifetime
+  >; // TODO: use this.
+};
+
+export type MetadataResponse = {
+  metadata: Address;
+  lastTransaction?: Transaction;
 };
 
 export function getAccountSize(dataLength: bigint | number) {

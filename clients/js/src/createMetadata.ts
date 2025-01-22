@@ -12,56 +12,39 @@ import {
   PdaDetails,
   sendInstructionPlan,
 } from './internals';
-import { getAccountSize, MetadataInput } from './utils';
+import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
 export const SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER = 200;
 const WRITE_CHUNK_SIZE = 1000;
 
-export async function createMetadata(input: MetadataInput) {
-  const [pdaDetails, rent] = await Promise.all([
-    getPdaDetails(input),
-    input.rpc
-      .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
-      .send(),
-  ]);
-  const strategy: CreateMetadataStrategy =
-    input.data.length >= SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER
-      ? { use: 'buffer', extractLastTransaction: false }
-      : { use: 'instructionData' };
-  const extendedInput = { rent, strategy, ...input, ...pdaDetails };
-  const plan = getCreateMetadataInstructions(extendedInput);
+export async function createMetadata(
+  input: MetadataInput
+): Promise<MetadataResponse> {
+  const pdaDetails = await getPdaDetails(input);
+  const extendedInput = { ...input, ...pdaDetails };
+  const plan = await getCreateMetadataInstructions(extendedInput);
   await sendInstructionPlan(plan);
-  return extendedInput.metadata;
+  return { metadata: extendedInput.metadata };
 }
 
-export type CreateMetadataStrategy =
-  | { use: 'instructionData' }
-  | {
-      use: 'buffer';
-      extractLastTransaction: boolean; // TODO: use this.
-    };
+export async function getCreateMetadataInstructions(
+  input: Omit<MetadataInput, 'rpcSubscriptions'> & PdaDetails
+): Promise<InstructionPlan> {
+  const useBuffer =
+    input.data.length >= SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER; // TODO: Compute.
+  const chunkSize = WRITE_CHUNK_SIZE; // TODO: Ask for createMessage to return the chunk size.
+  const rent = await input.rpc
+    .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
+    .send();
 
-export function getCreateMetadataInstructions(
-  input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
-    PdaDetails & {
-      rent: Lamports;
-      strategy: CreateMetadataStrategy;
-    }
-): InstructionPlan {
-  return input.strategy.use === 'instructionData'
-    ? getCreateMetadataInstructionsUsingInstructionData(input)
-    : getCreateMetadataInstructionsUsingBuffer({
-        ...input,
-        chunkSize: WRITE_CHUNK_SIZE,
-        closeBuffer: false,
-      });
+  return useBuffer
+    ? getCreateMetadataInstructionsUsingBuffer({ ...input, chunkSize, rent })
+    : getCreateMetadataInstructionsUsingInstructionData({ ...input, rent });
 }
 
 export function getCreateMetadataInstructionsUsingInstructionData(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
-    PdaDetails & {
-      rent: Lamports;
-    }
+    PdaDetails & { rent: Lamports }
 ): InstructionPlan {
   return {
     kind: 'message',
@@ -81,11 +64,7 @@ export function getCreateMetadataInstructionsUsingInstructionData(
 
 export function getCreateMetadataInstructionsUsingBuffer(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
-    PdaDetails & {
-      rent: Lamports;
-      chunkSize: number;
-      closeBuffer: boolean; // TODO: use this.
-    }
+    PdaDetails & { rent: Lamports; chunkSize: number }
 ): InstructionPlan {
   const mainPlan: InstructionPlan = { kind: 'sequential', plans: [] };
 
