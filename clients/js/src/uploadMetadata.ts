@@ -1,8 +1,7 @@
-import { sendAndConfirmTransactionFactory } from '@solana/web3.js';
 import { getCreateMetadataInstructions } from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
 import {
-  getDefaultCreateMessage,
+  getDefaultInstructionPlanContext,
   getPdaDetails,
   sendInstructionPlan,
 } from './internals';
@@ -16,14 +15,12 @@ export async function uploadMetadata(input: MetadataInput) {
     pdaDetails.metadata
   );
   const extendedInput = { ...input, ...pdaDetails };
+  const sendContext = getDefaultInstructionPlanContext(input);
 
   // Create metadata if it doesn't exist.
   if (!metadataAccount.exists) {
     const plan = await getCreateMetadataInstructions(extendedInput);
-    const createMessage =
-      input.createMessage ?? getDefaultCreateMessage(input.rpc, input.payer);
-    const sendAndConfirm = sendAndConfirmTransactionFactory(input);
-    await sendInstructionPlan(plan, createMessage, sendAndConfirm);
+    await sendInstructionPlan(plan, sendContext);
     return { metadata: extendedInput.metadata };
   }
 
@@ -35,9 +32,6 @@ export async function uploadMetadata(input: MetadataInput) {
     ...extendedInput,
     currentDataLength: BigInt(metadataAccount.data.data.length),
   });
-  const createMessage =
-    input.createMessage ?? getDefaultCreateMessage(input.rpc, input.payer);
-  const sendAndConfirm = sendAndConfirmTransactionFactory(input);
-  await sendInstructionPlan(plan, createMessage, sendAndConfirm);
+  await sendInstructionPlan(plan, sendContext);
   return { metadata: extendedInput.metadata };
 }

@@ -5,14 +5,21 @@ import {
   CompilableTransactionMessage,
   createTransactionMessage,
   GetAccountInfoApi,
+  GetEpochInfoApi,
   GetLatestBlockhashApi,
+  GetMinimumBalanceForRentExemptionApi,
+  GetSignatureStatusesApi,
   IInstruction,
   pipe,
   Rpc,
+  RpcSubscriptions,
   sendAndConfirmTransactionFactory,
+  SendTransactionApi,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
+  SignatureNotificationsApi,
   signTransactionMessageWithSigners,
+  SlotNotificationsApi,
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/web3.js';
@@ -73,19 +80,18 @@ function getTimedCacheFunction<T>(
   timeoutInMilliseconds: number
 ): () => Promise<T> {
   let cache: T | null = null;
-  let cacheExpiryTimer: NodeJS.Timeout | null = null;
+  let lastFetchTime = 0;
   return async () => {
+    const currentTime = Date.now();
+
     // Cache hit.
-    if (cache && cacheExpiryTimer) {
+    if (cache && currentTime - lastFetchTime < timeoutInMilliseconds) {
       return cache;
     }
 
     // Cache miss.
     cache = await fn();
-    cacheExpiryTimer = setTimeout(() => {
-      cache = null;
-      cacheExpiryTimer = null;
-    }, timeoutInMilliseconds);
+    lastFetchTime = currentTime;
     return cache;
   };
 }
@@ -117,32 +123,43 @@ export type InstructionPlan =
   | ParallelInstructionPlan
   | MessageInstructionPlan;
 
-export async function sendInstructionPlan(
-  plan: InstructionPlan,
+type SendInstructionPlanContext = {
   createMessage: () => Promise<
     CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
-  >,
-  sendAndConfirm: ReturnType<typeof sendAndConfirmTransactionFactory>
+  >;
+  sendAndConfirm: ReturnType<typeof sendAndConfirmTransactionFactory>;
+};
+
+export function getDefaultInstructionPlanContext(input: {
+  rpc: Rpc<
+    GetLatestBlockhashApi &
+      GetEpochInfoApi &
+      GetSignatureStatusesApi &
+      SendTransactionApi &
+      GetMinimumBalanceForRentExemptionApi
+  >;
+  rpcSubscriptions: RpcSubscriptions<
+    SignatureNotificationsApi & SlotNotificationsApi
+  >;
+  payer: TransactionSigner;
+}): SendInstructionPlanContext {
+  return {
+    createMessage: getDefaultCreateMessage(input.rpc, input.payer),
+    sendAndConfirm: sendAndConfirmTransactionFactory(input),
+  };
+}
+
+export async function sendInstructionPlan(
+  plan: InstructionPlan,
+  ctx: SendInstructionPlanContext
 ) {
   switch (plan.kind) {
     case 'sequential':
-      return await sendSequentialInstructionPlan(
-        plan,
-        createMessage,
-        sendAndConfirm
-      );
+      return await sendSequentialInstructionPlan(plan, ctx);
     case 'parallel':
-      return await sendParallelInstructionPlan(
-        plan,
-        createMessage,
-        sendAndConfirm
-      );
+      return await sendParallelInstructionPlan(plan, ctx);
     case 'message':
-      return await sendMessageInstructionPlan(
-        plan,
-        createMessage,
-        sendAndConfirm
-      );
+      return await sendMessageInstructionPlan(plan, ctx);
     default:
       throw new Error('Unsupported instruction plan');
   }
@@ -150,34 +167,29 @@ export async function sendInstructionPlan(
 
 async function sendSequentialInstructionPlan(
   plan: SequentialInstructionPlan,
-  createMessage: Parameters<typeof sendInstructionPlan>[1],
-  sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
+  ctx: SendInstructionPlanContext
 ) {
   for (const subPlan of plan.plans) {
-    await sendInstructionPlan(subPlan, createMessage, sendAndConfirm);
+    await sendInstructionPlan(subPlan, ctx);
   }
 }
 
 async function sendParallelInstructionPlan(
   plan: ParallelInstructionPlan,
-  createMessage: Parameters<typeof sendInstructionPlan>[1],
-  sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
+  ctx: SendInstructionPlanContext
 ) {
   await Promise.all(
-    plan.plans.map((subPlan) =>
-      sendInstructionPlan(subPlan, createMessage, sendAndConfirm)
-    )
+    plan.plans.map((subPlan) => sendInstructionPlan(subPlan, ctx))
   );
 }
 
 async function sendMessageInstructionPlan(
   plan: MessageInstructionPlan,
-  createMessage: Parameters<typeof sendInstructionPlan>[1],
-  sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
+  ctx: SendInstructionPlanContext
 ) {
   await pipe(
-    await createMessage(),
+    await ctx.createMessage(),
     (tx) => appendTransactionMessageInstructions(plan.instructions, tx),
-    (tx) => signAndSendTransaction(tx, sendAndConfirm)
+    (tx) => signAndSendTransaction(tx, ctx.sendAndConfirm)
   );
 }

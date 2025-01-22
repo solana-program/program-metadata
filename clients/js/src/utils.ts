@@ -1,7 +1,6 @@
 import {
   Address,
   assertAccountExists,
-  CompilableTransactionMessage,
   EncodedAccount,
   fetchEncodedAccount,
   GetAccountInfoApi,
@@ -24,7 +23,6 @@ import {
   SlotNotificationsApi,
   Transaction,
   TransactionSigner,
-  TransactionWithBlockhashLifetime,
   unwrapOption,
 } from '@solana/web3.js';
 import {
@@ -84,13 +82,6 @@ export type MetadataInput = {
    * Defaults to `false`.
    */
   extractLastTransaction?: boolean; // TODO: use this.
-  /**
-   * The function to use when creating new transaction messages.
-   * Defaults to using transaction message V0 using the latest blockhash.
-   */
-  createMessage?: () => Promise<
-    CompilableTransactionMessage & TransactionWithBlockhashLifetime
-  >; // TODO: use this.
 };
 
 export type MetadataResponse = {

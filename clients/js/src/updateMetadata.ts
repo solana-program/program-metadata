@@ -4,7 +4,6 @@ import {
   isTransactionSigner,
   lamports,
   Lamports,
-  sendAndConfirmTransactionFactory,
   TransactionSigner,
 } from '@solana/web3.js';
 import {
@@ -14,7 +13,7 @@ import {
   getWriteInstruction,
 } from './generated';
 import {
-  getDefaultCreateMessage,
+  getDefaultInstructionPlanContext,
   getPdaDetails,
   InstructionPlan,
   MessageInstructionPlan,
@@ -40,10 +39,7 @@ export async function updateMetadata(
     ...pdaDetails,
   };
   const plan = await getUpdateMetadataInstructions(extendedInput);
-  const createMessage =
-    input.createMessage ?? getDefaultCreateMessage(input.rpc, input.payer);
-  const sendAndConfirm = sendAndConfirmTransactionFactory(input);
-  await sendInstructionPlan(plan, createMessage, sendAndConfirm);
+  await sendInstructionPlan(plan, getDefaultInstructionPlanContext(input));
   return { metadata: extendedInput.metadata };
 }
 

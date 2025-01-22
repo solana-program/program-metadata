@@ -1,5 +1,5 @@
 import { getTransferSolInstruction } from '@solana-program/system';
-import { Lamports, sendAndConfirmTransactionFactory } from '@solana/web3.js';
+import { Lamports } from '@solana/web3.js';
 import {
   getAllocateInstruction,
   getInitializeInstruction,
@@ -7,7 +7,7 @@ import {
   PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
 import {
-  getDefaultCreateMessage,
+  getDefaultInstructionPlanContext,
   getPdaDetails,
   InstructionPlan,
   PdaDetails,
@@ -24,10 +24,7 @@ export async function createMetadata(
   const pdaDetails = await getPdaDetails(input);
   const extendedInput = { ...input, ...pdaDetails };
   const plan = await getCreateMetadataInstructions(extendedInput);
-  const createMessage =
-    input.createMessage ?? getDefaultCreateMessage(input.rpc, input.payer);
-  const sendAndConfirm = sendAndConfirmTransactionFactory(input);
-  await sendInstructionPlan(plan, createMessage, sendAndConfirm);
+  await sendInstructionPlan(plan, getDefaultInstructionPlanContext(input));
   return { metadata: extendedInput.metadata };
 }
 
