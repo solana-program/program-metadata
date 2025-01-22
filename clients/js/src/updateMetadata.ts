@@ -2,7 +2,6 @@ import { getTransferSolInstruction } from '@solana-program/system';
 import {
   generateKeyPairSigner,
   GetMinimumBalanceForRentExemptionApi,
-  IInstruction,
   lamports,
   Lamports,
   Rpc,
@@ -16,6 +15,7 @@ import {
 } from './generated';
 import {
   getPdaDetails,
+  InstructionPlan,
   PdaDetails,
   sendInstructionsInSequentialTransactions,
 } from './internals';
@@ -87,13 +87,30 @@ export function getUpdateMetadataInstructions(
       extraRent: Lamports;
       strategy: UpdateMetadataStrategy;
     }
-) {
-  const { strategy } = input;
-  const instructions: IInstruction[][] = [];
-  let currentInstructionBatch: IInstruction[] = [];
+): InstructionPlan {
+  return input.strategy.use === 'instructionData'
+    ? getUpdateMetadataInstructionsUsingInstructionData(input)
+    : getUpdateMetadataInstructionsUsingBuffer({
+        ...input,
+        bufferRent: input.strategy.bufferRent,
+        buffer: input.strategy.buffer,
+        chunkSize: WRITE_CHUNK_SIZE,
+        closeBuffer: false,
+        extractLastTransaction: input.strategy.extractLastTransaction,
+      });
+}
+
+export function getUpdateMetadataInstructionsUsingInstructionData(
+  input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
+    PdaDetails & {
+      sizeDifference: bigint;
+      extraRent: Lamports;
+    }
+): InstructionPlan {
+  const plan: InstructionPlan = { kind: 'message', instructions: [] };
 
   if (input.sizeDifference > 0) {
-    currentInstructionBatch.push(
+    plan.instructions.push(
       getTransferSolInstruction({
         source: input.payer,
         destination: input.metadata,
@@ -104,52 +121,99 @@ export function getUpdateMetadataInstructions(
 
   // TODO: Use extend instruction if sizeDifference > 10KB.
 
-  if (input.strategy.use === 'buffer') {
-    currentInstructionBatch.push(
-      getTransferSolInstruction({
-        source: input.payer,
-        destination: input.strategy.buffer.address,
-        amount: input.strategy.bufferRent,
-      }),
-      getAllocateInstruction({
-        buffer: input.strategy.buffer.address,
-        authority: input.strategy.buffer,
-      })
-    );
-    instructions.push(currentInstructionBatch);
-    currentInstructionBatch = [];
-    let offset = 0;
-    while (offset < input.data.length) {
-      instructions.push([
-        getWriteInstruction({
-          buffer: input.strategy.buffer.address,
-          authority: input.strategy.buffer,
-          data: input.data.slice(offset, offset + WRITE_CHUNK_SIZE),
-        }),
-      ]);
-      offset += WRITE_CHUNK_SIZE;
-    }
-  }
-
-  currentInstructionBatch.push(
+  plan.instructions.push(
     getSetDataInstruction({
-      metadata: input.metadata,
-      authority: input.authority,
-      buffer: strategy.use === 'buffer' ? strategy.buffer.address : undefined,
-      program: input.program,
+      ...input,
       programData: input.isCanonical ? input.programData : undefined,
-      encoding: input.encoding,
-      compression: input.compression,
-      format: input.format,
-      dataSource: input.dataSource,
-      data: strategy.use === 'buffer' ? null : input.data,
     })
   );
 
-  if (input.sizeDifference < 0 || input.strategy.use === 'buffer') {
+  if (input.sizeDifference < 0) {
     // TODO: Trim to withdraw excess lamports.
   }
 
-  instructions.push(currentInstructionBatch);
-  return instructions;
+  return plan;
+}
+
+export function getUpdateMetadataInstructionsUsingBuffer(
+  input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
+    PdaDetails & {
+      chunkSize: number;
+      sizeDifference: bigint;
+      extraRent: Lamports;
+      bufferRent: Lamports;
+      buffer: TransactionSigner;
+      closeBuffer: boolean; // TODO: use this.
+      extractLastTransaction: boolean; // TODO: use this.
+    }
+): InstructionPlan {
+  const mainPlan: InstructionPlan = { kind: 'sequential', plans: [] };
+  const initialMessage: InstructionPlan = { kind: 'message', instructions: [] };
+
+  if (input.sizeDifference > 0) {
+    initialMessage.instructions.push(
+      getTransferSolInstruction({
+        source: input.payer,
+        destination: input.metadata,
+        amount: input.extraRent,
+      })
+    );
+  }
+
+  // TODO: Use extend on metadata instruction if sizeDifference > 10KB.
+  // TODO: Use extend on buffer.
+
+  initialMessage.instructions.push(
+    getTransferSolInstruction({
+      source: input.payer,
+      destination: input.buffer.address,
+      amount: input.bufferRent,
+    }),
+    getAllocateInstruction({
+      buffer: input.buffer.address,
+      authority: input.buffer,
+    })
+  );
+  mainPlan.plans.push(initialMessage);
+
+  let offset = 0;
+  const writePlan: InstructionPlan = { kind: 'parallel', plans: [] };
+  while (offset < input.data.length) {
+    writePlan.plans.push({
+      kind: 'message',
+      instructions: [
+        getWriteInstruction({
+          buffer: input.buffer.address,
+          authority: input.buffer,
+          data: input.data.slice(offset, offset + input.chunkSize),
+        }),
+      ],
+    });
+    offset += input.chunkSize;
+  }
+  mainPlan.plans.push(writePlan);
+
+  const finalizeMessage: InstructionPlan = {
+    kind: 'message',
+    instructions: [],
+  };
+  finalizeMessage.instructions.push(
+    getSetDataInstruction({
+      ...input,
+      buffer: input.buffer.address,
+      programData: input.isCanonical ? input.programData : undefined,
+    })
+  );
+
+  if (input.closeBuffer) {
+    // TODO: Close buffer account.
+  }
+
+  if (input.sizeDifference < 0) {
+    // TODO: Trim to withdraw excess lamports.
+  }
+
+  mainPlan.plans.push(finalizeMessage);
+
+  return mainPlan;
 }

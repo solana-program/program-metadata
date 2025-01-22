@@ -5,10 +5,7 @@ import {
   SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER,
 } from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
-import {
-  getPdaDetails,
-  sendInstructionsInSequentialTransactions,
-} from './internals';
+import { getPdaDetails, sendInstructionPlan } from './internals';
 import {
   getUpdateMetadataInstructions,
   getUpdateMetadataStrategy,
@@ -32,8 +29,8 @@ export async function uploadMetadata(input: MetadataInput) {
         ? { use: 'buffer', extractLastTransaction: false }
         : { use: 'instructionData' };
     const extendedInput = { rent, strategy, ...input, ...pdaDetails };
-    const instructions = getCreateMetadataInstructions(extendedInput);
-    await sendInstructionsInSequentialTransactions({ instructions, ...input });
+    const plan = getCreateMetadataInstructions(extendedInput);
+    await sendInstructionPlan(plan);
     return extendedInput.metadata;
   }
 
@@ -56,7 +53,7 @@ export async function uploadMetadata(input: MetadataInput) {
     ...input,
     ...pdaDetails,
   };
-  const instructions = getUpdateMetadataInstructions(extendedInput);
-  await sendInstructionsInSequentialTransactions({ instructions, ...input });
+  const plan = getUpdateMetadataInstructions(extendedInput);
+  await sendInstructionPlan(plan);
   return extendedInput.metadata;
 }

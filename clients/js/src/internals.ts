@@ -98,3 +98,73 @@ async function signAndSendTransaction(
   const tx = await signTransactionMessageWithSigners(transactionMessage);
   await sendAndConfirm(tx, { commitment });
 }
+
+export type InstructionPlan =
+  | { kind: 'sequential'; plans: InstructionPlan[] }
+  | { kind: 'parallel'; plans: InstructionPlan[] }
+  | { kind: 'message'; instructions: IInstruction[] };
+
+export async function sendInstructionPlan(
+  plan: InstructionPlan,
+  createMessage: () => Promise<
+    CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
+  >,
+  sendAndConfirm: ReturnType<typeof sendAndConfirmTransactionFactory>
+) {
+  switch (plan.kind) {
+    case 'sequential':
+      return await sendSequentialInstructionPlan(
+        plan,
+        createMessage,
+        sendAndConfirm
+      );
+    case 'parallel':
+      return await sendParallelInstructionPlan(
+        plan,
+        createMessage,
+        sendAndConfirm
+      );
+    case 'message':
+      return await sendMessageInstructionPlan(
+        plan,
+        createMessage,
+        sendAndConfirm
+      );
+    default:
+      throw new Error('Unsupported instruction plan');
+  }
+}
+
+async function sendSequentialInstructionPlan(
+  plan: InstructionPlan & { kind: 'sequential' },
+  createMessage: Parameters<typeof sendInstructionPlan>[1],
+  sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
+) {
+  for (const subPlan of plan.plans) {
+    await sendInstructionPlan(subPlan, createMessage, sendAndConfirm);
+  }
+}
+
+async function sendParallelInstructionPlan(
+  plan: InstructionPlan & { kind: 'parallel' },
+  createMessage: Parameters<typeof sendInstructionPlan>[1],
+  sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
+) {
+  await Promise.all(
+    plan.plans.map((subPlan) =>
+      sendInstructionPlan(subPlan, createMessage, sendAndConfirm)
+    )
+  );
+}
+
+async function sendMessageInstructionPlan(
+  plan: InstructionPlan & { kind: 'message' },
+  createMessage: Parameters<typeof sendInstructionPlan>[1],
+  sendAndConfirm: Parameters<typeof sendInstructionPlan>[2]
+) {
+  await pipe(
+    await createMessage(),
+    (tx) => appendTransactionMessageInstructions(plan.instructions, tx),
+    (tx) => signAndSendTransaction(tx, sendAndConfirm)
+  );
+}
