@@ -13,6 +13,7 @@ import {
   getWriteInstruction,
 } from './generated';
 import {
+  getComputeUnitInstructions,
   getDefaultInstructionPlanContext,
   getPdaDetails,
   InstructionPlan,
@@ -88,7 +89,15 @@ export function getUpdateMetadataInstructionsUsingInstructionData(
       extraRent: Lamports;
     }
 ): MessageInstructionPlan {
-  const plan: InstructionPlan = { kind: 'message', instructions: [] };
+  const plan: InstructionPlan = {
+    kind: 'message',
+    instructions: [
+      ...getComputeUnitInstructions({
+        computeUnitPrice: input.priorityFees,
+        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+      }),
+    ],
+  };
 
   if (input.sizeDifference > 0) {
     plan.instructions.push(
@@ -128,7 +137,15 @@ export function getUpdateMetadataInstructionsUsingBuffer(
     }
 ): InstructionPlan {
   const mainPlan: InstructionPlan = { kind: 'sequential', plans: [] };
-  const initialMessage: InstructionPlan = { kind: 'message', instructions: [] };
+  const initialMessage: InstructionPlan = {
+    kind: 'message',
+    instructions: [
+      ...getComputeUnitInstructions({
+        computeUnitPrice: input.priorityFees,
+        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+      }),
+    ],
+  };
 
   if (input.sizeDifference > 0) {
     initialMessage.instructions.push(
@@ -163,6 +180,10 @@ export function getUpdateMetadataInstructionsUsingBuffer(
     writePlan.plans.push({
       kind: 'message',
       instructions: [
+        ...getComputeUnitInstructions({
+          computeUnitPrice: input.priorityFees,
+          computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+        }),
         getWriteInstruction({
           buffer: input.buffer.address,
           authority: input.buffer,
@@ -176,16 +197,19 @@ export function getUpdateMetadataInstructionsUsingBuffer(
 
   const finalizeMessage: InstructionPlan = {
     kind: 'message',
-    instructions: [],
+    instructions: [
+      ...getComputeUnitInstructions({
+        computeUnitPrice: input.priorityFees,
+        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+      }),
+      getSetDataInstruction({
+        ...input,
+        buffer: input.buffer.address,
+        programData: input.isCanonical ? input.programData : undefined,
+        data: undefined,
+      }),
+    ],
   };
-  finalizeMessage.instructions.push(
-    getSetDataInstruction({
-      ...input,
-      buffer: input.buffer.address,
-      programData: input.isCanonical ? input.programData : undefined,
-      data: undefined,
-    })
-  );
 
   if (input.closeBuffer) {
     // TODO: Close buffer account.

@@ -1,4 +1,8 @@
 import {
+  getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
+} from '@solana-program/compute-budget';
+import {
   Address,
   appendTransactionMessageInstructions,
   Commitment,
@@ -10,6 +14,7 @@ import {
   GetMinimumBalanceForRentExemptionApi,
   GetSignatureStatusesApi,
   IInstruction,
+  MicroLamports,
   pipe,
   Rpc,
   RpcSubscriptions,
@@ -192,4 +197,26 @@ async function sendMessageInstructionPlan(
     (tx) => appendTransactionMessageInstructions(plan.instructions, tx),
     (tx) => signAndSendTransaction(tx, ctx.sendAndConfirm)
   );
+}
+
+export function getComputeUnitInstructions(input: {
+  computeUnitPrice?: MicroLamports;
+  computeUnitLimit?: number;
+}) {
+  const instructions: IInstruction[] = [];
+  if (input.computeUnitPrice !== undefined) {
+    instructions.push(
+      getSetComputeUnitPriceInstruction({
+        microLamports: input.computeUnitPrice,
+      })
+    );
+  }
+  if (input.computeUnitLimit !== undefined) {
+    instructions.push(
+      getSetComputeUnitLimitInstruction({
+        units: input.computeUnitLimit,
+      })
+    );
+  }
+  return instructions;
 }

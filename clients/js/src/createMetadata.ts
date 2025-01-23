@@ -7,6 +7,7 @@ import {
   PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
 import {
+  getComputeUnitInstructions,
   getDefaultInstructionPlanContext,
   getPdaDetails,
   InstructionPlan,
@@ -16,7 +17,7 @@ import {
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
 export const SIZE_THRESHOLD_FOR_INITIALIZING_WITH_BUFFER = 200;
-const WRITE_CHUNK_SIZE = 1000;
+const WRITE_CHUNK_SIZE = 900;
 
 export async function createMetadata(
   input: MetadataInput
@@ -50,6 +51,10 @@ export function getCreateMetadataInstructionsUsingInstructionData(
   return {
     kind: 'message',
     instructions: [
+      ...getComputeUnitInstructions({
+        computeUnitPrice: input.priorityFees,
+        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+      }),
       getTransferSolInstruction({
         source: input.payer,
         destination: input.metadata,
@@ -72,6 +77,10 @@ export function getCreateMetadataInstructionsUsingBuffer(
   mainPlan.plans.push({
     kind: 'message',
     instructions: [
+      ...getComputeUnitInstructions({
+        computeUnitPrice: input.priorityFees,
+        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+      }),
       getTransferSolInstruction({
         source: input.payer,
         destination: input.metadata,
@@ -95,6 +104,10 @@ export function getCreateMetadataInstructionsUsingBuffer(
     writePlan.plans.push({
       kind: 'message',
       instructions: [
+        ...getComputeUnitInstructions({
+          computeUnitPrice: input.priorityFees,
+          computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+        }),
         getWriteInstruction({
           buffer: input.metadata,
           authority: input.authority,
@@ -109,6 +122,10 @@ export function getCreateMetadataInstructionsUsingBuffer(
   mainPlan.plans.push({
     kind: 'message',
     instructions: [
+      ...getComputeUnitInstructions({
+        computeUnitPrice: input.priorityFees,
+        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+      }),
       getInitializeInstruction({
         ...input,
         programData: input.isCanonical ? input.programData : undefined,
