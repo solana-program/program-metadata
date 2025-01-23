@@ -10,8 +10,12 @@ import {
   createKeyPairSignerFromBytes,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  getBase58Decoder,
+  getBase64Decoder,
+  getTransactionEncoder,
   isSolanaError,
   KeyPairSigner,
+  MicroLamports,
   Rpc,
   RpcSubscriptions,
   SolanaRpcApi,
@@ -55,7 +59,6 @@ program
     'Path to keypair file of transaction fee and storage payer. (default: keypair)'
   )
   .option('--rpc <string>', 'RPC URL. (default: solana config or localhost)')
-  // TODO: Support priority fees.
   .option(
     '--priority-fees <number>',
     'Priority fees per compute unit for sending transactions',
@@ -118,7 +121,6 @@ program
       'Describes how to compress the data. (default: "zlib")'
     ).choices(['none', 'gzip', 'zlib'])
   )
-  // TODO: Support buffer-only uploads.
   .option(
     '--buffer-only',
     'Only create the buffer and export the transaction that sets the buffer.',
@@ -142,7 +144,7 @@ program
           'You must be the program authority to upload a canonical metadata account. Use `--third-party` option to upload as a third party.'
         );
       }
-      await uploadMetadata({
+      const { lastTransaction } = await uploadMetadata({
         ...client,
         ...getPackedData(content, options),
         payer,
@@ -150,10 +152,29 @@ program
         program: address(programAddress),
         seed,
         format: getFormat(options),
+        buffer: options.bufferOnly ? true : undefined,
+        extractLastTransaction: options.bufferOnly,
+        priorityFees: options.priorityFees
+          ? (BigInt(options.priorityFees) as MicroLamports)
+          : undefined,
       });
-      logSuccess(
-        `Metadata uploaded successfully for program ${chalk.bold(programAddress)} and seed "${chalk.bold(seed)}"!`
-      );
+      if (lastTransaction) {
+        const transactionBytes =
+          getTransactionEncoder().encode(lastTransaction);
+        const base64EncodedTransaction =
+          getBase64Decoder().decode(transactionBytes);
+        const base58EncodedTransaction =
+          getBase58Decoder().decode(transactionBytes);
+        logSuccess(
+          `Buffer successfully created for program ${chalk.bold(programAddress)} and seed "${chalk.bold(seed)}"!\n` +
+            `Use the following transaction data to apply the buffer:\n\n` +
+            `[base64]\n${base64EncodedTransaction}\n\n[base58]\n${base58EncodedTransaction}`
+        );
+      } else {
+        logSuccess(
+          `Metadata uploaded successfully for program ${chalk.bold(programAddress)} and seed "${chalk.bold(seed)}"!`
+        );
+      }
     }
   );
 
