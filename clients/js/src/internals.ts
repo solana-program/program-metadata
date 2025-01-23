@@ -7,15 +7,18 @@ import {
   appendTransactionMessageInstructions,
   Commitment,
   CompilableTransactionMessage,
+  compileTransaction,
   createTransactionMessage,
   GetAccountInfoApi,
   GetEpochInfoApi,
   GetLatestBlockhashApi,
   GetMinimumBalanceForRentExemptionApi,
   GetSignatureStatusesApi,
+  getTransactionEncoder,
   IInstruction,
   MicroLamports,
   pipe,
+  ReadonlyUint8Array,
   Rpc,
   RpcSubscriptions,
   sendAndConfirmTransactionFactory,
@@ -28,8 +31,13 @@ import {
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/web3.js';
-import { findMetadataPda, SeedArgs } from './generated';
+import { findMetadataPda, getWriteInstruction, SeedArgs } from './generated';
 import { getProgramAuthority } from './utils';
+
+const TRANSACTION_SIZE_LIMIT =
+  1_280 -
+  40 /* 40 bytes is the size of the IPv6 header. */ -
+  8; /* 8 bytes is the size of the fragment header. */
 
 export type PdaDetails = {
   metadata: Address;
@@ -199,6 +207,15 @@ async function sendMessageInstructionPlan(
   );
 }
 
+export function getTransactionMessageFromPlan(
+  defaultMessage: CompilableTransactionMessage,
+  plan: MessageInstructionPlan
+) {
+  return pipe(defaultMessage, (tx) =>
+    appendTransactionMessageInstructions(plan.instructions, tx)
+  );
+}
+
 export function getComputeUnitInstructions(input: {
   computeUnitPrice?: MicroLamports;
   computeUnitLimit?: number;
@@ -219,4 +236,58 @@ export function getComputeUnitInstructions(input: {
     );
   }
   return instructions;
+}
+
+export function calculateMaxChunkSize(
+  defaultMessage: CompilableTransactionMessage,
+  input: {
+    buffer: Address;
+    authority: TransactionSigner;
+    priorityFees?: MicroLamports;
+  }
+) {
+  const plan = getWriteInstructionPlan({ ...input, data: new Uint8Array(0) });
+  const message = getTransactionMessageFromPlan(defaultMessage, plan);
+  return getRemainingTransactionSpaceFromMessage(message);
+}
+
+export function messageFitsInOneTransaction(
+  message: CompilableTransactionMessage
+): boolean {
+  return getRemainingTransactionSpaceFromMessage(message) >= 0;
+}
+
+function getRemainingTransactionSpaceFromMessage(
+  message: CompilableTransactionMessage
+) {
+  return (
+    TRANSACTION_SIZE_LIMIT -
+    getTransactionSizeFromMessage(message) -
+    1 /* Subtract 1 byte buffer to account for shortvec encoding. */
+  );
+}
+
+function getTransactionSizeFromMessage(
+  message: CompilableTransactionMessage
+): number {
+  const transaction = compileTransaction(message);
+  return getTransactionEncoder().encode(transaction).length;
+}
+
+export function getWriteInstructionPlan(input: {
+  buffer: Address;
+  authority: TransactionSigner;
+  data: ReadonlyUint8Array;
+  priorityFees?: MicroLamports;
+}): MessageInstructionPlan {
+  return {
+    kind: 'message',
+    instructions: [
+      ...getComputeUnitInstructions({
+        computeUnitPrice: input.priorityFees,
+        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
+      }),
+      getWriteInstruction(input),
+    ],
+  };
 }

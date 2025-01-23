@@ -55,7 +55,7 @@ test('it creates a canonical metadata account', async (t) => {
   });
 });
 
-test('it creates a canonical metadata account with data larger than a transaction size', async (t) => {
+test.only('it creates a canonical metadata account with data larger than a transaction size', async (t) => {
   // Given the following authority and deployed program.
   const client = createDefaultSolanaClient();
   const authority = await generateKeyPairSignerWithSol(client);

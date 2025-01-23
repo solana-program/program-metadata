@@ -1,68 +1,88 @@
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
+  CompilableTransactionMessage,
   generateKeyPairSigner,
+  GetMinimumBalanceForRentExemptionApi,
   isTransactionSigner,
   lamports,
   Lamports,
+  Rpc,
   TransactionSigner,
 } from '@solana/web3.js';
 import {
   fetchMetadata,
   getAllocateInstruction,
   getSetDataInstruction,
-  getWriteInstruction,
 } from './generated';
 import {
+  calculateMaxChunkSize,
   getComputeUnitInstructions,
   getDefaultInstructionPlanContext,
   getPdaDetails,
+  getTransactionMessageFromPlan,
+  getWriteInstructionPlan,
   InstructionPlan,
+  messageFitsInOneTransaction,
   MessageInstructionPlan,
   PdaDetails,
   sendInstructionPlan,
 } from './internals';
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
-const SIZE_THRESHOLD_FOR_UPDATING_WITH_BUFFER = 200;
-const WRITE_CHUNK_SIZE = 900;
-
 export async function updateMetadata(
   input: MetadataInput
 ): Promise<MetadataResponse> {
-  const pdaDetails = await getPdaDetails(input);
+  const context = getDefaultInstructionPlanContext(input);
+  const [pdaDetails, defaultMessage] = await Promise.all([
+    getPdaDetails(input),
+    context.createMessage(),
+  ]);
   const metadataAccount = await fetchMetadata(input.rpc, pdaDetails.metadata);
   if (!metadataAccount.data.mutable) {
     throw new Error('Metadata account is immutable');
   }
   const extendedInput = {
     currentDataLength: BigInt(metadataAccount.data.data.length),
+    defaultMessage,
     ...input,
     ...pdaDetails,
   };
   const plan = await getUpdateMetadataInstructions(extendedInput);
-  await sendInstructionPlan(plan, getDefaultInstructionPlanContext(input));
+  await sendInstructionPlan(plan, context);
   return { metadata: extendedInput.metadata };
 }
 
 export async function getUpdateMetadataInstructions(
-  input: Omit<MetadataInput, 'rpcSubscriptions'> &
-    PdaDetails & { currentDataLength: bigint }
+  input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
+    PdaDetails & {
+      rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+      currentDataLength: bigint;
+      defaultMessage: CompilableTransactionMessage;
+    }
 ): Promise<InstructionPlan> {
   const newDataLength = BigInt(input.data.length);
-  const useBuffer = newDataLength >= SIZE_THRESHOLD_FOR_UPDATING_WITH_BUFFER; // TODO: Compute.
-  const chunkSize = WRITE_CHUNK_SIZE; // TODO: Ask for createMessage to return the chunk size.
   const sizeDifference = newDataLength - BigInt(input.currentDataLength);
   const extraRent =
     sizeDifference > 0
       ? await input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
       : lamports(0n);
-
-  if (!useBuffer) {
-    return getUpdateMetadataInstructionsUsingInstructionData({
+  const planUsingInstructionData =
+    getUpdateMetadataInstructionsUsingInstructionData({
       ...input,
       sizeDifference,
       extraRent,
     });
+  const messageUsingInstructionData = getTransactionMessageFromPlan(
+    input.defaultMessage,
+    planUsingInstructionData
+  );
+  const useBuffer =
+    input.buffer === undefined
+      ? !messageFitsInOneTransaction(messageUsingInstructionData)
+      : !!input.buffer;
+
+  if (!useBuffer) {
+    return planUsingInstructionData;
   }
 
   const newAccountSize = getAccountSize(newDataLength);
@@ -72,6 +92,11 @@ export async function getUpdateMetadataInstructions(
       : generateKeyPairSigner(),
     input.rpc.getMinimumBalanceForRentExemption(newAccountSize).send(),
   ]);
+  const chunkSize = calculateMaxChunkSize(input.defaultMessage, {
+    ...input,
+    buffer: buffer.address,
+    authority: buffer,
+  });
   return getUpdateMetadataInstructionsUsingBuffer({
     ...input,
     sizeDifference,
@@ -94,7 +119,7 @@ export function getUpdateMetadataInstructionsUsingInstructionData(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
       }),
     ],
   };
@@ -142,7 +167,7 @@ export function getUpdateMetadataInstructionsUsingBuffer(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
       }),
     ],
   };
@@ -177,20 +202,14 @@ export function getUpdateMetadataInstructionsUsingBuffer(
   // TODO: Use parallel plan when the program supports it.
   const writePlan: InstructionPlan = { kind: 'sequential', plans: [] };
   while (offset < input.data.length) {
-    writePlan.plans.push({
-      kind: 'message',
-      instructions: [
-        ...getComputeUnitInstructions({
-          computeUnitPrice: input.priorityFees,
-          computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
-        }),
-        getWriteInstruction({
-          buffer: input.buffer.address,
-          authority: input.buffer,
-          data: input.data.slice(offset, offset + input.chunkSize),
-        }),
-      ],
-    });
+    writePlan.plans.push(
+      getWriteInstructionPlan({
+        buffer: input.buffer.address,
+        authority: input.buffer,
+        data: input.data.slice(offset, offset + input.chunkSize),
+        priorityFees: input.priorityFees,
+      })
+    );
     offset += input.chunkSize;
   }
   mainPlan.plans.push(writePlan);
@@ -200,7 +219,7 @@ export function getUpdateMetadataInstructionsUsingBuffer(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: 10_000, // TODO: Add max CU for each instruction.
+        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
       }),
       getSetDataInstruction({
         ...input,

@@ -9,18 +9,21 @@ import { getUpdateMetadataInstructions } from './updateMetadata';
 import { MetadataInput } from './utils';
 
 export async function uploadMetadata(input: MetadataInput) {
-  const pdaDetails = await getPdaDetails(input);
+  const context = getDefaultInstructionPlanContext(input);
+  const [pdaDetails, defaultMessage] = await Promise.all([
+    getPdaDetails(input),
+    context.createMessage(),
+  ]);
   const metadataAccount = await fetchMaybeMetadata(
     input.rpc,
     pdaDetails.metadata
   );
-  const extendedInput = { ...input, ...pdaDetails };
-  const sendContext = getDefaultInstructionPlanContext(input);
+  const extendedInput = { ...input, ...pdaDetails, defaultMessage };
 
   // Create metadata if it doesn't exist.
   if (!metadataAccount.exists) {
     const plan = await getCreateMetadataInstructions(extendedInput);
-    await sendInstructionPlan(plan, sendContext);
+    await sendInstructionPlan(plan, context);
     return { metadata: extendedInput.metadata };
   }
 
@@ -32,6 +35,6 @@ export async function uploadMetadata(input: MetadataInput) {
     ...extendedInput,
     currentDataLength: BigInt(metadataAccount.data.data.length),
   });
-  await sendInstructionPlan(plan, sendContext);
+  await sendInstructionPlan(plan, context);
   return { metadata: extendedInput.metadata };
 }
