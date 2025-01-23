@@ -79,15 +79,17 @@ export type MetadataInput = {
   buffer?: TransactionSigner | boolean;
   /**
    * When using a buffer, whether to close the buffer account after the operation.
+   * This is only relevant when updating a metadata account since, when creating
+   * them, buffer accounts are transformed into metadata accounts.
    * Defaults to `true`.
    */
-  closeBuffer?: boolean; // TODO: use this.
+  closeBuffer?: boolean;
   /**
    * When using a buffer, whether to extract the last transaction from the buffer
    * and return it as serialized bytes instead of sending it.
    * Defaults to `false`.
    */
-  extractLastTransaction?: boolean; // TODO: use this.
+  extractLastTransaction?: boolean;
 };
 
 export type MetadataResponse = {

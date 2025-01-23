@@ -25,7 +25,7 @@ import {
   messageFitsInOneTransaction,
   MessageInstructionPlan,
   PdaDetails,
-  sendInstructionPlan,
+  sendInstructionPlanAndGetMetadataResponse,
 } from './internals';
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
@@ -47,9 +47,11 @@ export async function updateMetadata(
     ...input,
     ...pdaDetails,
   };
-  const plan = await getUpdateMetadataInstructions(extendedInput);
-  await sendInstructionPlan(plan, context);
-  return { metadata: extendedInput.metadata };
+  return await sendInstructionPlanAndGetMetadataResponse(
+    await getUpdateMetadataInstructions(extendedInput),
+    context,
+    extendedInput
+  );
 }
 
 export async function getUpdateMetadataInstructions(

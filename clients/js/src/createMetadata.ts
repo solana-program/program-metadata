@@ -21,7 +21,7 @@ import {
   messageFitsInOneTransaction,
   MessageInstructionPlan,
   PdaDetails,
-  sendInstructionPlan,
+  sendInstructionPlanAndGetMetadataResponse,
 } from './internals';
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
@@ -34,9 +34,11 @@ export async function createMetadata(
     context.createMessage(),
   ]);
   const extendedInput = { ...input, ...pdaDetails, defaultMessage };
-  const plan = await getCreateMetadataInstructions(extendedInput);
-  await sendInstructionPlan(plan, context);
-  return { metadata: extendedInput.metadata };
+  return await sendInstructionPlanAndGetMetadataResponse(
+    await getCreateMetadataInstructions(extendedInput),
+    context,
+    extendedInput
+  );
 }
 
 export async function getCreateMetadataInstructions(

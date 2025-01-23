@@ -28,11 +28,12 @@ import {
   SignatureNotificationsApi,
   signTransactionMessageWithSigners,
   SlotNotificationsApi,
+  Transaction,
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/web3.js';
 import { findMetadataPda, getWriteInstruction, SeedArgs } from './generated';
-import { getProgramAuthority } from './utils';
+import { getProgramAuthority, MetadataResponse } from './utils';
 
 const TRANSACTION_SIZE_LIMIT =
   1_280 -
@@ -290,4 +291,70 @@ export function getWriteInstructionPlan(input: {
       getWriteInstruction(input),
     ],
   };
+}
+
+export async function sendInstructionPlanAndGetMetadataResponse(
+  plan: InstructionPlan,
+  context: SendInstructionPlanContext,
+  input: {
+    metadata: Address;
+    defaultMessage: CompilableTransactionMessage;
+    extractLastTransaction?: boolean;
+  }
+): Promise<MetadataResponse> {
+  const [planToSend, lastTransaction] = extractLastTransactionIfRequired(
+    plan,
+    input
+  );
+  await sendInstructionPlan(planToSend, context);
+  return { metadata: input.metadata, lastTransaction };
+}
+
+function extractLastTransactionIfRequired(
+  plan: InstructionPlan,
+  input: {
+    defaultMessage: CompilableTransactionMessage;
+    extractLastTransaction?: boolean;
+  }
+): [InstructionPlan, Transaction | undefined] {
+  if (!input.extractLastTransaction) {
+    return [plan, undefined];
+  }
+  const result = extractLastMessageFromPlan(plan);
+  const lastMessage = getTransactionMessageFromPlan(
+    input.defaultMessage,
+    result.lastMessage
+  );
+  return [result.plan, compileTransaction(lastMessage)];
+}
+
+function extractLastMessageFromPlan(plan: InstructionPlan): {
+  plan: InstructionPlan;
+  lastMessage: MessageInstructionPlan;
+} {
+  switch (plan.kind) {
+    case 'sequential':
+      // eslint-disable-next-line no-case-declarations
+      const lastMessage = plan.plans[plan.plans.length - 1];
+      if (lastMessage.kind !== 'message') {
+        throw Error(
+          `Expected last plan to be a message plan, got: ${lastMessage.kind}`
+        );
+      }
+      return {
+        plan: { kind: 'sequential', plans: plan.plans.slice(0, -1) },
+        lastMessage,
+      };
+    case 'message':
+      throw new Error(
+        'This operation can be executed without a buffer. ' +
+          'Therefore, the `extractLastTransaction` option is redundant. ' +
+          'Use the `buffer` option to force the use of a buffer.'
+      );
+    case 'parallel':
+    default:
+      throw Error(
+        `Cannot extract last transaction from plan kind: "${plan.kind}"`
+      );
+  }
 }
