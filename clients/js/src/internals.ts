@@ -8,7 +8,6 @@ import {
   CompilableTransactionMessage,
   compileTransaction,
   createTransactionMessage,
-  FullySignedTransaction,
   GetAccountInfoApi,
   GetLatestBlockhashApi,
   getTransactionEncoder,
@@ -17,7 +16,6 @@ import {
   pipe,
   ReadonlyUint8Array,
   Rpc,
-  sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   Transaction,
@@ -129,9 +127,11 @@ function getTimedCacheFunction<T>(
   };
 }
 
+const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
+
 export function getComputeUnitInstructions(input: {
   computeUnitPrice?: MicroLamports;
-  computeUnitLimit?: number;
+  computeUnitLimit?: number | 'simulated';
 }) {
   const instructions: IInstruction[] = [];
   if (input.computeUnitPrice !== undefined) {
@@ -144,7 +144,10 @@ export function getComputeUnitInstructions(input: {
   if (input.computeUnitLimit !== undefined) {
     instructions.push(
       getSetComputeUnitLimitInstruction({
-        units: input.computeUnitLimit,
+        units:
+          input.computeUnitLimit === 'simulated'
+            ? MAX_COMPUTE_UNIT_LIMIT
+            : input.computeUnitLimit,
       })
     );
   }
@@ -198,7 +201,7 @@ export function getWriteInstructionPlan(input: {
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
+        computeUnitLimit: 'simulated',
       }),
       getWriteInstruction(input),
     ],
@@ -220,15 +223,10 @@ export function getMetadataInstructionPlanExecutor(
   plan: InstructionPlan,
   config?: { abortSignal?: AbortSignal }
 ) => Promise<MetadataResponse> {
-  const sendAndConfirm = sendAndConfirmTransactionFactory(input);
   const executor = getDefaultInstructionPlanExecutor({
+    ...input,
+    simulateComputeUnitLimit: true,
     getDefaultMessage: input.getDefaultMessage,
-    sendAndConfirm: async (tx, config) => {
-      await sendAndConfirm(
-        tx as FullySignedTransaction & TransactionMessageWithBlockhashLifetime,
-        { commitment: input.commitment ?? 'confirmed', ...config }
-      );
-    },
   });
 
   return async (plan, config) => {

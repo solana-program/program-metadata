@@ -21,6 +21,7 @@ import {
   RpcSubscriptions,
   SendTransactionApi,
   SignatureNotificationsApi,
+  SimulateTransactionApi,
   SlotNotificationsApi,
   Transaction,
   TransactionSigner,
@@ -51,6 +52,7 @@ export type MetadataInput = {
       GetEpochInfoApi &
       GetSignatureStatusesApi &
       SendTransactionApi &
+      SimulateTransactionApi &
       GetAccountInfoApi &
       GetMinimumBalanceForRentExemptionApi
   >;

@@ -80,7 +80,7 @@ export function getCreateMetadataInstructionPlanUsingInstructionData(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
+        computeUnitLimit: 'simulated',
       }),
       getTransferSolInstruction({
         source: input.payer,
@@ -106,7 +106,7 @@ export function getCreateMetadataInstructionPlanUsingBuffer(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
+        computeUnitLimit: 'simulated',
       }),
       getTransferSolInstruction({
         source: input.payer,
@@ -145,7 +145,7 @@ export function getCreateMetadataInstructionPlanUsingBuffer(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
+        computeUnitLimit: 'simulated',
       }),
       getInitializeInstruction({
         ...input,

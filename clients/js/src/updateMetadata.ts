@@ -116,7 +116,7 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
+        computeUnitLimit: 'simulated',
       }),
     ],
   };
@@ -164,7 +164,7 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
+        computeUnitLimit: 'simulated',
       }),
     ],
   };
@@ -216,7 +216,7 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
     instructions: [
       ...getComputeUnitInstructions({
         computeUnitPrice: input.priorityFees,
-        computeUnitLimit: undefined, // TODO: Add max CU for each instruction.
+        computeUnitLimit: 'simulated',
       }),
       getSetDataInstruction({
         ...input,
