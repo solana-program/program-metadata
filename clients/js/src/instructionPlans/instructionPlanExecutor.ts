@@ -10,20 +10,23 @@ export type InstructionPlanExecutor = (
 ) => Promise<void>;
 
 export function createInstructionPlanExecutor(
-  handleMessage: (plan: MessageInstructionPlan) => Promise<void>
+  handleMessage: (
+    plan: MessageInstructionPlan,
+    config?: { abortSignal?: AbortSignal }
+  ) => Promise<void>
 ): InstructionPlanExecutor {
-  return async function self(plan) {
+  return async function self(plan, config) {
     switch (plan.kind) {
       case 'sequential':
         for (const subPlan of plan.plans) {
-          await self(subPlan);
+          await self(subPlan, config);
         }
         break;
       case 'parallel':
-        await Promise.all(plan.plans.map((subPlan) => self(subPlan)));
+        await Promise.all(plan.plans.map((subPlan) => self(subPlan, config)));
         break;
       case 'message':
-        return await handleMessage(plan);
+        return await handleMessage(plan, config);
       default:
         throw new Error('Unsupported instruction plan');
     }
