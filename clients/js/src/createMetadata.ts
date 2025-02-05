@@ -11,37 +11,31 @@ import {
   PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
 import {
+  getTransactionMessageFromPlan,
+  InstructionPlan,
+  MessageInstructionPlan,
+} from './instructionPlans';
+import {
   calculateMaxChunkSize,
   getComputeUnitInstructions,
-  getDefaultInstructionPlanContext,
-  getPdaDetails,
-  getTransactionMessageFromPlan,
+  getExtendedMetadataInput,
+  getMetadataInstructionPlanExecutor,
   getWriteInstructionPlan,
-  InstructionPlan,
   messageFitsInOneTransaction,
-  MessageInstructionPlan,
   PdaDetails,
-  sendInstructionPlanAndGetMetadataResponse,
 } from './internals';
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
 export async function createMetadata(
   input: MetadataInput
 ): Promise<MetadataResponse> {
-  const context = getDefaultInstructionPlanContext(input);
-  const [pdaDetails, defaultMessage] = await Promise.all([
-    getPdaDetails(input),
-    context.createMessage(),
-  ]);
-  const extendedInput = { ...input, ...pdaDetails, defaultMessage };
-  return await sendInstructionPlanAndGetMetadataResponse(
-    await getCreateMetadataInstructions(extendedInput),
-    context,
-    extendedInput
-  );
+  const extendedInput = await getExtendedMetadataInput(input);
+  const executor = getMetadataInstructionPlanExecutor(extendedInput);
+  const plan = await getCreateMetadataInstructionPlan(extendedInput);
+  return await executor(plan);
 }
 
-export async function getCreateMetadataInstructions(
+export async function getCreateMetadataInstructionPlan(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
     PdaDetails & {
       rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
@@ -52,7 +46,7 @@ export async function getCreateMetadataInstructions(
     .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
     .send();
   const planUsingInstructionData =
-    getCreateMetadataInstructionsUsingInstructionData({ ...input, rent });
+    getCreateMetadataInstructionPlanUsingInstructionData({ ...input, rent });
   const messageUsingInstructionData = getTransactionMessageFromPlan(
     input.defaultMessage,
     planUsingInstructionData
@@ -70,14 +64,14 @@ export async function getCreateMetadataInstructions(
     ...input,
     buffer: input.metadata,
   });
-  return getCreateMetadataInstructionsUsingBuffer({
+  return getCreateMetadataInstructionPlanUsingBuffer({
     ...input,
     chunkSize,
     rent,
   });
 }
 
-export function getCreateMetadataInstructionsUsingInstructionData(
+export function getCreateMetadataInstructionPlanUsingInstructionData(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
     PdaDetails & { rent: Lamports }
 ): MessageInstructionPlan {
@@ -101,7 +95,7 @@ export function getCreateMetadataInstructionsUsingInstructionData(
   };
 }
 
-export function getCreateMetadataInstructionsUsingBuffer(
+export function getCreateMetadataInstructionPlanUsingBuffer(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
     PdaDetails & { rent: Lamports; chunkSize: number }
 ): InstructionPlan {

@@ -1,44 +1,33 @@
-import { getCreateMetadataInstructions } from './createMetadata';
+import { getCreateMetadataInstructionPlan } from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
 import {
-  getDefaultInstructionPlanContext,
-  getPdaDetails,
-  sendInstructionPlanAndGetMetadataResponse,
+  getExtendedMetadataInput,
+  getMetadataInstructionPlanExecutor,
 } from './internals';
-import { getUpdateMetadataInstructions } from './updateMetadata';
+import { getUpdateMetadataInstructionPlan } from './updateMetadata';
 import { MetadataInput } from './utils';
 
 export async function uploadMetadata(input: MetadataInput) {
-  const context = getDefaultInstructionPlanContext(input);
-  const [pdaDetails, defaultMessage] = await Promise.all([
-    getPdaDetails(input),
-    context.createMessage(),
-  ]);
-  const extendedInput = { ...input, ...pdaDetails, defaultMessage };
+  const extendedInput = await getExtendedMetadataInput(input);
+  const executor = getMetadataInstructionPlanExecutor(extendedInput);
   const metadataAccount = await fetchMaybeMetadata(
     input.rpc,
-    pdaDetails.metadata
+    extendedInput.metadata
   );
 
   // Create metadata if it doesn't exist.
   if (!metadataAccount.exists) {
-    return await sendInstructionPlanAndGetMetadataResponse(
-      await getCreateMetadataInstructions(extendedInput),
-      context,
-      extendedInput
-    );
+    const plan = await getCreateMetadataInstructionPlan(extendedInput);
+    return await executor(plan);
   }
 
   // Update metadata if it exists.
   if (!metadataAccount.data.mutable) {
     throw new Error('Metadata account is immutable');
   }
-  return await sendInstructionPlanAndGetMetadataResponse(
-    await getUpdateMetadataInstructions({
-      ...extendedInput,
-      currentDataLength: BigInt(metadataAccount.data.data.length),
-    }),
-    context,
-    extendedInput
-  );
+  const plan = await getUpdateMetadataInstructionPlan({
+    ...extendedInput,
+    currentDataLength: BigInt(metadataAccount.data.data.length),
+  });
+  return await executor(plan);
 }
