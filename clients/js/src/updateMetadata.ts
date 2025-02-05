@@ -17,44 +17,39 @@ import {
 import {
   calculateMaxChunkSize,
   getComputeUnitInstructions,
-  getDefaultInstructionPlanContext,
-  getPdaDetails,
-  getTransactionMessageFromPlan,
+  getExtendedMetadataInput,
+  getMetadataInstructionPlanExecutor,
   getWriteInstructionPlan,
-  InstructionPlan,
   messageFitsInOneTransaction,
-  MessageInstructionPlan,
   PdaDetails,
-  sendInstructionPlanAndGetMetadataResponse,
 } from './internals';
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
+import {
+  getTransactionMessageFromPlan,
+  InstructionPlan,
+  MessageInstructionPlan,
+} from './instructionPlans';
 
 export async function updateMetadata(
   input: MetadataInput
 ): Promise<MetadataResponse> {
-  const context = getDefaultInstructionPlanContext(input);
-  const [pdaDetails, defaultMessage] = await Promise.all([
-    getPdaDetails(input),
-    context.createMessage(),
-  ]);
-  const metadataAccount = await fetchMetadata(input.rpc, pdaDetails.metadata);
+  const extendedInput = await getExtendedMetadataInput(input);
+  const executor = getMetadataInstructionPlanExecutor(extendedInput);
+  const metadataAccount = await fetchMetadata(
+    input.rpc,
+    extendedInput.metadata
+  );
   if (!metadataAccount.data.mutable) {
     throw new Error('Metadata account is immutable');
   }
-  const extendedInput = {
+  const plan = await getUpdateMetadataInstructionPlan({
+    ...extendedInput,
     currentDataLength: BigInt(metadataAccount.data.data.length),
-    defaultMessage,
-    ...input,
-    ...pdaDetails,
-  };
-  return await sendInstructionPlanAndGetMetadataResponse(
-    await getUpdateMetadataInstructions(extendedInput),
-    context,
-    extendedInput
-  );
+  });
+  return await executor(plan);
 }
 
-export async function getUpdateMetadataInstructions(
+export async function getUpdateMetadataInstructionPlan(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
     PdaDetails & {
       rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
@@ -69,7 +64,7 @@ export async function getUpdateMetadataInstructions(
       ? await input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
       : lamports(0n);
   const planUsingInstructionData =
-    getUpdateMetadataInstructionsUsingInstructionData({
+    getUpdateMetadataInstructionPlanUsingInstructionData({
       ...input,
       sizeDifference,
       extraRent,
@@ -99,7 +94,7 @@ export async function getUpdateMetadataInstructions(
     buffer: buffer.address,
     authority: buffer,
   });
-  return getUpdateMetadataInstructionsUsingBuffer({
+  return getUpdateMetadataInstructionPlanUsingBuffer({
     ...input,
     sizeDifference,
     extraRent,
@@ -109,7 +104,7 @@ export async function getUpdateMetadataInstructions(
   });
 }
 
-export function getUpdateMetadataInstructionsUsingInstructionData(
+export function getUpdateMetadataInstructionPlanUsingInstructionData(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &
     PdaDetails & {
       sizeDifference: bigint;
@@ -153,7 +148,7 @@ export function getUpdateMetadataInstructionsUsingInstructionData(
   return plan;
 }
 
-export function getUpdateMetadataInstructionsUsingBuffer(
+export function getUpdateMetadataInstructionPlanUsingBuffer(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions' | 'buffer'> &
     PdaDetails & {
       chunkSize: number;

@@ -4,41 +4,60 @@ import {
 } from '@solana-program/compute-budget';
 import {
   Address,
-  appendTransactionMessageInstructions,
   Commitment,
   CompilableTransactionMessage,
   compileTransaction,
   createTransactionMessage,
+  FullySignedTransaction,
   GetAccountInfoApi,
-  GetEpochInfoApi,
   GetLatestBlockhashApi,
-  GetMinimumBalanceForRentExemptionApi,
-  GetSignatureStatusesApi,
   getTransactionEncoder,
   IInstruction,
   MicroLamports,
   pipe,
   ReadonlyUint8Array,
   Rpc,
-  RpcSubscriptions,
   sendAndConfirmTransactionFactory,
-  SendTransactionApi,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  SignatureNotificationsApi,
-  signTransactionMessageWithSigners,
-  SlotNotificationsApi,
   Transaction,
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/web3.js';
 import { findMetadataPda, getWriteInstruction, SeedArgs } from './generated';
-import { getProgramAuthority, MetadataResponse } from './utils';
+import {
+  getDefaultInstructionPlanExecutor,
+  getTransactionMessageFromPlan,
+  InstructionPlan,
+  InstructionPlanExecutor,
+  MessageInstructionPlan,
+} from './instructionPlans';
+import { getProgramAuthority, MetadataInput, MetadataResponse } from './utils';
 
 const TRANSACTION_SIZE_LIMIT =
   1_280 -
   40 /* 40 bytes is the size of the IPv6 header. */ -
   8; /* 8 bytes is the size of the fragment header. */
+
+export type ExtendedMetadataInput = MetadataInput &
+  PdaDetails & {
+    getDefaultMessage: () => Promise<
+      CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
+    >;
+    defaultMessage: CompilableTransactionMessage &
+      TransactionMessageWithBlockhashLifetime;
+  };
+
+export async function getExtendedMetadataInput(
+  input: MetadataInput
+): Promise<ExtendedMetadataInput> {
+  const getDefaultMessage = getDefaultMessageFactory(input);
+  const [pdaDetails, defaultMessage] = await Promise.all([
+    getPdaDetails(input),
+    getDefaultMessage(),
+  ]);
+  return { ...input, ...pdaDetails, defaultMessage, getDefaultMessage };
+}
 
 export type PdaDetails = {
   metadata: Address;
@@ -69,21 +88,21 @@ export async function getPdaDetails(input: {
   return { metadata, isCanonical, programData };
 }
 
-export function getDefaultCreateMessage(
-  rpc: Rpc<GetLatestBlockhashApi>,
-  payer: TransactionSigner
-): () => Promise<
+export function getDefaultMessageFactory(input: {
+  rpc: Rpc<GetLatestBlockhashApi>;
+  payer: TransactionSigner;
+}): () => Promise<
   CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
 > {
   const getBlockhash = getTimedCacheFunction(async () => {
-    const { value } = await rpc.getLatestBlockhash().send();
+    const { value } = await input.rpc.getLatestBlockhash().send();
     return value;
   }, 60_000);
   return async () => {
     const latestBlockhash = await getBlockhash();
     return pipe(
       createTransactionMessage({ version: 0 }),
-      (tx) => setTransactionMessageFeePayerSigner(payer, tx),
+      (tx) => setTransactionMessageFeePayerSigner(input.payer, tx),
       (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx)
     );
   };
@@ -108,113 +127,6 @@ function getTimedCacheFunction<T>(
     lastFetchTime = currentTime;
     return cache;
   };
-}
-
-async function signAndSendTransaction(
-  transactionMessage: CompilableTransactionMessage &
-    TransactionMessageWithBlockhashLifetime,
-  sendAndConfirm: ReturnType<typeof sendAndConfirmTransactionFactory>,
-  commitment: Commitment = 'confirmed'
-) {
-  const tx = await signTransactionMessageWithSigners(transactionMessage);
-  await sendAndConfirm(tx, { commitment });
-}
-
-export type SequentialInstructionPlan = {
-  kind: 'sequential';
-  plans: InstructionPlan[];
-};
-export type ParallelInstructionPlan = {
-  kind: 'parallel';
-  plans: InstructionPlan[];
-};
-export type MessageInstructionPlan = {
-  kind: 'message';
-  instructions: IInstruction[];
-};
-export type InstructionPlan =
-  | SequentialInstructionPlan
-  | ParallelInstructionPlan
-  | MessageInstructionPlan;
-
-type SendInstructionPlanContext = {
-  createMessage: () => Promise<
-    CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
-  >;
-  sendAndConfirm: ReturnType<typeof sendAndConfirmTransactionFactory>;
-};
-
-export function getDefaultInstructionPlanContext(input: {
-  rpc: Rpc<
-    GetLatestBlockhashApi &
-      GetEpochInfoApi &
-      GetSignatureStatusesApi &
-      SendTransactionApi &
-      GetMinimumBalanceForRentExemptionApi
-  >;
-  rpcSubscriptions: RpcSubscriptions<
-    SignatureNotificationsApi & SlotNotificationsApi
-  >;
-  payer: TransactionSigner;
-}): SendInstructionPlanContext {
-  return {
-    createMessage: getDefaultCreateMessage(input.rpc, input.payer),
-    sendAndConfirm: sendAndConfirmTransactionFactory(input),
-  };
-}
-
-export async function sendInstructionPlan(
-  plan: InstructionPlan,
-  ctx: SendInstructionPlanContext
-) {
-  switch (plan.kind) {
-    case 'sequential':
-      return await sendSequentialInstructionPlan(plan, ctx);
-    case 'parallel':
-      return await sendParallelInstructionPlan(plan, ctx);
-    case 'message':
-      return await sendMessageInstructionPlan(plan, ctx);
-    default:
-      throw new Error('Unsupported instruction plan');
-  }
-}
-
-async function sendSequentialInstructionPlan(
-  plan: SequentialInstructionPlan,
-  ctx: SendInstructionPlanContext
-) {
-  for (const subPlan of plan.plans) {
-    await sendInstructionPlan(subPlan, ctx);
-  }
-}
-
-async function sendParallelInstructionPlan(
-  plan: ParallelInstructionPlan,
-  ctx: SendInstructionPlanContext
-) {
-  await Promise.all(
-    plan.plans.map((subPlan) => sendInstructionPlan(subPlan, ctx))
-  );
-}
-
-async function sendMessageInstructionPlan(
-  plan: MessageInstructionPlan,
-  ctx: SendInstructionPlanContext
-) {
-  await pipe(
-    await ctx.createMessage(),
-    (tx) => appendTransactionMessageInstructions(plan.instructions, tx),
-    (tx) => signAndSendTransaction(tx, ctx.sendAndConfirm)
-  );
-}
-
-export function getTransactionMessageFromPlan(
-  defaultMessage: CompilableTransactionMessage,
-  plan: MessageInstructionPlan
-) {
-  return pipe(defaultMessage, (tx) =>
-    appendTransactionMessageInstructions(plan.instructions, tx)
-  );
 }
 
 export function getComputeUnitInstructions(input: {
@@ -293,9 +205,45 @@ export function getWriteInstructionPlan(input: {
   };
 }
 
-export async function sendInstructionPlanAndGetMetadataResponse(
+export function getMetadataInstructionPlanExecutor(
+  input: Pick<
+    ExtendedMetadataInput,
+    | 'rpc'
+    | 'rpcSubscriptions'
+    | 'payer'
+    | 'extractLastTransaction'
+    | 'metadata'
+    | 'defaultMessage'
+    | 'getDefaultMessage'
+  > & { commitment?: Commitment }
+): (
   plan: InstructionPlan,
-  context: SendInstructionPlanContext,
+  config?: { abortSignal?: AbortSignal }
+) => Promise<MetadataResponse> {
+  const sendAndConfirm = sendAndConfirmTransactionFactory(input);
+  const executor = getDefaultInstructionPlanExecutor({
+    getDefaultMessage: input.getDefaultMessage,
+    sendAndConfirm: async (tx, config) => {
+      await sendAndConfirm(
+        tx as FullySignedTransaction & TransactionMessageWithBlockhashLifetime,
+        { commitment: input.commitment ?? 'confirmed', ...config }
+      );
+    },
+  });
+
+  return async (plan, config) => {
+    const [planToSend, lastTransaction] = extractLastTransactionIfRequired(
+      plan,
+      input
+    );
+    await executor(planToSend, config);
+    return { metadata: input.metadata, lastTransaction };
+  };
+}
+
+export async function executeInstructionPlanAndGetMetadataResponse(
+  plan: InstructionPlan,
+  executor: InstructionPlanExecutor,
   input: {
     metadata: Address;
     defaultMessage: CompilableTransactionMessage;
@@ -306,7 +254,7 @@ export async function sendInstructionPlanAndGetMetadataResponse(
     plan,
     input
   );
-  await sendInstructionPlan(planToSend, context);
+  await executor(planToSend);
   return { metadata: input.metadata, lastTransaction };
 }
 
