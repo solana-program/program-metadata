@@ -1,14 +1,20 @@
+use core::cmp::max;
+
 use pinocchio::{
     account_info::AccountInfo, memory::sol_memcpy, program_error::ProgramError, ProgramResult,
 };
 
 use crate::state::{buffer::Buffer, AccountDiscriminator};
 
-/// Writes data to a buffer account.
-///
-/// ## Validation
-/// The following validation checks are performed:
+/// Processor for the [`Write`](`crate::instruction::ProgramMetadataInstruction::Write`)
+/// instruction.
 pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+    // Validates the instruction data.
+
+    let args = Write::try_from_bytes(instruction_data)?;
+
+    // Access accounts.
+
     let [buffer, authority, _remaining @ ..] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
@@ -16,56 +22,86 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
     // Account validation.
 
     // authority
-    // - explicit signer check
+    // - must be a signer
 
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // account
-    // - implicit rent exemption check since we are reallocating the account
-    //   (it will fail if the account is not pre-funded for the required space)
-    // - implicit program owned and writable check since we are writing to the
-    //   account (it will fail if the account is not assigned to the program)
+    // buffer
+    // - must be initialized
+    // - must be rent exempt (pre-funded account) since we are reallocating the buffer
+    //   account (this is tested implicity)
 
-    if buffer.data_is_empty() {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    let required_length = {
+        // SAFETY: scoped immutable borrow of `buffer` account data. There
+        // are no other borrows active.
+        let data = unsafe { buffer.borrow_data_unchecked() };
 
-    let data = unsafe { buffer.borrow_mut_data_unchecked() };
+        if data.is_empty() || data[0] != AccountDiscriminator::Buffer as u8 {
+            return Err(ProgramError::InvalidAccountData);
+        }
 
-    let offset = if data[0] == AccountDiscriminator::Buffer as u8 {
-        buffer.data_len()
-    } else {
-        return Err(ProgramError::InvalidAccountData);
-    };
-
-    // If the authority is not the buffer account, the buffer account is a
-    // PDA and signer authority must match the buffer authority.
-    if buffer.key() != authority.key() {
+        // SAFETY: `buffer` account data is guaranteed to be a `Buffer`.
         let buffer_header = unsafe { Buffer::from_bytes_unchecked(data) };
+
         if Some(authority.key()) != buffer_header.authority.as_ref() {
             return Err(ProgramError::IncorrectAuthority);
         }
-    }
 
-    // Must have instruction data.
-    if instruction_data.is_empty() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
+        max(data.len(), args.offset() as usize + args.data().len())
+    };
 
-    // Make space for the instruction data.
-    buffer.realloc(offset + instruction_data.len(), false)?;
-    // Refresh the data reference after realloc.
+    // Writes the instruction data to the buffer account.
+
+    buffer.realloc(required_length, false)?;
+    // SAFETY: single mutable borrow of `buffer` account data. There
+    // are no other borrows active.
     let data = unsafe { buffer.borrow_mut_data_unchecked() };
 
     unsafe {
         sol_memcpy(
-            &mut data[offset..],
+            &mut data[args.offset() as usize..],
             instruction_data,
             instruction_data.len(),
         );
     }
 
     Ok(())
+}
+
+/// Instruction data expected by the [`Write`](`crate::instruction::ProgramMetadataInstruction::Write`).
+struct Write<'a> {
+    /// Offset to write to.
+    offset: &'a [u8; 4],
+
+    /// Bytes to write.
+    data: &'a [u8],
+}
+
+impl Write<'_> {
+    #[inline]
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Write, ProgramError> {
+        // The minimum expected size of the instruction data.
+        // - offset (4 bytes)
+        // - data (...n bytes)
+        if bytes.len() < 5 {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
+        Ok(Write {
+            offset: unsafe { &*(bytes.as_ptr() as *const [u8; 4]) },
+            data: &bytes[4..],
+        })
+    }
+
+    #[inline]
+    pub fn offset(&self) -> u32 {
+        u32::from_le_bytes(*self.offset)
+    }
+
+    #[inline]
+    pub fn data(&self) -> &[u8] {
+        self.data
+    }
 }

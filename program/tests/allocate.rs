@@ -102,7 +102,8 @@ fn test_allocate_non_canonical() {
 fn test_allocate_keypair() {
     // "keypair" buffer account
     let buffer_key = Pubkey::new_unique();
-    let buffer_account = create_empty_account(Buffer::LEN, PROGRAM_ID);
+    let buffer_account =
+        create_funded_account(minimum_balance_for(Buffer::LEN), system_program::ID);
 
     process_instruction(
         allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
@@ -279,6 +280,30 @@ fn test_allocate_with_funded_keypair_account() {
 }
 
 #[test]
+fn test_allocate_with_allocated_keypair_account() {
+    // "keypair" buffer account
+    let buffer_key = Pubkey::new_unique();
+    // 100 extra bytes
+    let buffer_account = create_empty_account(Buffer::LEN + 100, system_program::ID);
+
+    process_instruction(
+        allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+        &[
+            (buffer_key, buffer_account),
+            (PROGRAM_ID, AccountSharedData::default()),
+            keyed_account_for_system_program(),
+        ],
+        &[
+            Check::success(),
+            // account owner
+            Check::account(&buffer_key).owner(&PROGRAM_ID).build(),
+            // account discriminator
+            Check::account(&buffer_key).data_slice(0, &[1]).build(),
+        ],
+    );
+}
+
+#[test]
 fn test_allocate_with_unfunded_canonical_account() {
     let authority_key = Pubkey::new_unique();
 
@@ -357,7 +382,7 @@ fn test_allocate_with_unfunded_non_canonical_account() {
 
 #[test]
 fn test_allocate_with_unfunded_account() {
-    // Unfunded "keypeir" buffer account.
+    // Unfunded "keypair" buffer account.
 
     let buffer_key = Pubkey::new_unique();
     let buffer_account = create_funded_account(0, system_program::ID);

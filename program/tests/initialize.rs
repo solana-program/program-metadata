@@ -22,7 +22,8 @@ fn test_initialize_canonical() {
 
     let (metadata_key, _) =
         Pubkey::find_program_address(&[program_key.as_ref(), &seed], &PROGRAM_ID);
-    let metadata_account = create_empty_account(Header::LEN + 10, system_program::ID);
+    let metadata_account =
+        create_funded_account(minimum_balance_for(Header::LEN + 10), system_program::ID);
 
     let instruction = initialize(
         &authority_key,
@@ -80,7 +81,8 @@ fn test_initialize_non_canonical() {
         &[program_key.as_ref(), authority_key.as_ref(), &seed],
         &PROGRAM_ID,
     );
-    let metadata_account = create_empty_account(Header::LEN + 10, system_program::ID);
+    let metadata_account =
+        create_funded_account(minimum_balance_for(Header::LEN + 10), system_program::ID);
 
     let instruction = initialize(
         &authority_key,

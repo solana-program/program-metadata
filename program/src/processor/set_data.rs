@@ -8,7 +8,8 @@ use crate::state::{
 
 use super::{validate_authority, validate_metadata};
 
-/// Update the data of a metadata account.
+/// Processor for the [`SetData`](`crate::instruction::ProgramMetadataInstruction::SetData`)
+/// instruction.
 pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Parse instruction data.
     if instruction_data.len() < SetData::LEN {
@@ -76,18 +77,6 @@ pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
             sol_memcpy(&mut metadata_account_data[Header::LEN..], data, data_length);
         }
     }
-
-    // Close the buffer by moving the lamports to the metadata account.
-    if has_buffer {
-        unsafe {
-            let metadata_lamports = metadata.borrow_mut_lamports_unchecked();
-            let buffer_lamports = buffer.borrow_mut_lamports_unchecked();
-            // Move the buffer lamports to the metadata account.
-            *metadata_lamports += *buffer_lamports;
-            *buffer_lamports = 0;
-        }
-        buffer.close()?;
-    };
 
     Ok(())
 }

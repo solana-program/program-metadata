@@ -1,4 +1,8 @@
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{
+    account_info::AccountInfo,
+    program_error::ProgramError,
+    pubkey::{Pubkey, PUBKEY_BYTES},
+};
 
 use crate::state::{header::Header, Account, AccountDiscriminator};
 
@@ -11,38 +15,57 @@ pub mod set_immutable;
 pub mod withdraw_excess_lamports;
 pub mod write;
 
+/// The program ID of the BPF Loader v3.
+const BPF_LOADER_UPGRABABLE_ID: Pubkey = [
+    2, 168, 246, 145, 78, 136, 161, 176, 226, 16, 21, 62, 247, 99, 174, 43, 0, 194, 185, 61, 22,
+    193, 36, 210, 192, 83, 122, 16, 4, 128, 0, 0,
+];
+
 /// Checks if the provided `authority` is the authority allowed to update the `program`.
 /// Fails when providing unexpected input.
 ///
-/// ## Validation
 /// The following validation checks are performed:
 ///
-/// - [explicit] The `program` account must be executable.
-/// - [explicit] The `program` account discriminator (first byte) must be `2` — i.e. defining a `Program` account.
-/// - [explicit] The `program_data` account is optional. When set to `crate::ID`, the function returns `false`.
-/// - [explicit] When provided, the `program_data` account must be the one set on the `program` account data.
-/// - [explicit] When provided, the `program_data` account must not be executable.
-/// - [explicit] When provided, the `program_data` account discriminator (first byte) must be `3` — i.e. defining a `ProgramData` account.
-/// - [explicit] When provided, the `program_data` account must have 32 bytes of data in the range [13..45], representing the authority.
+/// - `program` account must be executable.
+///
+/// - When a program is owned by BPF Loader v2, program must match the authority;
+///   otherwise, the `program_data` account must be provided.
+///
+/// For BPF Loader v2 programs:
+///
+/// - `program` account discriminator (first byte) must be `2` — i.e. defining a
+///   `Program` account.
+///
+/// - `program_data` account must be the one set on the `program` account data.
+///
+/// - `program_data` account discriminator (first byte) must be `3` — i.e. defining
+///   a `ProgramData` account.
+///
+/// - `program_data` account must have 32 bytes of data in the range `[13..45]`,
+///   matching the provided `authority`.
 #[inline(always)]
 fn is_program_authority(
     program: &AccountInfo,
     program_data: &AccountInfo,
     authority: &Pubkey,
 ) -> Result<bool, ProgramError> {
-    // If we don't have a program data to check against, we can't verify
-    // the program upgrade authority.
+    // For BPFv1 and BPF Loader v2 programs, there is no program data associated. In this case,
+    // the keypair used to deploy the program must be the authority and sign the transaction.
+    if program.owner() != &BPF_LOADER_UPGRABABLE_ID {
+        return Ok(program.executable() && program.key() == authority);
+    }
+
+    // For BPFv3 programs, we need the program data account to check the auhtority.
     if program_data.key() == &crate::ID {
         return Ok(false);
     }
 
-    // Program checks.
     let expected_program_data = {
         let data = unsafe { program.borrow_data_unchecked() };
         match (data.first(), program.executable()) {
             (Some(2 /* program discriminator */), true) => {
                 let offset: usize = 4 /* discriminator */;
-                Pubkey::try_from(&data[offset..offset + 32])
+                Pubkey::try_from(&data[offset..offset + PUBKEY_BYTES])
                     .map_err(|_| ProgramError::InvalidAccountData)?
             }
             _ => {
@@ -66,7 +89,6 @@ fn is_program_authority(
                 let option_offset: usize = 4 /* discriminator */ + 8 /* slot */;
                 if data[option_offset] == 1 {
                     let pubkey_offset: usize = option_offset + 1 /* option */;
-                    pinocchio::msg!("B7");
                     let authority_key = Pubkey::try_from(&data[pubkey_offset..pubkey_offset + 32])
                         .map_err(|_| ProgramError::InvalidAccountData)?;
                     authority == &authority_key
@@ -86,11 +108,11 @@ fn is_program_authority(
 
 /// Ensures the `metadata` account is valid and mutable.
 ///
-/// ## Validation
 /// The following validation checks are performed:
 ///
-/// - [explicit] The `metadata` account discriminator (first byte) must be `2` — i.e. defining a `Metadata` account.
-/// - [explicit] The `metadata` account must be mutable — i.e. `mutable = true`.
+/// - The `metadata` account discriminator (first byte) must
+///   be [`AccountDiscriminator::Metadata`].
+/// - The `metadata` account must be mutable (`mutable = true`).
 #[inline(always)]
 fn validate_metadata(metadata: &AccountInfo) -> Result<&Header, ProgramError> {
     let header = unsafe { Header::from_bytes_unchecked(metadata.borrow_data_unchecked()) };
@@ -106,12 +128,12 @@ fn validate_metadata(metadata: &AccountInfo) -> Result<&Header, ProgramError> {
 
 /// Ensures the `metadata` account can be updated by the provided `authority`.
 ///
-/// ## Validation
 /// The following validation checks are performed:
 ///
-/// - [explicit] The `authority` account must be a signer.
-/// - [explicit] The `authority` account must match the authority set on the `metadata` account OR
-///   it must be the program upgrade authority if the `metadata` account is canonical (see `is_program_authority`).
+/// - `[e]` The `authority` account must be a signer.
+/// - `[e]` The `authority` account must match the authority set on the `metadata`
+///   account OR it must be the program upgrade authority if the `metadata` account
+///   is canonical (see `is_program_authority`).
 #[inline(always)]
 fn validate_authority<T: Account>(
     account: &T,

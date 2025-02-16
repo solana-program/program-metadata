@@ -17,10 +17,18 @@ use crate::{
 
 use super::is_program_authority;
 
-/// Initializes a metadata account.
+/// Processor for the [`Initialize`](`crate::instruction::ProgramMetadataInstruction::Initialize`)
+/// instruction.
 ///
-/// ## Validation
-/// The following validation checks are performed:
+/// Account validations performed by this instruction:
+///
+/// authority
+/// * `[e]` signer check
+/// * `[e]` program authority check
+///
+/// metadata
+/// * `[e]` metadata PDA derivation
+/// * `[i]` must be owned by the program (implicit check on account write)
 ///
 /// - [explicit] The instruction data must be at least `Initialize::LEN` bytes long.
 /// - [explicit] All instruction accounts must be provided. Optional accounts must be set to `crate::ID`.
@@ -36,44 +44,51 @@ use super::is_program_authority;
 /// - [implicit] The `metadata` account must be owned by the Program Metadata program. Implicitly checked by writing to the account.
 /// - [implicit] The `metadata` account must be pre-funded when passing extra instruction data. Implicitly checked by writing to the account.
 pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    // Parse instruction data.
+    // Validates the instruction data.
+
     let (args, remaining_data) = if instruction_data.len() < Initialize::LEN {
         return Err(ProgramError::InvalidInstructionData);
     } else {
         let (args, remaining_data) = instruction_data.split_at(Initialize::LEN);
+        // SAFE: `instruction_data` length is checked above.
         (unsafe { Initialize::load_unchecked(args) }, remaining_data)
     };
 
     // Access accounts.
+
     let [metadata, authority, program, program_data, _system_program, _remaining @ ..] = accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    // Validate authority.
     if !authority.is_signer() {
         return Err(ProgramError::MissingRequiredSignature);
     }
+
     let canonical: bool = is_program_authority(program, program_data, authority.key())?;
 
-    // Validatate metadata seeds.
     let seeds: &[&[u8]] = if canonical {
         &[program.key(), args.seed.as_ref()]
     } else {
         &[program.key(), authority.key(), args.seed.as_ref()]
     };
+
     let (derived_metadata, bump) = find_program_address(seeds, &ID);
+
     if metadata.key() != &derived_metadata {
         return Err(ProgramError::InvalidSeeds);
     }
 
-    let mut metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
+    let discriminator = {
+        // SAFETY: scoped immutable borrow of `metadata` account data.
+        AccountDiscriminator::from_bytes(unsafe { metadata.borrow_data_unchecked() })?
+    };
 
-    let data_length = match AccountDiscriminator::from_bytes(metadata_account_data)? {
+    let data_length = match discriminator {
         Some(AccountDiscriminator::Empty) => {
             // An account with an `Empty` discriminator means some "zero" account was provided.
             // However, the initialize instruction only supports accounts with no data or pre-allocated
-            // buffer (meaning the account should have use the `Allocate` and `Write` instructions first).
+            // buffer (meaning the account should have use the `allocate` and `write` instructions first).
             return Err(ProgramError::InvalidAccountData);
         }
         Some(AccountDiscriminator::Buffer) => {
@@ -81,12 +96,15 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             if !remaining_data.is_empty() {
                 return Err(ProgramError::InvalidAccountData);
             }
-            metadata_account_data.len() - Header::LEN
+            metadata.data_len() - Header::LEN
         }
         Some(AccountDiscriminator::Metadata) => {
             return Err(ProgramError::AccountAlreadyInitialized)
         }
         None => {
+            if metadata.lamports() == 0 {
+                return Err(ProgramError::AccountNotRentExempt);
+            }
             // Ensure remaining data is provided.
             if remaining_data.is_empty() {
                 return Err(ProgramError::InvalidInstructionData);
@@ -95,12 +113,14 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             // Allocate and assign the metadata account.
             let signer_bump = &[bump];
             let signer_seeds: &[Seed] = if canonical {
+                // canonical
                 &[
                     Seed::from(program.key()),
                     Seed::from(args.seed.as_ref()),
                     Seed::from(signer_bump),
                 ]
             } else {
+                // non-canonical
                 &[
                     Seed::from(program.key()),
                     Seed::from(authority.key()),
@@ -121,9 +141,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             }
             .invoke_signed(signer)?;
 
-            // Refresh the metadata account data reference.
-            metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
-
+            let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
             // Copy the instruction remaining data to the metadata account.
             unsafe {
                 sol_memcpy(
@@ -138,7 +156,10 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     };
 
     // Initialize the metadata account.
+
+    let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
     let header = unsafe { Header::from_bytes_mut_unchecked(metadata_account_data) };
+
     header.discriminator = AccountDiscriminator::Metadata as u8;
     header.program = *program.key();
     header.authority = match canonical {

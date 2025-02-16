@@ -2,48 +2,77 @@ use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 
-use crate::state::{header::Header, Zeroable};
+use crate::{
+    processor::validate_authority,
+    state::{buffer::Buffer, header::Header, AccountDiscriminator, Zeroable},
+};
 
-use super::{validate_authority, validate_metadata};
-
-/// Sets the authority of a metadata account.
-///
-/// ## Validation
-/// The following validation checks are performed:
-///
-/// - [implicit] The `metadata` account is owned by the Program Metadata program. Implicitly checked by writing to the account.
+/// Processor for the [`SetAuthority`](`crate::instruction::ProgramMetadataInstruction::SetAuthority`)
+/// instruction.
 pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    let [metadata, authority, program, program_data] = accounts else {
+    // Validates the instruction data.
+
+    let [has_new_authority, new_authority @ ..] = instruction_data else {
+        return Err(ProgramError::InvalidInstructionData);
+    };
+
+    // Access accounts.
+
+    let [account, authority, program, program_data] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    let (has_new_authority, new_authority) = instruction_data
-        .split_first()
-        .ok_or(ProgramError::InvalidInstructionData)?;
+    // authority
+    // - must be a signer
 
-    // Accounts validation is done in the `validate_authority` function.
-    //  - metadata: program owned is implicitly checked since we are writing to
-    //    the account
-    let header = validate_metadata(metadata)?;
-    validate_authority(header, authority, program, program_data)?;
-
-    let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
-
-    if !header.canonical() {
-        // TODO: use custom error (non canonical account)
-        return Err(ProgramError::InvalidAccountData);
+    if !authority.is_signer() {
+        return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Set the new authority.
+    // account
+    // - must be a buffer or metadata account
+    // - must be mutable (metadata)
+    // - cannot be a non-canonical metadata account
+    // - must have a valid authority
 
-    header.authority = if *has_new_authority == 0 {
-        Pubkey::ZERO.into()
-    } else {
-        let new_authority: Pubkey = new_authority
-            .try_into()
-            .map_err(|_| ProgramError::InvalidInstructionData)?;
-        new_authority.into()
-    };
+    // SAFETY: single mutable borrow of `account` account data.
+    let account_data = unsafe { account.borrow_mut_data_unchecked() };
+
+    match AccountDiscriminator::from_bytes(account_data)? {
+        Some(AccountDiscriminator::Buffer) => {
+            let buffer = Buffer::from_bytes_mut(account_data)?;
+
+            validate_authority(buffer, authority, program, program_data)?;
+
+            if *has_new_authority == 0 {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            let new_authority: Pubkey = new_authority
+                .try_into()
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            buffer.authority = new_authority.into();
+        }
+        Some(AccountDiscriminator::Metadata) => {
+            let header = Header::from_bytes_mut(account_data)?;
+
+            if !header.canonical() {
+                return Err(ProgramError::InvalidAccountData);
+            }
+
+            validate_authority(header, authority, program, program_data)?;
+
+            header.authority = if *has_new_authority == 0 {
+                Pubkey::ZERO.into()
+            } else {
+                let new_authority: Pubkey = new_authority
+                    .try_into()
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                new_authority.into()
+            };
+        }
+        _ => return Err(ProgramError::InvalidAccountData),
+    }
 
     Ok(())
 }

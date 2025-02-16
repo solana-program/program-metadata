@@ -4,31 +4,42 @@ use pinocchio::program_error::ProgramError;
 pub enum ProgramMetadataInstruction {
     /// Writes data to a pre-funded buffer.
     ///
-    /// The buffer account must be pre-funded with enough lamports to cover
-    /// the storage cost of the data being written. It also needs to be
-    /// assigned to the program.
+    /// The buffer account must be allocated and pre-funded with enough lamports
+    /// to cover the storage cost of the data being written.
     ///
-    /// ### Accounts
-    ///  0. `[ w ]` The buffer to write to.
-    ///  1. `[ s ]` The authority of the buffer.
+    /// Accounts expected by this instruction:
     ///
-    /// ### Instruction data
-    ///  - `[u8]`:  bytes
+    /// 0. `[w]` Buffer to write to.
+    /// 1. `[s]` Authority account.
+    ///
+    /// Instruction data:
+    ///
+    /// - `[u32]`: offset to write to
+    /// - `[u8]`: bytes to write
     Write,
 
     /// Initializes a metadata account.
     ///
-    /// A canonical metadata account is an account initialized
-    /// by the program upgrade authority.
+    /// This instruction is used to create a new metadata account for a program. This can
+    /// be either a new (pre-funded) account or a buffer account that has been allocated.
+    /// When not using a buffer, the data must be provided as instruction data.
     ///
-    /// ### Accounts
-    ///  0. `[  w  ]` Metadata account to initialize.
-    ///  1. `[  s  ]` Authority (for canonical, must match program upgrade authority).
-    ///  2. `[     ]` Program account.
-    ///  3. `[  o  ]` Program data account.
-    ///  4. `[  o  ]` System program.
+    /// There are 2 optional accounts:
+    ///   - `program_data`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `system_program`: required to allocate the account. When using a pre-allocated buffer,
+    ///     this is not required.
     ///
-    /// ### Instruction data
+    /// Accounts expected by this instruction:
+    ///
+    ///  0. `[w]` Metadata account to initialize.
+    ///  1. `[s]` Authority.
+    ///  2. `[ ]` Program account.
+    ///  3. `[o]` Program data account.
+    ///  4. `[o]` System program.
+    ///
+    /// Instruction data:
+    ///
     ///  - `[u8; 16]`: seed
     ///  - `u8`: encoding
     ///  - `u8`: compression
@@ -37,44 +48,53 @@ pub enum ProgramMetadataInstruction {
     ///  - `[u8]`: (optional) bytes
     Initialize,
 
-    /// Sets the authority of a metadata account.
-    ///
-    /// If no new authority is provided, the authority is removed.
+    /// Sets the authority of a buffer or metadata account.
     ///
     /// When setting the authority to a `canonical` metadata account with the
     /// program upgrade authority, both program and program data accounts are
     /// required.
     ///
-    /// Note: It is not possible to set an authority if the account is immutable.
+    /// Special cases:
+    /// - It is not possible to set an authority if the metadata account
+    ///   is non-canonical, otherwise the derivation becomes invalid.
+    /// - It is not possible to set an authority if the metadata account
+    ///   is immutable.
+    /// - If no new authority is provided for a metadata account, the
+    ///   authority is removed.
+    /// - It is not possible to remove the authority of a buffer account.
     ///
-    /// ### Accounts
-    ///  0. `[  w  ]` Metadata account.
-    ///  1. `[  s  ]` Current authority account.
-    ///  2. `[  o  ]` (optional) Program account.
-    ///  3. `[  o  ]` (optional) Program data account.
+    /// Accounts expected by this instruction:
     ///
-    /// ### Instruction data
+    ///  0. `[w]` Buffer or metadata account.
+    ///  1. `[s]` Current authority account.
+    ///  2. `[o]` (optional) Program account.
+    ///  3. `[o]` (optional) Program data account.
+    ///
+    /// Instruction data:
+    ///
     ///  - `u8`: option (0 = remove authority, 1 = set authority)
-    /// - `[u8; 32]`: (optional) new authority
+    ///  - `[u8; 32]`: (optional) new authority
     SetAuthority,
 
     /// Sets the data and its metadata.
     ///
     /// The data can be provided as instruction data or copied from a buffer
-    /// account. When setting the authority to a `canonical` metadata account
+    /// account. When setting the data to a `canonical` metadata account
     /// with the program upgrade authority, both program and program data
     /// accounts are required.
     ///
     /// Note: It is not possible to set data if the account is immutable.
     ///
-    /// ### Accounts
-    ///  0. `[  w  ]` Metadata account.
-    ///  1. `[  s  ]` Authority account.
-    ///  2. `[ w,o ]` (optional) Buffer account to copy data from.
-    ///  3. `[  o  ]` (optional) Program account.
-    ///  4. `[  o  ]` (optional) Program data account.
+    /// Accounts expected by this instruction:
     ///
-    /// ### Instruction data
+    ///  0. `[w]` Metadata account.
+    ///  1. `[s]` Authority account.
+    ///  2. `[o]` (optional) Buffer account to copy data from.
+    ///  3. `[o]` (optional) Program account.
+    ///  4. `[o]` (optional) Program data account.
+    ///
+    /// Instruction data:
+    ///
     ///  - `u8`: encoding
     ///  - `u8`: compression
     ///  - `u8`: format

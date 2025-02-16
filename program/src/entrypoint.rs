@@ -25,9 +25,9 @@ fn process_instruction(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    let (instruction, data) = instruction_data
-        .split_first()
-        .ok_or(ProgramError::InvalidInstructionData)?;
+    let [instruction, data @ ..] = instruction_data else {
+        return Err(ProgramError::InvalidInstructionData);
+    };
 
     match ProgramMetadataInstruction::try_from(instruction)? {
         // 0 - Write
