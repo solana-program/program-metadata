@@ -58,6 +58,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
     // SAFETY: single mutable borrow of `buffer` account data. There
     // are no other borrows active.
     let data = unsafe { buffer.borrow_mut_data_unchecked() };
+    let instruction_data = args.data();
 
     unsafe {
         sol_memcpy(
