@@ -41,7 +41,7 @@ test('it writes to canonical PDA buffers', async (t) => {
   });
 
   // When we write some data to the buffer account.
-  const writeIx = getWriteInstruction({ buffer, authority, data });
+  const writeIx = getWriteInstruction({ buffer, authority, offset: 0, data });
   await pipe(
     await createDefaultTransaction(client, authority),
     (tx) => appendTransactionMessageInstruction(writeIx, tx),
@@ -74,7 +74,7 @@ test('it writes to non-canonical PDA buffers', async (t) => {
   });
 
   // When we write some data to the buffer account.
-  const writeIx = getWriteInstruction({ buffer, authority, data });
+  const writeIx = getWriteInstruction({ buffer, authority, offset: 0, data });
   await pipe(
     await createDefaultTransaction(client, authority),
     (tx) => appendTransactionMessageInstruction(writeIx, tx),
@@ -106,6 +106,7 @@ test('it writes to keypair buffers', async (t) => {
   const writeIx = getWriteInstruction({
     buffer: buffer.address,
     authority: buffer,
+    offset: 0,
     data,
   });
   await pipe(
@@ -139,11 +140,13 @@ test('it appends to the end of buffers when doing multiple writes', async (t) =>
   const firstWriteIx = getWriteInstruction({
     buffer: buffer.address,
     authority: buffer,
+    offset: 0,
     data: dataChunk1,
   });
   const secondWriteIx = getWriteInstruction({
     buffer: buffer.address,
     authority: buffer,
+    offset: dataChunk1.length,
     data: dataChunk2,
   });
   await pipe(

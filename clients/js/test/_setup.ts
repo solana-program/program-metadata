@@ -220,7 +220,9 @@ export async function createBuffer(
   });
   const instructions: IInstruction[] = [preFundIx, allocateIx];
   if (data) {
-    instructions.push(getWriteInstruction({ buffer, authority, data }));
+    instructions.push(
+      getWriteInstruction({ buffer, authority, offset: 0, data })
+    );
   }
   await pipe(
     defaultTransaction,

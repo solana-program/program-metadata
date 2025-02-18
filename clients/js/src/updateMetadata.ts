@@ -209,6 +209,7 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
       getWriteInstructionPlan({
         buffer: input.buffer.address,
         authority: input.buffer,
+        offset,
         data: input.data.slice(offset, offset + input.chunkSize),
         priorityFees: input.priorityFees,
       })

@@ -328,6 +328,16 @@
           },
           {
             "kind": "instructionArgumentNode",
+            "name": "offset",
+            "docs": ["The offset to write to."],
+            "type": {
+              "kind": "numberTypeNode",
+              "format": "u32",
+              "endian": "le"
+            }
+          },
+          {
+            "kind": "instructionArgumentNode",
             "name": "data",
             "docs": [],
             "type": { "kind": "bytesTypeNode" }

@@ -162,7 +162,11 @@ export function calculateMaxChunkSize(
     priorityFees?: MicroLamports;
   }
 ) {
-  const plan = getWriteInstructionPlan({ ...input, data: new Uint8Array(0) });
+  const plan = getWriteInstructionPlan({
+    ...input,
+    offset: 0,
+    data: new Uint8Array(0),
+  });
   const message = getTransactionMessageFromPlan(defaultMessage, plan);
   return getRemainingTransactionSpaceFromMessage(message);
 }
@@ -193,6 +197,7 @@ function getTransactionSizeFromMessage(
 export function getWriteInstructionPlan(input: {
   buffer: Address;
   authority: TransactionSigner;
+  offset: number;
   data: ReadonlyUint8Array;
   priorityFees?: MicroLamports;
 }): MessageInstructionPlan {
@@ -203,7 +208,7 @@ export function getWriteInstructionPlan(input: {
         computeUnitPrice: input.priorityFees,
         computeUnitLimit: 'simulated',
       }),
-      getWriteInstruction(input),
+      getWriteInstruction({ ...input }),
     ],
   };
 }

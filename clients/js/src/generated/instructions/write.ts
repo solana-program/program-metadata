@@ -12,6 +12,8 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
+  getU32Decoder,
+  getU32Encoder,
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
@@ -60,15 +62,22 @@ export type WriteInstruction<
 
 export type WriteInstructionData = {
   discriminator: number;
+  /** The offset to write to. */
+  offset: number;
   data: ReadonlyUint8Array;
 };
 
-export type WriteInstructionDataArgs = { data: ReadonlyUint8Array };
+export type WriteInstructionDataArgs = {
+  /** The offset to write to. */
+  offset: number;
+  data: ReadonlyUint8Array;
+};
 
 export function getWriteInstructionDataEncoder(): Encoder<WriteInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
+      ['offset', getU32Encoder()],
       ['data', getBytesEncoder()],
     ]),
     (value) => ({ ...value, discriminator: WRITE_DISCRIMINATOR })
@@ -78,6 +87,7 @@ export function getWriteInstructionDataEncoder(): Encoder<WriteInstructionDataAr
 export function getWriteInstructionDataDecoder(): Decoder<WriteInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
+    ['offset', getU32Decoder()],
     ['data', getBytesDecoder()],
   ]);
 }
@@ -100,6 +110,7 @@ export type WriteInput<
   buffer: Address<TAccountBuffer>;
   /** The authority of the buffer. */
   authority: TransactionSigner<TAccountAuthority>;
+  offset: WriteInstructionDataArgs['offset'];
   data: WriteInstructionDataArgs['data'];
 };
 
