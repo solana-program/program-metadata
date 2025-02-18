@@ -12,6 +12,7 @@ import {
 import {
   fetchMetadata,
   getAllocateInstruction,
+  getSetAuthorityInstruction,
   getSetDataInstruction,
 } from './generated';
 import {
@@ -191,6 +192,11 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
     getAllocateInstruction({
       buffer: input.buffer.address,
       authority: input.buffer,
+    }),
+    getSetAuthorityInstruction({
+      account: input.buffer.address,
+      authority: input.buffer,
+      newAuthority: input.authority.address,
     })
   );
   mainPlan.plans.push(initialMessage);

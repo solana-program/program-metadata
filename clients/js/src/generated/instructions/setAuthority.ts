@@ -44,7 +44,7 @@ export function getSetAuthorityDiscriminatorBytes() {
 
 export type SetAuthorityInstruction<
   TProgram extends string = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
-  TAccountMetadata extends string | IAccountMeta<string> = string,
+  TAccountAccount extends string | IAccountMeta<string> = string,
   TAccountAuthority extends string | IAccountMeta<string> = string,
   TAccountProgram extends string | IAccountMeta<string> = string,
   TAccountProgramData extends string | IAccountMeta<string> = string,
@@ -53,9 +53,9 @@ export type SetAuthorityInstruction<
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
     [
-      TAccountMetadata extends string
-        ? WritableAccount<TAccountMetadata>
-        : TAccountMetadata,
+      TAccountAccount extends string
+        ? WritableAccount<TAccountAccount>
+        : TAccountAccount,
       TAccountAuthority extends string
         ? ReadonlySignerAccount<TAccountAuthority> &
             IAccountSignerMeta<TAccountAuthority>
@@ -107,13 +107,13 @@ export function getSetAuthorityInstructionDataCodec(): Codec<
 }
 
 export type SetAuthorityInput<
-  TAccountMetadata extends string = string,
+  TAccountAccount extends string = string,
   TAccountAuthority extends string = string,
   TAccountProgram extends string = string,
   TAccountProgramData extends string = string,
 > = {
-  /** Metadata account. */
-  metadata: Address<TAccountMetadata>;
+  /** Metadata or buffer account. */
+  account: Address<TAccountAccount>;
   /** Current authority account. */
   authority: TransactionSigner<TAccountAuthority>;
   /** Program account. */
@@ -124,14 +124,14 @@ export type SetAuthorityInput<
 };
 
 export function getSetAuthorityInstruction<
-  TAccountMetadata extends string,
+  TAccountAccount extends string,
   TAccountAuthority extends string,
   TAccountProgram extends string,
   TAccountProgramData extends string,
   TProgramAddress extends Address = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
 >(
   input: SetAuthorityInput<
-    TAccountMetadata,
+    TAccountAccount,
     TAccountAuthority,
     TAccountProgram,
     TAccountProgramData
@@ -139,7 +139,7 @@ export function getSetAuthorityInstruction<
   config?: { programAddress?: TProgramAddress }
 ): SetAuthorityInstruction<
   TProgramAddress,
-  TAccountMetadata,
+  TAccountAccount,
   TAccountAuthority,
   TAccountProgram,
   TAccountProgramData
@@ -150,7 +150,7 @@ export function getSetAuthorityInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    metadata: { value: input.metadata ?? null, isWritable: true },
+    account: { value: input.account ?? null, isWritable: true },
     authority: { value: input.authority ?? null, isWritable: false },
     program: { value: input.program ?? null, isWritable: false },
     programData: { value: input.programData ?? null, isWritable: false },
@@ -166,7 +166,7 @@ export function getSetAuthorityInstruction<
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
-      getAccountMeta(accounts.metadata),
+      getAccountMeta(accounts.account),
       getAccountMeta(accounts.authority),
       getAccountMeta(accounts.program),
       getAccountMeta(accounts.programData),
@@ -177,7 +177,7 @@ export function getSetAuthorityInstruction<
     ),
   } as SetAuthorityInstruction<
     TProgramAddress,
-    TAccountMetadata,
+    TAccountAccount,
     TAccountAuthority,
     TAccountProgram,
     TAccountProgramData
@@ -192,8 +192,8 @@ export type ParsedSetAuthorityInstruction<
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Metadata account. */
-    metadata: TAccountMetas[0];
+    /** Metadata or buffer account. */
+    account: TAccountMetas[0];
     /** Current authority account. */
     authority: TAccountMetas[1];
     /** Program account. */
@@ -231,7 +231,7 @@ export function parseSetAuthorityInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
-      metadata: getNextAccount(),
+      account: getNextAccount(),
       authority: getNextAccount(),
       program: getNextOptionalAccount(),
       programData: getNextOptionalAccount(),

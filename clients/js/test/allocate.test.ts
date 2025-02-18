@@ -147,7 +147,7 @@ test('it allocates a keypair buffer', async (t) => {
   t.like(bufferAccount.data, <Buffer>{
     discriminator: AccountDiscriminator.Buffer,
     program: none(),
-    authority: none(),
+    authority: some(buffer.address),
     canonical: false,
     seed: '',
     data: new Uint8Array([]),

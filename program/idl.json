@@ -505,8 +505,8 @@
         "accounts": [
           {
             "kind": "instructionAccountNode",
-            "name": "metadata",
-            "docs": ["Metadata account."],
+            "name": "account",
+            "docs": ["Metadata or buffer account."],
             "isSigner": false,
             "isWritable": true
           },
