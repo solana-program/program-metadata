@@ -12,6 +12,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
     // Validates the instruction data.
 
     let args = Write::try_from_bytes(instruction_data)?;
+    let offset = args.offset() as usize + Buffer::LEN;
 
     // Access accounts.
 
@@ -49,7 +50,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
             return Err(ProgramError::IncorrectAuthority);
         }
 
-        max(data.len(), args.offset() as usize + args.data().len())
+        max(data.len(), offset + args.data().len())
     };
 
     // Writes the instruction data to the buffer account.
@@ -62,7 +63,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
 
     unsafe {
         sol_memcpy(
-            &mut data[args.offset() as usize..],
+            &mut data[offset..],
             instruction_data,
             instruction_data.len(),
         );
