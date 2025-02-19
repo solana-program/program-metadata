@@ -2,9 +2,10 @@ pub mod buffer;
 pub mod data;
 pub mod header;
 
+use pinocchio::{program_error::ProgramError, pubkey::Pubkey, ProgramResult};
+
 use data::{Data, ExternalData};
 use header::Header;
-use pinocchio::{program_error::ProgramError, pubkey::Pubkey, ProgramResult};
 
 /// The length of the seed used to derive the metadata account address.
 pub const SEED_LEN: usize = 16;
@@ -30,6 +31,7 @@ impl<'a> Metadata<'a> {
         Ok(Self { header, data })
     }
 
+    /*
     /// Return a `Metadata` from the given bytes.
     ///
     /// # Safety
@@ -40,6 +42,7 @@ impl<'a> Metadata<'a> {
         let data = Data::from_bytes_unchecked(header.data_source().unwrap(), &bytes[Header::LEN..]);
         Self { header, data }
     }
+    */
 }
 
 /// Utility trait for an account.
@@ -190,6 +193,8 @@ impl TryFrom<u8> for DataSource {
     }
 }
 
+/// Trait for types that have a specific value to represent
+/// a `null` value.
 pub trait Zeroable: PartialEq + Sized {
     const ZERO: Self;
 
@@ -206,6 +211,8 @@ impl Zeroable for u32 {
     const ZERO: Self = 0;
 }
 
+/// Trait for types that are considered `None` when their value
+/// is equal to `Zeroable::ZERO`.
 #[derive(Clone, Debug)]
 pub struct ZeroableOption<T: Zeroable>(T);
 

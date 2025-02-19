@@ -1,5 +1,6 @@
 use pinocchio::program_error::ProgramError;
 
+/// Instructions supported by the program metadata program.
 #[derive(Clone, Copy, Debug)]
 pub enum ProgramMetadataInstruction {
     /// Writes data to a pre-funded buffer.
@@ -45,7 +46,7 @@ pub enum ProgramMetadataInstruction {
     ///  - `u8`: compression
     ///  - `u8`: format
     ///  - `u8`: data source
-    ///  - `[u8]`: (optional) bytes
+    ///  - `[u8]`: (optional) bytes to write
     Initialize,
 
     /// Sets the authority of a buffer or metadata account.
@@ -55,13 +56,20 @@ pub enum ProgramMetadataInstruction {
     /// required.
     ///
     /// Special cases:
-    /// - It is not possible to set an authority if the metadata account
-    ///   is non-canonical, otherwise the derivation becomes invalid.
-    /// - It is not possible to set an authority if the metadata account
-    ///   is immutable.
-    /// - If no new authority is provided for a metadata account, the
-    ///   authority is removed.
-    /// - It is not possible to remove the authority of a buffer account.
+    ///   - It is not possible to set an authority if the metadata account
+    ///     is non-canonical, otherwise the derivation becomes invalid.
+    ///   - It is not possible to set an authority if the metadata account
+    ///     is immutable.
+    ///   - If no new authority is provided for a metadata account, the
+    ///     authority is removed. For canonical metadata accounts, the program
+    ///     upgrade authority will still be able to manage the account.
+    ///   - It is not possible to remove the authority of a buffer account.
+    ///
+    /// There are 2 optional accounts:
+    ///   - `program`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `program_data`: required to validate whether the authority is the program upgrade
+    ///     authority.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -76,7 +84,7 @@ pub enum ProgramMetadataInstruction {
     ///  - `[u8; 32]`: (optional) new authority
     SetAuthority,
 
-    /// Sets the data and its metadata.
+    /// Sets the data to a program metadata account.
     ///
     /// The data can be provided as instruction data or copied from a buffer
     /// account. When setting the data to a `canonical` metadata account
@@ -84,6 +92,13 @@ pub enum ProgramMetadataInstruction {
     /// accounts are required.
     ///
     /// Note: It is not possible to set data if the account is immutable.
+    ///
+    /// There are 2 optional accounts:
+    ///   - `buffer`: used to specify the data to be copied.
+    ///   - `program`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `program_data`: required to validate whether the authority is the program upgrade
+    ///     authority.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -99,10 +114,16 @@ pub enum ProgramMetadataInstruction {
     ///  - `u8`: compression
     ///  - `u8`: format
     ///  - `u8`: data source
-    ///  - `[u8]`: (optional) bytes
+    ///  - `[u8]`: (optional) bytes to write
     SetData,
 
     /// Sets the metadata account as immutable.
+    ///
+    /// There are 2 optional accounts:
+    ///   - `program`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `program_data`: required to validate whether the authority is the program upgrade
+    ///     authority.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -112,11 +133,17 @@ pub enum ProgramMetadataInstruction {
     ///  3. `[o]` (optional) Program data account.
     SetImmutable,
 
-    /// Withdraws excess lamports from a buffer or metadata account.
+    /// Resizes and withdraws excess lamports from a buffer or metadata account.
     ///
     /// This instruction will attempt to resize the account to its
     /// minimum size required to be rent exempt, returning any extra
     /// lamports to the `destination` account.
+    ///
+    /// There are 2 optional accounts:
+    ///   - `program`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `program_data`: required to validate whether the authority is the program upgrade
+    ///     authority.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -128,13 +155,19 @@ pub enum ProgramMetadataInstruction {
     ///  6. `[]` Rent sysvar account.
     Trim,
 
-    /// Closes a program-owned account.
+    /// Closes a program-owned buffer or metadata account.
     ///
     /// The lamports in the metadata account are transferred to the destination
     /// account.
     ///
     /// Note: It is not possible to close a metadata account if the account
     /// is immutable.
+    ///
+    /// There are 2 optional accounts:
+    ///   - `program`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `program_data`: required to validate whether the authority is the program upgrade
+    ///     authority.
     ///
     /// Accounts expected by this instruction:
     ///
@@ -157,6 +190,14 @@ pub enum ProgramMetadataInstruction {
     ///
     /// A `seed` value is required for PDA buffer accounts.
     ///
+    /// There are 2 optional accounts:
+    ///   - `program`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `program_data`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `system_program`: required to allocate the account. When using a pre-allocated buffer,
+    ///     this is not required.
+    ///
     /// Accounts expected by this instruction:
     ///
     /// 0. `[w]` Buffer account to allocate.
@@ -170,10 +211,16 @@ pub enum ProgramMetadataInstruction {
     /// - `[u8; 16]`: seed (optional)
     Allocate,
 
-    /// Extends the buffer or metadata account data by the requested length.
+    /// Extends a buffer or metadata account data by the requested length.
     ///
     /// The account is expected to be pre-funded with the required lamports
     /// for the new size.
+    ///
+    /// There are 2 optional accounts:
+    ///   - `program`: required to validate whether the authority is the program upgrade
+    ///     authority.
+    ///   - `program_data`: required to validate whether the authority is the program upgrade
+    ///     authority.
     ///
     /// Accounts expected by this instruction:
     ///

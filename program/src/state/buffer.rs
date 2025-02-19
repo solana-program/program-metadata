@@ -34,7 +34,10 @@ pub struct Buffer {
     /// Only for buffer PDA accounts; otherwise `[0u8; 16]`.
     pub seed: [u8; SEED_LEN],
 
-    // Extra padding for alignment.
+    /// Extra padding for alignment.
+    ///
+    /// This makes the `Buffer` header section to be the same size as
+    /// the metadata [`Header`](`super::Header`).
     _padding: [u8; 14],
 }
 
