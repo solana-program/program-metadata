@@ -75,7 +75,7 @@ test('the explicit authority of a canonical metadata account can make it immutab
 
   // And given the explicit authority is set on the metadata account.
   const setAuthorityIx = getSetAuthorityInstruction({
-    metadata,
+    account: metadata,
     authority,
     program,
     programData,
