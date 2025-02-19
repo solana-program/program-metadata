@@ -202,8 +202,7 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
   mainPlan.plans.push(initialMessage);
 
   let offset = 0;
-  // TODO: Use parallel plan when the program supports it.
-  const writePlan: InstructionPlan = { kind: 'sequential', plans: [] };
+  const writePlan: InstructionPlan = { kind: 'parallel', plans: [] };
   while (offset < input.data.length) {
     writePlan.plans.push(
       getWriteInstructionPlan({
