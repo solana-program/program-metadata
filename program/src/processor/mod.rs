@@ -8,6 +8,7 @@ use crate::state::{header::Header, Account, AccountDiscriminator};
 
 pub mod allocate;
 pub mod close;
+pub mod extend;
 pub mod initialize;
 pub mod set_authority;
 pub mod set_data;

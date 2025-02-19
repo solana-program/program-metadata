@@ -8,8 +8,8 @@ use pinocchio::{
 use crate::{
     instruction::ProgramMetadataInstruction,
     processor::{
-        allocate::allocate, close::close, initialize::initialize, set_authority::set_authority,
-        set_data::set_data, set_immutable::set_immutable,
+        allocate::allocate, close::close, extend::extend, initialize::initialize,
+        set_authority::set_authority, set_data::set_data, set_immutable::set_immutable,
         withdraw_excess_lamports::withdraw_excess_lamports, write::write,
     },
 };
@@ -85,6 +85,13 @@ fn process_instruction(
             msg!("Instruction: Allocate");
 
             allocate(accounts, data)
+        }
+        // 8 - Extend
+        ProgramMetadataInstruction::Extend => {
+            #[cfg(feature = "logging")]
+            msg!("Instruction: Extend");
+
+            extend(accounts, data)
         }
     }
 }

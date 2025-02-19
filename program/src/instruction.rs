@@ -14,7 +14,7 @@ pub enum ProgramMetadataInstruction {
     ///
     /// Instruction data:
     ///
-    /// - `[u32]`: offset to write to
+    /// - `u32`: offset to write to
     /// - `[u8]`: bytes to write
     Write,
 
@@ -104,22 +104,24 @@ pub enum ProgramMetadataInstruction {
 
     /// Sets the metadata account as immutable.
     ///
-    /// ### Accounts
-    ///  0. `[  w  ]` Metadata account.
-    ///  1. `[  s  ]` Authority account.
-    ///  2. `[  o  ]` (optional) Program account.
-    ///  3. `[  o  ]` (optional) Program data account.
+    /// Accounts expected by this instruction:
+    ///
+    ///  0. `[w]` Metadata account.
+    ///  1. `[s]` Authority account.
+    ///  2. `[o]` (optional) Program account.
+    ///  3. `[o]` (optional) Program data account.
     SetImmutable,
 
     /// Withdraws excess lamports from a metadata account.
     ///
-    /// ### Accounts
-    ///  0. `[  w  ]` Metadata account.
-    ///  1. `[  s  ]` Metadata authority account.
-    ///  2. `[  o  ]` (optional) Program account.
-    ///  3. `[  o  ]` (optional) Program data account.
-    ///  5. `[  w  ]` Destination account.
-    ///  6. `[     ]` Rent sysvar account.
+    /// Accounts expected by this instruction:
+    ///
+    ///  0. `[w]` Metadata account.
+    ///  1. `[s]` Metadata authority account.
+    ///  2. `[o]` (optional) Program account.
+    ///  3. `[o]` (optional) Program data account.
+    ///  5. `[w]` Destination account.
+    ///  6. `[]` Rent sysvar account.
     WithdrawExcessLamports,
 
     /// Closes a program-owned account.
@@ -130,12 +132,13 @@ pub enum ProgramMetadataInstruction {
     /// Note: It is not possible to close a metadata account if the account
     /// is immutable.
     ///
-    /// ### Accounts
-    ///  0. `[  w  ]` Account to close.
-    ///  1. `[  s  ]` Metadata authority or buffer account.
-    ///  2. `[  o  ]` (optional) Program account.
-    ///  3. `[  o  ]` (optional) Program data account.
-    ///  5. `[  w  ]` Destination account.
+    /// Accounts expected by this instruction:
+    ///
+    ///  0. `[w]` Account to close.
+    ///  1. `[s]` Metadata authority or buffer account.
+    ///  2. `[o]` (optional) Program account.
+    ///  3. `[o]` (optional) Program data account.
+    ///  5. `[w]` Destination account.
     Close,
 
     /// Alocates a buffer account.
@@ -162,6 +165,23 @@ pub enum ProgramMetadataInstruction {
     ///
     /// - `[u8; 16]`: seed (optional)
     Allocate,
+
+    /// Extends the buffer or metadata account data by the requested length.
+    ///
+    /// The account is expected to be pre-funded with the required lamports
+    /// for the new size.
+    ///
+    /// Accounts expected by this instruction:
+    ///
+    ///  0. `[w]` Buffer or metadata account.
+    ///  1. `[s]` Authority account.
+    ///  2. `[o]` (optional) Program account.
+    ///  3. `[o]` (optional) Program data account.
+    ///
+    /// Instruction data:
+    ///
+    ///  - `u16`: length to add the account size
+    Extend,
 }
 
 impl TryFrom<&u8> for ProgramMetadataInstruction {
@@ -177,6 +197,7 @@ impl TryFrom<&u8> for ProgramMetadataInstruction {
             5 => Ok(ProgramMetadataInstruction::WithdrawExcessLamports),
             6 => Ok(ProgramMetadataInstruction::Close),
             7 => Ok(ProgramMetadataInstruction::Allocate),
+            8 => Ok(ProgramMetadataInstruction::Extend),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

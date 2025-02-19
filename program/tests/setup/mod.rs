@@ -1,7 +1,9 @@
 pub mod allocate;
+pub mod extend;
 pub mod initialize;
 
 pub use allocate::*;
+pub use extend::*;
 pub use initialize::*;
 
 use mollusk_svm::{result::Check, Mollusk};
