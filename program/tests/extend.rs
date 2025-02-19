@@ -58,7 +58,9 @@ fn test_extend_canonical() {
         &[
             Check::success(),
             // data lenght
-            Check::account(&buffer_key).space(Buffer::LEN + 200).build(),
+            Check::account(&buffer_key)
+                .space(Buffer::LEN + EXTEND_LENGTH)
+                .build(),
             // account discriminator
             Check::account(&buffer_key).data_slice(0, &[1]).build(),
             // lamports

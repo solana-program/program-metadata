@@ -1,9 +1,9 @@
 use core::mem::size_of;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
-use crate::state::{buffer::Buffer, header::Header, AccountDiscriminator};
+use crate::state::{buffer::Buffer, AccountDiscriminator};
 
-use super::validate_authority;
+use super::{validate_authority, validate_metadata};
 
 /// Processor for the [`Allocate`](`crate::instruction::ProgramMetadataInstruction::Allocate`)
 /// instruction.
@@ -25,14 +25,8 @@ pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
 
     // Account validation.
 
-    // authority
-    // - must be a signer
-
-    if !authority.is_signer() {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-
     // account
+    // - authority must be a signer (validated by `validate_authority`)
     // - must be a buffer or metadata account
     // - must have a valid authority
     // - must be rent exempt (pre-funded account) since we are reallocating the buffer
@@ -52,7 +46,7 @@ pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
                 validate_authority(buffer, authority, program, program_data)?
             }
             Ok(AccountDiscriminator::Metadata) => {
-                let metadata = Header::from_bytes(data)?;
+                let metadata = validate_metadata(account)?;
                 validate_authority(metadata, authority, program, program_data)?
             }
             _ => return Err(ProgramError::InvalidAccountData),

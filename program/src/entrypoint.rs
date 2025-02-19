@@ -9,8 +9,8 @@ use crate::{
     instruction::ProgramMetadataInstruction,
     processor::{
         allocate::allocate, close::close, extend::extend, initialize::initialize,
-        set_authority::set_authority, set_data::set_data, set_immutable::set_immutable,
-        withdraw_excess_lamports::withdraw_excess_lamports, write::write,
+        set_authority::set_authority, set_data::set_data, set_immutable::set_immutable, trim::trim,
+        write::write,
     },
 };
 
@@ -65,12 +65,12 @@ fn process_instruction(
 
             set_immutable(accounts)
         }
-        // 5 - WithdrawExcessLamports
-        ProgramMetadataInstruction::WithdrawExcessLamports => {
+        // 5 - Trim
+        ProgramMetadataInstruction::Trim => {
             #[cfg(feature = "logging")]
-            msg!("Instruction: WithdrawExcessLamports");
+            msg!("Instruction: Trim");
 
-            withdraw_excess_lamports(accounts)
+            trim(accounts)
         }
         // 6 - Close
         ProgramMetadataInstruction::Close => {

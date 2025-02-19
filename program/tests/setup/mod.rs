@@ -1,10 +1,12 @@
-pub mod allocate;
-pub mod extend;
-pub mod initialize;
+mod allocate;
+mod extend;
+mod initialize;
+mod trim;
 
 pub use allocate::*;
 pub use extend::*;
 pub use initialize::*;
+pub use trim::*;
 
 use mollusk_svm::{result::Check, Mollusk};
 use solana_sdk::{
@@ -46,6 +48,10 @@ pub fn create_funded_account(lamports: u64, owner: Pubkey) -> AccountSharedData 
         owner,
         ..Default::default()
     })
+}
+
+pub fn lamports_for(bytes: usize) -> u64 {
+    Rent::default().minimum_balance(bytes) - Rent::default().minimum_balance(0)
 }
 
 pub fn minimum_balance_for(data_len: usize) -> u64 {

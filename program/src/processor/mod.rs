@@ -13,7 +13,7 @@ pub mod initialize;
 pub mod set_authority;
 pub mod set_data;
 pub mod set_immutable;
-pub mod withdraw_excess_lamports;
+pub mod trim;
 pub mod write;
 
 /// The program ID of the BPF Loader v3.

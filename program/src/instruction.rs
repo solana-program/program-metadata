@@ -112,17 +112,21 @@ pub enum ProgramMetadataInstruction {
     ///  3. `[o]` (optional) Program data account.
     SetImmutable,
 
-    /// Withdraws excess lamports from a metadata account.
+    /// Withdraws excess lamports from a buffer or metadata account.
+    ///
+    /// This instruction will attempt to resize the account to its
+    /// minimum size required to be rent exempt, returning any extra
+    /// lamports to the `destination` account.
     ///
     /// Accounts expected by this instruction:
     ///
-    ///  0. `[w]` Metadata account.
-    ///  1. `[s]` Metadata authority account.
+    ///  0. `[w]` Buffer or metadata account.
+    ///  1. `[s]` Authority account.
     ///  2. `[o]` (optional) Program account.
     ///  3. `[o]` (optional) Program data account.
     ///  5. `[w]` Destination account.
     ///  6. `[]` Rent sysvar account.
-    WithdrawExcessLamports,
+    Trim,
 
     /// Closes a program-owned account.
     ///
@@ -194,7 +198,7 @@ impl TryFrom<&u8> for ProgramMetadataInstruction {
             2 => Ok(ProgramMetadataInstruction::SetAuthority),
             3 => Ok(ProgramMetadataInstruction::SetData),
             4 => Ok(ProgramMetadataInstruction::SetImmutable),
-            5 => Ok(ProgramMetadataInstruction::WithdrawExcessLamports),
+            5 => Ok(ProgramMetadataInstruction::Trim),
             6 => Ok(ProgramMetadataInstruction::Close),
             7 => Ok(ProgramMetadataInstruction::Allocate),
             8 => Ok(ProgramMetadataInstruction::Extend),
