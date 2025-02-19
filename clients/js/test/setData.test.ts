@@ -1,7 +1,6 @@
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
   address,
-  appendTransactionMessageInstruction,
   appendTransactionMessageInstructions,
   generateKeyPairSigner,
   getUtf8Encoder,
@@ -118,7 +117,7 @@ test('the explicit authority of a canonical metadata account can update its data
 
   // And given an explicit authority is set on the metadata account.
   const setAuthorityIx = getSetAuthorityInstruction({
-    metadata,
+    account: metadata,
     authority,
     program,
     programData,
@@ -257,6 +256,15 @@ test('the program authority of a canonical metadata account can update its data 
   });
 
   // When the program authority updates the data of the metadata account using the buffer.
+  const extraSize = BigInt(newData.length - originalData.length);
+  const extraRent = await client.rpc
+    .getMinimumBalanceForRentExemption(extraSize)
+    .send();
+  const fundMetadataIx = getTransferSolInstruction({
+    source: authority,
+    destination: metadata,
+    amount: extraRent,
+  });
   const setDataIx = getSetDataInstruction({
     metadata,
     authority,
@@ -270,7 +278,8 @@ test('the program authority of a canonical metadata account can update its data 
   });
   await pipe(
     await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstruction(setDataIx, tx),
+    (tx) =>
+      appendTransactionMessageInstructions([setDataIx, fundMetadataIx], tx),
     (tx) => signAndSendTransaction(client, tx)
   );
 
@@ -317,7 +326,7 @@ test('the explicit authority of a canonical metadata account can update its data
 
   // And given an explicit authority is set on the metadata account.
   const setAuthorityIx = getSetAuthorityInstruction({
-    metadata,
+    account: metadata,
     authority,
     program,
     programData,
@@ -325,6 +334,15 @@ test('the explicit authority of a canonical metadata account can update its data
   });
 
   // When the explicit authority updates the data of the metadata account using the buffer.
+  const extraSize = BigInt(newData.length - originalData.length);
+  const extraRent = await client.rpc
+    .getMinimumBalanceForRentExemption(extraSize)
+    .send();
+  const fundMetadataIx = getTransferSolInstruction({
+    source: authority,
+    destination: metadata,
+    amount: extraRent,
+  });
   const setDataIx = getSetDataInstruction({
     metadata,
     authority: explicitAuthority,
@@ -339,7 +357,10 @@ test('the explicit authority of a canonical metadata account can update its data
   await pipe(
     await createDefaultTransaction(client, authority),
     (tx) =>
-      appendTransactionMessageInstructions([setAuthorityIx, setDataIx], tx),
+      appendTransactionMessageInstructions(
+        [setAuthorityIx, fundMetadataIx, setDataIx],
+        tx
+      ),
     (tx) => signAndSendTransaction(client, tx)
   );
 
@@ -381,6 +402,15 @@ test('the authority of a non-canonical metadata account can update its data usin
   });
 
   // When the metadata authority updates the account using the pre-allocated buffer.
+  const extraSize = BigInt(newData.length - originalData.length);
+  const extraRent = await client.rpc
+    .getMinimumBalanceForRentExemption(extraSize)
+    .send();
+  const fundMetadataIx = getTransferSolInstruction({
+    source: authority,
+    destination: metadata,
+    amount: extraRent,
+  });
   const setDataIx = getSetDataInstruction({
     metadata,
     authority,
@@ -393,7 +423,8 @@ test('the authority of a non-canonical metadata account can update its data usin
   });
   await pipe(
     await createDefaultTransaction(client, authority),
-    (tx) => appendTransactionMessageInstruction(setDataIx, tx),
+    (tx) =>
+      appendTransactionMessageInstructions([fundMetadataIx, setDataIx], tx),
     (tx) => signAndSendTransaction(client, tx)
   );
 
