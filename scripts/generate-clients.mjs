@@ -21,43 +21,6 @@ codama.accept(
 codama.update(
   c.bottomUpTransformerVisitor([
     {
-      select: '[programNode]',
-      transform: (node) => {
-        c.assertIsNode(node, 'programNode');
-        return c.programNode({
-          ...node,
-          definedTypes: [
-            ...node.definedTypes,
-            c.definedTypeNode({
-              name: 'remainderOptionBytes',
-              type: c.remainderOptionTypeNode(c.bytesTypeNode()),
-            }),
-            c.definedTypeNode({
-              name: 'remainderOptionPubkey',
-              type: c.remainderOptionTypeNode(c.publicKeyTypeNode()),
-            }),
-            c.definedTypeNode({
-              name: 'remainderOptionSeed',
-              type: c.remainderOptionTypeNode(c.definedTypeLinkNode('seed')),
-            }),
-            c.definedTypeNode({
-              name: 'zeroableOptionPubkey',
-              type: c.zeroableOptionTypeNode(c.publicKeyTypeNode()),
-            }),
-            c.definedTypeNode({
-              name: 'zeroableOptionOffset',
-              type: c.zeroableOptionTypeNode(c.numberTypeNode('u32')),
-            }),
-          ],
-        });
-      },
-    },
-  ])
-);
-
-codama.update(
-  c.bottomUpTransformerVisitor([
-    {
       select: '[remainderOptionTypeNode]',
       transform: (node) => {
         c.assertIsNode(node, 'remainderOptionTypeNode');
@@ -90,6 +53,34 @@ codama.update(
           return c.definedTypeLinkNode('zeroableOptionOffset');
         }
         return node;
+      },
+    },
+    {
+      select: '[instructionArgumentNode]',
+      transform: (node) => {
+        c.assertIsNode(node, 'instructionArgumentNode');
+        if (node.defaultValue === undefined) {
+          return node;
+        }
+        if (!c.isNode(node.type, 'definedTypeLinkNode')) {
+          return node;
+        }
+        if (
+          !(
+            node.type.name.startsWith('remainderOption') ||
+            node.type.name.startsWith('zeroableOption')
+          )
+        ) {
+          return node;
+        }
+        return c.instructionArgumentNode({ ...node, defaultValue: undefined });
+      },
+    },
+    {
+      select: '[accountNode]',
+      transform: (node) => {
+        c.assertIsNode(node, 'accountNode');
+        return c.accountNode({ ...node, pda: undefined });
       },
     },
   ])

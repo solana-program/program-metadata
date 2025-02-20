@@ -203,7 +203,6 @@ impl SetDataBuilder {
         self.data_source = Some(data_source);
         self
     }
-    /// `[optional argument, defaults to 'None']`
     #[inline(always)]
     pub fn data(&mut self, data: RemainderOptionBytes) -> &mut Self {
         self.data = Some(data);
@@ -241,7 +240,7 @@ impl SetDataBuilder {
             compression: self.compression.clone().expect("compression is not set"),
             format: self.format.clone().expect("format is not set"),
             data_source: self.data_source.clone().expect("data_source is not set"),
-            data: self.data.clone().unwrap_or(None),
+            data: self.data.clone().expect("data is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
@@ -512,7 +511,6 @@ impl<'a, 'b> SetDataCpiBuilder<'a, 'b> {
         self.instruction.data_source = Some(data_source);
         self
     }
-    /// `[optional argument, defaults to 'None']`
     #[inline(always)]
     pub fn data(&mut self, data: RemainderOptionBytes) -> &mut Self {
         self.instruction.data = Some(data);
@@ -576,7 +574,7 @@ impl<'a, 'b> SetDataCpiBuilder<'a, 'b> {
                 .data_source
                 .clone()
                 .expect("data_source is not set"),
-            data: self.instruction.data.clone().unwrap_or(None),
+            data: self.instruction.data.clone().expect("data is not set"),
         };
         let instruction = SetDataCpi {
             __program: self.instruction.__program,

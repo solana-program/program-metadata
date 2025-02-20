@@ -173,7 +173,6 @@ impl AllocateBuilder {
         self.system = system;
         self
     }
-    /// `[optional argument, defaults to 'None']`
     #[inline(always)]
     pub fn seed(&mut self, seed: RemainderOptionSeed) -> &mut Self {
         self.seed = Some(seed);
@@ -207,7 +206,7 @@ impl AllocateBuilder {
             system: self.system,
         };
         let args = AllocateInstructionArgs {
-            seed: self.seed.clone().unwrap_or(None),
+            seed: self.seed.clone().expect("seed is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
@@ -454,7 +453,6 @@ impl<'a, 'b> AllocateCpiBuilder<'a, 'b> {
         self.instruction.system = system;
         self
     }
-    /// `[optional argument, defaults to 'None']`
     #[inline(always)]
     pub fn seed(&mut self, seed: RemainderOptionSeed) -> &mut Self {
         self.instruction.seed = Some(seed);
@@ -502,7 +500,7 @@ impl<'a, 'b> AllocateCpiBuilder<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
         let args = AllocateInstructionArgs {
-            seed: self.instruction.seed.clone().unwrap_or(None),
+            seed: self.instruction.seed.clone().expect("seed is not set"),
         };
         let instruction = AllocateCpi {
             __program: self.instruction.__program,

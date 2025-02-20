@@ -11,7 +11,6 @@ use crate::generated::types::DataSource;
 use crate::generated::types::Encoding;
 use crate::generated::types::Format;
 use crate::generated::types::Seed;
-use crate::hooked::RemainderOptionPubkey;
 use crate::hooked::ZeroableOptionPubkey;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
@@ -40,38 +39,6 @@ pub struct Metadata {
 }
 
 impl Metadata {
-    pub fn create_pda(
-        program: Pubkey,
-        authority: RemainderOptionPubkey,
-        seed: Seed,
-        bump: u8,
-    ) -> Result<solana_program::pubkey::Pubkey, solana_program::pubkey::PubkeyError> {
-        solana_program::pubkey::Pubkey::create_program_address(
-            &[
-                program.as_ref(),
-                authority.to_string().as_ref(),
-                seed.to_string().as_ref(),
-                &[bump],
-            ],
-            &crate::PROGRAM_METADATA_ID,
-        )
-    }
-
-    pub fn find_pda(
-        program: &Pubkey,
-        authority: RemainderOptionPubkey,
-        seed: Seed,
-    ) -> (solana_program::pubkey::Pubkey, u8) {
-        solana_program::pubkey::Pubkey::find_program_address(
-            &[
-                program.as_ref(),
-                authority.to_string().as_ref(),
-                seed.to_string().as_ref(),
-            ],
-            &crate::PROGRAM_METADATA_ID,
-        )
-    }
-
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
         let mut data = data;
