@@ -102,7 +102,7 @@ export type CloseInput<
 > = {
   /** Account to close. */
   account: Address<TAccountAccount>;
-  /** Authority account (for non-PDA buffers, that must be the buffer itself). */
+  /** Authority account. */
   authority: TransactionSigner<TAccountAuthority>;
   /** Program account. */
   program?: Address<TAccountProgram>;
@@ -184,7 +184,7 @@ export type ParsedCloseInstruction<
   accounts: {
     /** Account to close. */
     account: TAccountMetas[0];
-    /** Authority account (for non-PDA buffers, that must be the buffer itself). */
+    /** Authority account. */
     authority: TAccountMetas[1];
     /** Program account. */
     program?: TAccountMetas[2] | undefined;

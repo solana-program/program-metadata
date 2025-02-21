@@ -12,7 +12,7 @@ use borsh::BorshSerialize;
 pub struct Close {
     /// Account to close.
     pub account: solana_program::pubkey::Pubkey,
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     pub authority: solana_program::pubkey::Pubkey,
     /// Program account.
     pub program: Option<solana_program::pubkey::Pubkey>,
@@ -123,7 +123,7 @@ impl CloseBuilder {
         self.account = Some(account);
         self
     }
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
@@ -188,7 +188,7 @@ impl CloseBuilder {
 pub struct CloseCpiAccounts<'a, 'b> {
     /// Account to close.
     pub account: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Program account.
     pub program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
@@ -204,7 +204,7 @@ pub struct CloseCpi<'a, 'b> {
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Account to close.
     pub account: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Program account.
     pub program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
@@ -369,7 +369,7 @@ impl<'a, 'b> CloseCpiBuilder<'a, 'b> {
         self.instruction.account = Some(account);
         self
     }
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     #[inline(always)]
     pub fn authority(
         &mut self,

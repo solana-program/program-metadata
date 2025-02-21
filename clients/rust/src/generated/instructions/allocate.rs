@@ -13,7 +13,7 @@ use borsh::BorshSerialize;
 pub struct Allocate {
     /// Buffer account to allocate.
     pub buffer: solana_program::pubkey::Pubkey,
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     pub authority: solana_program::pubkey::Pubkey,
     /// Program account.
     pub program: Option<solana_program::pubkey::Pubkey>,
@@ -143,7 +143,7 @@ impl AllocateBuilder {
         self.buffer = Some(buffer);
         self
     }
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
@@ -217,7 +217,7 @@ impl AllocateBuilder {
 pub struct AllocateCpiAccounts<'a, 'b> {
     /// Buffer account to allocate.
     pub buffer: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Program account.
     pub program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
@@ -233,7 +233,7 @@ pub struct AllocateCpi<'a, 'b> {
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Buffer account to allocate.
     pub buffer: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Program account.
     pub program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
@@ -414,7 +414,7 @@ impl<'a, 'b> AllocateCpiBuilder<'a, 'b> {
         self.instruction.buffer = Some(buffer);
         self
     }
-    /// Authority account (for non-PDA buffers, that must be the buffer itself).
+    /// Authority account.
     #[inline(always)]
     pub fn authority(
         &mut self,

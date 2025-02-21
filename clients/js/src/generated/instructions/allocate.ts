@@ -132,7 +132,7 @@ export type AllocateInput<
 > = {
   /** Buffer account to allocate. */
   buffer: Address<TAccountBuffer>;
-  /** Authority account (for non-PDA buffers, that must be the buffer itself). */
+  /** Authority account. */
   authority: TransactionSigner<TAccountAuthority>;
   /** Program account. */
   program?: Address<TAccountProgram>;
@@ -226,7 +226,7 @@ export type ParsedAllocateInstruction<
   accounts: {
     /** Buffer account to allocate. */
     buffer: TAccountMetas[0];
-    /** Authority account (for non-PDA buffers, that must be the buffer itself). */
+    /** Authority account. */
     authority: TAccountMetas[1];
     /** Program account. */
     program?: TAccountMetas[2] | undefined;
