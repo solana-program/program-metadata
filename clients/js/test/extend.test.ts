@@ -3,11 +3,9 @@ import {
   address,
   appendTransactionMessageInstructions,
   assertAccountExists,
-  BASE_ACCOUNT_SIZE,
   fetchEncodedAccount,
   generateKeyPairSigner,
   getUtf8Encoder,
-  lamports,
   pipe,
 } from '@solana/web3.js';
 import test from 'ava';
@@ -23,6 +21,7 @@ import {
   createDeployedProgram,
   createNonCanonicalMetadata,
   generateKeyPairSignerWithSol,
+  getRentWithoutHeader,
   signAndSendTransaction,
 } from './_setup';
 
@@ -43,12 +42,7 @@ test('the program authority of a canonical metadata account can extend it', asyn
   });
 
   // When we extend the metadata account by 100 bytes.
-  const rentForHeader = await client.rpc
-    .getMinimumBalanceForRentExemption(0n)
-    .send();
-  const extraRent = lamports(
-    (rentForHeader * 100n) / BigInt(BASE_ACCOUNT_SIZE)
-  );
+  const extraRent = await getRentWithoutHeader(client, 100);
   const transferIx = getTransferSolInstruction({
     source: authority,
     destination: metadata,
@@ -105,12 +99,7 @@ test('the explicit authority of a canonical metadata account can extend it', asy
   });
 
   // When we extend the metadata account by 100 bytes.
-  const rentForHeader = await client.rpc
-    .getMinimumBalanceForRentExemption(0n)
-    .send();
-  const extraRent = lamports(
-    (rentForHeader * 100n) / BigInt(BASE_ACCOUNT_SIZE)
-  );
+  const extraRent = await getRentWithoutHeader(client, 100);
   const transferIx = getTransferSolInstruction({
     source: programAuthority,
     destination: metadata,
@@ -153,12 +142,7 @@ test('the metadata authority of a non-canonical metadata account can extend it',
   });
 
   // When we extend the metadata account by 100 bytes.
-  const rentForHeader = await client.rpc
-    .getMinimumBalanceForRentExemption(0n)
-    .send();
-  const extraRent = lamports(
-    (rentForHeader * 100n) / BigInt(BASE_ACCOUNT_SIZE)
-  );
+  const extraRent = await getRentWithoutHeader(client, 100);
   const transferIx = getTransferSolInstruction({
     source: authority,
     destination: metadata,

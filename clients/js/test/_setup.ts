@@ -6,6 +6,7 @@ import {
   Address,
   airdropFactory,
   appendTransactionMessageInstructions,
+  BASE_ACCOUNT_SIZE,
   Commitment,
   CompilableTransactionMessage,
   createSolanaRpc,
@@ -110,6 +111,16 @@ export const signAndSendTransaction = async (
 export const getBalance = async (client: Client, address: Address) =>
   (await client.rpc.getBalance(address, { commitment: 'confirmed' }).send())
     .value;
+
+export const getRentWithoutHeader = async (
+  client: Client,
+  bytes: bigint | number
+) => {
+  const rentForHeader = await client.rpc
+    .getMinimumBalanceForRentExemption(0n)
+    .send();
+  return lamports((rentForHeader * BigInt(bytes)) / BigInt(BASE_ACCOUNT_SIZE));
+};
 
 export const createDeployedProgram = async (
   client: Client,
