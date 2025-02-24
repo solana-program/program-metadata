@@ -4,8 +4,13 @@ use super::{DataSource, ZeroableOption};
 
 /// Metadata account data.
 pub enum Data<'a> {
+    /// Represents the case where the metadata is inlined data.
     Direct(DirectData<'a>),
+
+    /// Represents the case where the metadata is a URL.
     Url(UrlData<'a>),
+
+    /// Represents the case where the metadata is external data.
     External(&'a ExternalData),
 }
 

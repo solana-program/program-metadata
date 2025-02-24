@@ -3,8 +3,8 @@
 mod setup;
 pub use setup::*;
 
-use mollusk_svm::{program::keyed_account_for_system_program, result::Check, Mollusk};
-use solana_sdk::{account::AccountSharedData, pubkey::Pubkey, system_program};
+use mollusk_svm::{program::keyed_account_for_system_program, result::Check};
+use solana_sdk::{account::Account, pubkey::Pubkey, system_program};
 use spl_program_metadata::state::header::Header;
 
 #[test]
@@ -41,25 +41,26 @@ fn test_initialize_canonical() {
     )
     .unwrap();
 
-    let mollusk = Mollusk::new(&PROGRAM_ID, "spl_program_metadata");
-    mollusk.process_and_validate_instruction_chain(
-        &[instruction],
+    process_instruction(
+        (
+            &instruction,
+            &[
+                Check::success(),
+                // account discriminator
+                Check::account(&metadata_key).data_slice(0, &[2]).build(),
+                // metadata data
+                Check::account(&metadata_key)
+                    .data_slice(Header::LEN, &[1u8; 10])
+                    .build(),
+            ],
+        ),
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, AccountSharedData::default()),
-            (authority_key, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // account discriminator
-            Check::account(&metadata_key).data_slice(0, &[2]).build(),
-            // metadata data
-            Check::account(&metadata_key)
-                .data_slice(Header::LEN, &[1u8; 10])
-                .build(),
         ],
     );
 }
@@ -100,25 +101,26 @@ fn test_initialize_non_canonical() {
     )
     .unwrap();
 
-    let mollusk = Mollusk::new(&PROGRAM_ID, "spl_program_metadata");
-    mollusk.process_and_validate_instruction_chain(
-        &[instruction],
+    process_instruction(
+        (
+            &instruction,
+            &[
+                Check::success(),
+                // account discriminator
+                Check::account(&metadata_key).data_slice(0, &[2]).build(),
+                // metadata data
+                Check::account(&metadata_key)
+                    .data_slice(Header::LEN, &[1u8; 10])
+                    .build(),
+            ],
+        ),
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, AccountSharedData::default()),
-            (authority_key, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // account discriminator
-            Check::account(&metadata_key).data_slice(0, &[2]).build(),
-            // metadata data
-            Check::account(&metadata_key)
-                .data_slice(Header::LEN, &[1u8; 10])
-                .build(),
         ],
     );
 }

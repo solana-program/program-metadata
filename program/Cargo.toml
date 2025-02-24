@@ -21,8 +21,8 @@ pinocchio-pubkey = "0.2.2"
 pinocchio-system = "0.2.1"
 
 [dev-dependencies]
-mollusk-svm = { version = "0.0.15" }
-solana-sdk = "2.1.0"
+mollusk-svm = "0.1"
+solana-sdk = "2.2"
 
 [features]
 logging = []

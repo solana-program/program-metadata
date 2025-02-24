@@ -5,6 +5,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::types::Seed;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RemainderOption<T: BorshSerialize + BorshDeserialize + Display> {
     Some(T),
     None,
@@ -53,6 +54,7 @@ impl<T: BorshSerialize + BorshDeserialize + Display> From<Option<T>> for Remaind
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RemainderOptionSeed {
     Some(Seed),
     None,
@@ -101,6 +103,7 @@ impl From<Option<Seed>> for RemainderOptionSeed {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RemainderOptionBytes {
     Some(Vec<u8>),
     None,

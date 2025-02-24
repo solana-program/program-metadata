@@ -4,7 +4,7 @@ mod setup;
 pub use setup::*;
 
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check};
-use solana_sdk::{account::AccountSharedData, pubkey::Pubkey, system_program};
+use solana_sdk::{account::Account, pubkey::Pubkey, system_program};
 use spl_program_metadata::state::{buffer::Buffer, SEED_LEN};
 
 const EXTEND_LENGTH: usize = 200;
@@ -31,42 +31,51 @@ fn test_extend_canonical() {
 
     process_instructions(
         &[
-            allocate(
-                &buffer_key,
-                &authority_key,
-                Some(&program_key),
-                Some(&program_data_key),
-                Some(&seed),
-            )
-            .unwrap(),
-            extend(
-                &buffer_key,
-                &authority_key,
-                Some(&program_key),
-                Some(&program_data_key),
-                EXTEND_LENGTH as u16,
-            )
-            .unwrap(),
+            (
+                &allocate(
+                    &buffer_key,
+                    &authority_key,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                    Some(&seed),
+                )
+                .unwrap(),
+                &[
+                    Check::success(),
+                    // account discriminator
+                    Check::account(&buffer_key).data_slice(0, &[1]).build(),
+                    // data lenght
+                    Check::account(&buffer_key).space(Buffer::LEN).build(),
+                ],
+            ),
+            (
+                &extend(
+                    &buffer_key,
+                    &authority_key,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                    EXTEND_LENGTH as u16,
+                )
+                .unwrap(),
+                &[
+                    Check::success(),
+                    // data lenght
+                    Check::account(&buffer_key)
+                        .space(Buffer::LEN + EXTEND_LENGTH)
+                        .build(),
+                    // lamports
+                    Check::account(&buffer_key)
+                        .lamports(minimum_balance_for(Buffer::LEN + EXTEND_LENGTH))
+                        .build(),
+                ],
+            ),
         ],
         &[
             (buffer_key, buffer_account),
-            (authority_key, AccountSharedData::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key)
-                .space(Buffer::LEN + EXTEND_LENGTH)
-                .build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
-            // lamports
-            Check::account(&buffer_key)
-                .lamports(minimum_balance_for(Buffer::LEN + EXTEND_LENGTH))
-                .build(),
         ],
     );
 }
@@ -96,42 +105,55 @@ fn test_allocate_non_canonical() {
 
     process_instructions(
         &[
-            allocate(
-                &buffer_key,
-                &authority_key,
-                Some(&program_key),
-                Some(&program_data_key),
-                Some(&seed),
-            )
-            .unwrap(),
-            extend(
-                &buffer_key,
-                &authority_key,
-                Some(&program_key),
-                Some(&program_data_key),
-                EXTEND_LENGTH as u16,
-            )
-            .unwrap(),
+            (
+                &allocate(
+                    &buffer_key,
+                    &authority_key,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                    Some(&seed),
+                )
+                .unwrap(),
+                &[
+                    Check::success(),
+                    // data lenght
+                    Check::account(&buffer_key).space(Buffer::LEN).build(),
+                    // account discriminator
+                    Check::account(&buffer_key).data_slice(0, &[1]).build(),
+                    // lamports
+                    Check::account(&buffer_key)
+                        .lamports(minimum_balance_for(Buffer::LEN))
+                        .build(),
+                ],
+            ),
+            (
+                &extend(
+                    &buffer_key,
+                    &authority_key,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                    EXTEND_LENGTH as u16,
+                )
+                .unwrap(),
+                &[
+                    Check::success(),
+                    // data lenght
+                    Check::account(&buffer_key)
+                        .space(Buffer::LEN + EXTEND_LENGTH)
+                        .build(),
+                    // lamports
+                    Check::account(&buffer_key)
+                        .lamports(minimum_balance_for(Buffer::LEN + EXTEND_LENGTH))
+                        .build(),
+                ],
+            ),
         ],
         &[
             (buffer_key, buffer_account),
-            (authority_key, AccountSharedData::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key)
-                .space(Buffer::LEN + EXTEND_LENGTH)
-                .build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
-            // lamports
-            Check::account(&buffer_key)
-                .lamports(minimum_balance_for(Buffer::LEN + EXTEND_LENGTH))
-                .build(),
         ],
     );
 }
@@ -146,26 +168,39 @@ fn test_extend_buffer() {
 
     process_instructions(
         &[
-            allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
-            extend(&buffer_key, &buffer_key, None, None, EXTEND_LENGTH as u16).unwrap(),
+            (
+                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &[
+                    Check::success(),
+                    // data lenght
+                    Check::account(&buffer_key).space(Buffer::LEN).build(),
+                    // account discriminator
+                    Check::account(&buffer_key).data_slice(0, &[1]).build(),
+                    // lamports
+                    Check::account(&buffer_key)
+                        .lamports(minimum_balance_for(Buffer::LEN))
+                        .build(),
+                ],
+            ),
+            (
+                &extend(&buffer_key, &buffer_key, None, None, EXTEND_LENGTH as u16).unwrap(),
+                &[
+                    Check::success(),
+                    // data lenght
+                    Check::account(&buffer_key)
+                        .space(Buffer::LEN + EXTEND_LENGTH)
+                        .build(),
+                    // lamports
+                    Check::account(&buffer_key)
+                        .lamports(minimum_balance_for(Buffer::LEN + EXTEND_LENGTH))
+                        .build(),
+                ],
+            ),
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key)
-                .space(Buffer::LEN + EXTEND_LENGTH)
-                .build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
-            // lamports
-            Check::account(&buffer_key)
-                .lamports(minimum_balance_for(Buffer::LEN + EXTEND_LENGTH))
-                .build(),
         ],
     );
 }

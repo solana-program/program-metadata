@@ -19,6 +19,7 @@ impl Zeroable for Pubkey {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ZeroableOption<T: BorshSerialize + BorshDeserialize + Zeroable + Display> {
     Some(T),
     None,

@@ -4,9 +4,7 @@ mod setup;
 pub use setup::*;
 
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check};
-use solana_sdk::{
-    account::AccountSharedData, program_error::ProgramError, pubkey::Pubkey, system_program,
-};
+use solana_sdk::{account::Account, program_error::ProgramError, pubkey::Pubkey, system_program};
 use spl_program_metadata::state::{buffer::Buffer, SEED_LEN};
 
 #[test]
@@ -27,27 +25,29 @@ fn test_allocate_canonical() {
     let buffer_account = create_empty_account(Buffer::LEN, PROGRAM_ID);
 
     process_instruction(
-        allocate(
-            &buffer_key,
-            &authority_key,
-            Some(&program_key),
-            Some(&program_data_key),
-            Some(&seed),
-        )
-        .unwrap(),
+        (
+            &allocate(
+                &buffer_key,
+                &authority_key,
+                Some(&program_key),
+                Some(&program_data_key),
+                Some(&seed),
+            )
+            .unwrap(),
+            &[
+                Check::success(),
+                // data lenght
+                Check::account(&buffer_key).space(Buffer::LEN).build(),
+                // account discriminator
+                Check::account(&buffer_key).data_slice(0, &[1]).build(),
+            ],
+        ),
         &[
             (buffer_key, buffer_account),
-            (authority_key, AccountSharedData::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key).space(Buffer::LEN).build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
         ],
     );
 }
@@ -73,27 +73,29 @@ fn test_allocate_non_canonical() {
     let buffer_account = create_empty_account(Buffer::LEN, PROGRAM_ID);
 
     process_instruction(
-        allocate(
-            &buffer_key,
-            &authority_key,
-            Some(&program_key),
-            Some(&program_data_key),
-            Some(&seed),
-        )
-        .unwrap(),
+        (
+            &allocate(
+                &buffer_key,
+                &authority_key,
+                Some(&program_key),
+                Some(&program_data_key),
+                Some(&seed),
+            )
+            .unwrap(),
+            &[
+                Check::success(),
+                // data lenght
+                Check::account(&buffer_key).space(Buffer::LEN).build(),
+                // account discriminator
+                Check::account(&buffer_key).data_slice(0, &[1]).build(),
+            ],
+        ),
         &[
             (buffer_key, buffer_account),
-            (authority_key, AccountSharedData::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key).space(Buffer::LEN).build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
         ],
     );
 }
@@ -106,18 +108,20 @@ fn test_allocate_keypair() {
         create_funded_account(minimum_balance_for(Buffer::LEN), system_program::ID);
 
     process_instruction(
-        allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+        (
+            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &[
+                Check::success(),
+                // data lenght
+                Check::account(&buffer_key).space(Buffer::LEN).build(),
+                // account discriminator
+                Check::account(&buffer_key).data_slice(0, &[1]).build(),
+            ],
+        ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key).space(Buffer::LEN).build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
         ],
     );
 }
@@ -130,18 +134,20 @@ fn test_allocate_with_empty_account() {
     let buffer_account = create_empty_account(Buffer::LEN, PROGRAM_ID);
 
     process_instruction(
-        allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+        (
+            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &[
+                Check::success(),
+                // data lenght
+                Check::account(&buffer_key).space(Buffer::LEN).build(),
+                // account discriminator
+                Check::account(&buffer_key).data_slice(0, &[1]).build(),
+            ],
+        ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key).space(Buffer::LEN).build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
         ],
     );
 }
@@ -154,13 +160,15 @@ fn test_allocate_with_unsufficient_length() {
     let buffer_account = create_empty_account(5, PROGRAM_ID);
 
     process_instruction(
-        allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+        (
+            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &[Check::err(ProgramError::InvalidAccountData)],
+        ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
-        &[Check::err(ProgramError::InvalidAccountData)],
     );
 }
 
@@ -183,27 +191,29 @@ fn test_allocate_with_funded_canonical_account() {
         create_funded_account(minimum_balance_for(Buffer::LEN), system_program::ID);
 
     process_instruction(
-        allocate(
-            &buffer_key,
-            &authority_key,
-            Some(&program_key),
-            Some(&program_data_key),
-            Some(&seed),
-        )
-        .unwrap(),
+        (
+            &allocate(
+                &buffer_key,
+                &authority_key,
+                Some(&program_key),
+                Some(&program_data_key),
+                Some(&seed),
+            )
+            .unwrap(),
+            &[
+                Check::success(),
+                // data lenght
+                Check::account(&buffer_key).space(Buffer::LEN).build(),
+                // account discriminator
+                Check::account(&buffer_key).data_slice(0, &[1]).build(),
+            ],
+        ),
         &[
             (buffer_key, buffer_account),
-            (authority_key, AccountSharedData::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key).space(Buffer::LEN).build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
         ],
     );
 }
@@ -230,27 +240,29 @@ fn test_allocate_with_funded_non_canonical_account() {
         create_funded_account(minimum_balance_for(Buffer::LEN), system_program::ID);
 
     process_instruction(
-        allocate(
-            &buffer_key,
-            &authority_key,
-            Some(&program_key),
-            Some(&program_data_key),
-            Some(&seed),
-        )
-        .unwrap(),
+        (
+            &allocate(
+                &buffer_key,
+                &authority_key,
+                Some(&program_key),
+                Some(&program_data_key),
+                Some(&seed),
+            )
+            .unwrap(),
+            &[
+                Check::success(),
+                // data lenght
+                Check::account(&buffer_key).space(Buffer::LEN).build(),
+                // account discriminator
+                Check::account(&buffer_key).data_slice(0, &[1]).build(),
+            ],
+        ),
         &[
             (buffer_key, buffer_account),
-            (authority_key, AccountSharedData::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key).space(Buffer::LEN).build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
         ],
     );
 }
@@ -263,18 +275,20 @@ fn test_allocate_with_funded_keypair_account() {
         create_funded_account(minimum_balance_for(Buffer::LEN), system_program::ID);
 
     process_instruction(
-        allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+        (
+            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &[
+                Check::success(),
+                // data lenght
+                Check::account(&buffer_key).space(Buffer::LEN).build(),
+                // account discriminator
+                Check::account(&buffer_key).data_slice(0, &[1]).build(),
+            ],
+        ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // data lenght
-            Check::account(&buffer_key).space(Buffer::LEN).build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
         ],
     );
 }
@@ -287,18 +301,20 @@ fn test_allocate_with_allocated_keypair_account() {
     let buffer_account = create_empty_account(Buffer::LEN + 100, system_program::ID);
 
     process_instruction(
-        allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+        (
+            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &[
+                Check::success(),
+                // account owner
+                Check::account(&buffer_key).owner(&PROGRAM_ID).build(),
+                // account discriminator
+                Check::account(&buffer_key).data_slice(0, &[1]).build(),
+            ],
+        ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
-        ],
-        &[
-            Check::success(),
-            // account owner
-            Check::account(&buffer_key).owner(&PROGRAM_ID).build(),
-            // account discriminator
-            Check::account(&buffer_key).data_slice(0, &[1]).build(),
         ],
     );
 }
@@ -321,22 +337,24 @@ fn test_allocate_with_unfunded_canonical_account() {
     let buffer_account = create_funded_account(0, system_program::ID);
 
     process_instruction(
-        allocate(
-            &buffer_key,
-            &authority_key,
-            Some(&program_key),
-            Some(&program_data_key),
-            Some(&seed),
-        )
-        .unwrap(),
+        (
+            &allocate(
+                &buffer_key,
+                &authority_key,
+                Some(&program_key),
+                Some(&program_data_key),
+                Some(&seed),
+            )
+            .unwrap(),
+            &[Check::err(ProgramError::AccountNotRentExempt)],
+        ),
         &[
             (buffer_key, buffer_account),
-            (authority_key, AccountSharedData::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
         ],
-        &[Check::err(ProgramError::AccountNotRentExempt)],
     );
 }
 
@@ -361,22 +379,24 @@ fn test_allocate_with_unfunded_non_canonical_account() {
     let buffer_account = create_funded_account(0, system_program::ID);
 
     process_instruction(
-        allocate(
-            &buffer_key,
-            &authority_key,
-            Some(&program_key),
-            Some(&program_data_key),
-            Some(&seed),
-        )
-        .unwrap(),
+        (
+            &allocate(
+                &buffer_key,
+                &authority_key,
+                Some(&program_key),
+                Some(&program_data_key),
+                Some(&seed),
+            )
+            .unwrap(),
+            &[Check::err(ProgramError::AccountNotRentExempt)],
+        ),
         &[
             (buffer_key, buffer_account),
-            (authority_key, AccountSharedData::default()),
+            (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
             keyed_account_for_system_program(),
         ],
-        &[Check::err(ProgramError::AccountNotRentExempt)],
     );
 }
 
@@ -388,12 +408,14 @@ fn test_allocate_with_unfunded_account() {
     let buffer_account = create_funded_account(0, system_program::ID);
 
     process_instruction(
-        allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+        (
+            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &[Check::err(ProgramError::AccountNotRentExempt)],
+        ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, AccountSharedData::default()),
+            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
-        &[Check::err(ProgramError::AccountNotRentExempt)],
     );
 }

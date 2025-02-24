@@ -50,12 +50,15 @@ pub struct Header {
     // Length of the data after the header.
     pub(crate) data_length: [u8; 4],
 
-    // Extra padding for alignment.
+    /// Extra padding for alignment.
+    ///
+    /// This allows the data section to start at a 8-byte boundary.
     _padding: [u8; 5],
 }
 
 impl Header {
-    pub const LEN: usize = core::mem::size_of::<Header>(); // 96 bytes
+    /// Length of the header (96 bytes).
+    pub const LEN: usize = core::mem::size_of::<Header>();
 
     pub fn discriminator(&self) -> Result<AccountDiscriminator, ProgramError> {
         self.discriminator.try_into()
