@@ -22,7 +22,13 @@ import {
   TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/web3.js';
-import { findMetadataPda, getWriteInstruction, SeedArgs } from './generated';
+import {
+  ExtendInstruction,
+  findMetadataPda,
+  getExtendInstruction,
+  getWriteInstruction,
+  SeedArgs,
+} from './generated';
 import {
   getDefaultInstructionPlanExecutor,
   getTransactionMessageFromPlan,
@@ -32,6 +38,7 @@ import {
 } from './instructionPlans';
 import { getProgramAuthority, MetadataInput, MetadataResponse } from './utils';
 
+export const REALLOC_LIMIT = 10_240;
 const TRANSACTION_SIZE_LIMIT =
   1_280 -
   40 /* 40 bytes is the size of the IPv6 header. */ -
@@ -192,6 +199,52 @@ function getTransactionSizeFromMessage(
 ): number {
   const transaction = compileTransaction(message);
   return getTransactionEncoder().encode(transaction).length;
+}
+
+export function getExtendInstructionPlan(input: {
+  account: Address;
+  authority: TransactionSigner;
+  extraLength: number;
+  priorityFees?: MicroLamports;
+  program?: Address;
+  programData?: Address;
+}): InstructionPlan {
+  const plans: MessageInstructionPlan[] = [];
+  const extendsPerTransaction = 50;
+  let chunkOffset = 0;
+
+  while (chunkOffset < input.extraLength) {
+    const extendInstructions: ExtendInstruction[] = [];
+    let offset = chunkOffset;
+
+    while (offset < input.extraLength) {
+      const length = Math.min(input.extraLength - offset, REALLOC_LIMIT);
+      extendInstructions.push(
+        getExtendInstruction({
+          account: input.account,
+          authority: input.authority,
+          length,
+          program: input.program,
+          programData: input.programData,
+        })
+      );
+      offset += length;
+    }
+
+    plans.push({
+      kind: 'message',
+      instructions: [
+        ...getComputeUnitInstructions({
+          computeUnitPrice: input.priorityFees,
+          computeUnitLimit: 'simulated',
+        }),
+        ...extendInstructions,
+      ],
+    });
+    chunkOffset += REALLOC_LIMIT * extendsPerTransaction;
+  }
+
+  return { kind: 'parallel', plans };
 }
 
 export function getWriteInstructionPlan(input: {

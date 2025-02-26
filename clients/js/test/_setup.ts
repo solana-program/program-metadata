@@ -237,8 +237,7 @@ export async function createBuffer(
   if (dataLenth >= REALLOC_LIMIT) {
     let offset = 0;
     while (offset < dataLenth) {
-      const length =
-        dataLenth - offset < REALLOC_LIMIT ? dataLenth - offset : REALLOC_LIMIT;
+      const length = Math.min(dataLenth - offset, REALLOC_LIMIT);
       instructions.push(
         getExtendInstruction({ account: buffer, authority, length })
       );

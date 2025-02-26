@@ -19,10 +19,12 @@ import {
   calculateMaxChunkSize,
   getComputeUnitInstructions,
   getExtendedMetadataInput,
+  getExtendInstructionPlan,
   getMetadataInstructionPlanExecutor,
   getWriteInstructionPlan,
   messageFitsInOneTransaction,
   PdaDetails,
+  REALLOC_LIMIT,
 } from './internals';
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
@@ -120,9 +122,20 @@ export function getCreateMetadataInstructionPlanUsingBuffer(
         programData: input.isCanonical ? input.programData : undefined,
         seed: input.seed,
       }),
-      // TODO: Extend buffer account.
     ],
   });
+
+  if (input.data.length > REALLOC_LIMIT) {
+    mainPlan.plans.push(
+      getExtendInstructionPlan({
+        account: input.metadata,
+        authority: input.authority,
+        extraLength: input.data.length,
+        program: input.program,
+        programData: input.isCanonical ? input.programData : undefined,
+      })
+    );
+  }
 
   let offset = 0;
   const writePlan: InstructionPlan = { kind: 'parallel', plans: [] };
