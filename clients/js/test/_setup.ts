@@ -5,6 +5,7 @@ import {
 import {
   Address,
   airdropFactory,
+  appendTransactionMessageInstruction,
   appendTransactionMessageInstructions,
   BASE_ACCOUNT_SIZE,
   Commitment,
@@ -26,6 +27,7 @@ import {
   sendAndConfirmTransactionFactory,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
+  Signature,
   signTransactionMessageWithSigners,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
@@ -41,6 +43,7 @@ import {
   findNonCanonicalPda,
   Format,
   getAllocateInstruction,
+  getExtendInstruction,
   getInitializeInstruction,
   getProgramDataPda as getLoaderV3ProgramDataPda,
   getWriteInstruction,
@@ -52,6 +55,7 @@ import { getDeployWithMaxDataLenInstruction as getLoaderV3DeployInstruction } fr
 import { getInitializeBufferInstruction as getLoaderV3InitializeBufferInstruction } from './loader-v3/initializeBuffer';
 import { getWriteInstruction as getLoaderV3WriteInstruction } from './loader-v3/write';
 
+export const REALLOC_LIMIT = 10_240;
 const SMALLER_VALID_PROGRAM_BINARY =
   'f0VMRgIBAQAAAAAAAAAAAAMA9wABAAAA6AAAAAAAAABAAAAAAAAAAMgBAAAAAAAAAAAAAEAAOAADAEAABgAFAAEAAAAFAAAA6AAAAAAAAADoAAAAAAAAAOgAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAQAAAAAAAAAQAAAAQAAABgAQAAAAAAAGABAAAAAAAAYAEAAAAAAAA8AAAAAAAAADwAAAAAAAAAABAAAAAAAAACAAAABgAAAPAAAAAAAAAA8AAAAAAAAADwAAAAAAAAAHAAAAAAAAAAcAAAAAAAAAAIAAAAAAAAAJUAAAAAAAAAHgAAAAAAAAAEAAAAAAAAAAYAAAAAAAAAYAEAAAAAAAALAAAAAAAAABgAAAAAAAAABQAAAAAAAACQAQAAAAAAAAoAAAAAAAAADAAAAAAAAAAWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAQAAEA6AAAAAAAAAAAAAAAAAAAAABlbnRyeXBvaW50AAAudGV4dAAuZHluYW1pYwAuZHluc3ltAC5keW5zdHIALnNoc3RydGFiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAABAAAABgAAAAAAAADoAAAAAAAAAOgAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAHAAAABgAAAAMAAAAAAAAA8AAAAAAAAADwAAAAAAAAAHAAAAAAAAAABAAAAAAAAAAIAAAAAAAAABAAAAAAAAAAEAAAAAsAAAACAAAAAAAAAGABAAAAAAAAYAEAAAAAAAAwAAAAAAAAAAQAAAABAAAACAAAAAAAAAAYAAAAAAAAABgAAAADAAAAAgAAAAAAAACQAQAAAAAAAJABAAAAAAAADAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAgAAAAAwAAAAAAAAAAAAAAAAAAAAAAAACcAQAAAAAAACoAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAA';
 
@@ -212,9 +216,9 @@ export async function createBuffer(
   const { buffer, authority, program, programData, seed, data } = input;
   const payer = input.payer ?? authority;
   const dataLenth = input.dataLength ?? input.data?.length ?? 0;
-  const bufferSize = BigInt(96 + dataLenth);
+  const bufferSize = 96 + dataLenth;
   const [rent, defaultTransaction] = await Promise.all([
-    client.rpc.getMinimumBalanceForRentExemption(bufferSize).send(),
+    client.rpc.getMinimumBalanceForRentExemption(BigInt(bufferSize)).send(),
     createDefaultTransaction(client, payer),
   ]);
   const preFundIx = getTransferSolInstruction({
@@ -230,16 +234,44 @@ export async function createBuffer(
     seed,
   });
   const instructions: IInstruction[] = [preFundIx, allocateIx];
-  if (data) {
-    instructions.push(
-      getWriteInstruction({ buffer, authority, offset: 0, data })
-    );
+  if (dataLenth >= REALLOC_LIMIT) {
+    let offset = 0;
+    while (offset < dataLenth) {
+      const length =
+        dataLenth - offset < REALLOC_LIMIT ? dataLenth - offset : REALLOC_LIMIT;
+      instructions.push(
+        getExtendInstruction({ account: buffer, authority, length })
+      );
+      offset += length;
+    }
   }
   await pipe(
     defaultTransaction,
     (tx) => appendTransactionMessageInstructions(instructions, tx),
     (tx) => signAndSendTransaction(client, tx)
   );
+  if (data) {
+    let offset = 0;
+    const chunkSize = 900;
+    const writePromises: Promise<Signature>[] = [];
+    while (offset < data.length) {
+      const writeIx = getWriteInstruction({
+        buffer,
+        authority,
+        offset,
+        data: data.slice(offset, offset + chunkSize),
+      });
+      writePromises.push(
+        pipe(
+          defaultTransaction,
+          (tx) => appendTransactionMessageInstruction(writeIx, tx),
+          (tx) => signAndSendTransaction(client, tx)
+        )
+      );
+      offset += chunkSize;
+    }
+    await Promise.all(writePromises);
+  }
 }
 
 export async function createCanonicalBuffer(

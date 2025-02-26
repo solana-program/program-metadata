@@ -7,6 +7,7 @@ import {
   isSolanaError,
   pipe,
   SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA,
+  SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_REALLOC,
 } from '@solana/web3.js';
 import test from 'ava';
 import {
@@ -15,6 +16,7 @@ import {
   Encoding,
   fetchMetadata,
   Format,
+  getExtendInstruction,
   getSetAuthorityInstruction,
   getSetDataInstruction,
   getSetImmutableInstruction,
@@ -28,6 +30,8 @@ import {
   createKeypairBuffer,
   createNonCanonicalMetadata,
   generateKeyPairSignerWithSol,
+  getRentWithoutHeader,
+  REALLOC_LIMIT,
   signAndSendTransaction,
 } from './_setup';
 
@@ -53,10 +57,10 @@ test('the program authority of a canonical metadata account can update its data 
 
   // And given we fund the metadata account for the extra space needed for the new data.
   const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-  const extraSpace = BigInt(newData.length - originalData.length);
-  const extraRent = await client.rpc
-    .getMinimumBalanceForRentExemption(extraSpace)
-    .send();
+  const extraRent = await getRentWithoutHeader(
+    client,
+    newData.length - originalData.length
+  );
   const transferIx = getTransferSolInstruction({
     source: authority,
     destination: metadata,
@@ -126,10 +130,10 @@ test('the explicit authority of a canonical metadata account can update its data
 
   // And given we fund the metadata account for the extra space needed for the new data.
   const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-  const extraSpace = BigInt(newData.length - originalData.length);
-  const extraRent = await client.rpc
-    .getMinimumBalanceForRentExemption(extraSpace)
-    .send();
+  const extraRent = await getRentWithoutHeader(
+    client,
+    newData.length - originalData.length
+  );
   const transferIx = getTransferSolInstruction({
     source: authority,
     destination: metadata,
@@ -190,10 +194,10 @@ test('the authority of a non-canonical metadata account can update its data usin
 
   // And given we fund the metadata account for the extra space needed for the new data.
   const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-  const extraSpace = BigInt(newData.length - originalData.length);
-  const extraRent = await client.rpc
-    .getMinimumBalanceForRentExemption(extraSpace)
-    .send();
+  const extraRent = await getRentWithoutHeader(
+    client,
+    newData.length - originalData.length
+  );
   const transferIx = getTransferSolInstruction({
     source: authority,
     destination: metadata,
@@ -256,10 +260,10 @@ test('the program authority of a canonical metadata account can update its data 
   });
 
   // When the program authority updates the data of the metadata account using the buffer.
-  const extraSize = BigInt(newData.length - originalData.length);
-  const extraRent = await client.rpc
-    .getMinimumBalanceForRentExemption(extraSize)
-    .send();
+  const extraRent = await getRentWithoutHeader(
+    client,
+    newData.length - originalData.length
+  );
   const fundMetadataIx = getTransferSolInstruction({
     source: authority,
     destination: metadata,
@@ -334,10 +338,10 @@ test('the explicit authority of a canonical metadata account can update its data
   });
 
   // When the explicit authority updates the data of the metadata account using the buffer.
-  const extraSize = BigInt(newData.length - originalData.length);
-  const extraRent = await client.rpc
-    .getMinimumBalanceForRentExemption(extraSize)
-    .send();
+  const extraRent = await getRentWithoutHeader(
+    client,
+    newData.length - originalData.length
+  );
   const fundMetadataIx = getTransferSolInstruction({
     source: authority,
     destination: metadata,
@@ -402,10 +406,10 @@ test('the authority of a non-canonical metadata account can update its data usin
   });
 
   // When the metadata authority updates the account using the pre-allocated buffer.
-  const extraSize = BigInt(newData.length - originalData.length);
-  const extraRent = await client.rpc
-    .getMinimumBalanceForRentExemption(extraSize)
-    .send();
+  const extraRent = await getRentWithoutHeader(
+    client,
+    newData.length - originalData.length
+  );
   const fundMetadataIx = getTransferSolInstruction({
     source: authority,
     destination: metadata,
@@ -540,6 +544,90 @@ test('an immutable non-canonical metadata account cannot be updated', async (t) 
   );
 });
 
-test.todo(
-  'The metadata account needs to be extended for data changes that add more than 1KB'
-);
+test('The metadata account needs to be extended for data changes that add more than 1KB', async (t) => {
+  // Given the following authority and deployed program.
+  const client = createDefaultSolanaClient();
+  const authority = await generateKeyPairSignerWithSol(client);
+  const program = address('TokenKEGQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+
+  // And the following initialized metadata account with 200 bytes of data.
+  const originalData = getUtf8Encoder().encode('x'.repeat(200));
+  const [metadata] = await createNonCanonicalMetadata(client, {
+    authority,
+    program,
+    seed: 'dummy',
+    encoding: Encoding.None,
+    compression: Compression.None,
+    format: Format.None,
+    dataSource: DataSource.Direct,
+    data: originalData,
+  });
+
+  // And the following pre-allocated buffer account with written data.
+  const newData = getUtf8Encoder().encode(
+    'x'.repeat(originalData.length + REALLOC_LIMIT + 1)
+  );
+  const buffer = await createKeypairBuffer(client, {
+    payer: authority,
+    data: newData,
+  });
+
+  // And given the following instructions to fund extra rent, extend extra space and update the data.
+  const extraSize = newData.length - originalData.length;
+  const extraRent = await getRentWithoutHeader(client, extraSize);
+  const transferIx = getTransferSolInstruction({
+    source: authority,
+    destination: metadata,
+    amount: extraRent,
+  });
+  const extendIx = getExtendInstruction({
+    account: metadata,
+    authority,
+    length: REALLOC_LIMIT,
+  });
+  const setDataIx = getSetDataInstruction({
+    metadata,
+    authority,
+    program,
+    encoding: Encoding.Utf8,
+    compression: Compression.Gzip,
+    format: Format.Json,
+    dataSource: DataSource.Url,
+    buffer: buffer.address,
+  });
+
+  // When we try to update the data without extending the account.
+  const promise = pipe(
+    await createDefaultTransaction(client, authority),
+    (tx) => appendTransactionMessageInstructions([transferIx, setDataIx], tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Then we expect a program error.
+  const error = await t.throwsAsync(promise);
+  t.true(isSolanaError(error));
+  t.true(
+    isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_REALLOC)
+  );
+
+  // But when we extend the account and try again.
+  await pipe(
+    await createDefaultTransaction(client, authority),
+    (tx) =>
+      appendTransactionMessageInstructions(
+        [transferIx, extendIx, setDataIx],
+        tx
+      ),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Then we expect the metadata account have the new data.
+  const account = await fetchMetadata(client.rpc, metadata);
+  t.like(account.data, <Metadata>{
+    encoding: Encoding.Utf8,
+    compression: Compression.Gzip,
+    format: Format.Json,
+    dataSource: DataSource.Url,
+    data: newData,
+  });
+});
