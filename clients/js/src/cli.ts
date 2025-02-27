@@ -31,6 +31,7 @@ import {
   Encoding,
   Format,
   getSetAuthorityInstruction,
+  getSetImmutableInstruction,
 } from './generated';
 import {
   getComputeUnitInstructions,
@@ -156,7 +157,7 @@ program
   .action(
     async (
       seed: string,
-      programAddress: Address,
+      program: Address,
       content: string | undefined,
       _,
       cmd: Command
@@ -166,7 +167,7 @@ program
       const [keypair, payer] = await getKeyPairSigners(options, client.configs);
       const { authority: programAuthority } = await getProgramAuthority(
         client.rpc,
-        address(programAddress)
+        program
       );
       if (!options.thirdParty && keypair.address !== programAuthority) {
         logErrorAndExit(
@@ -178,7 +179,7 @@ program
         ...getPackedData(content, options),
         payer,
         authority: keypair,
-        program: address(programAddress),
+        program,
         seed,
         format: getFormat(options),
         buffer: options.bufferOnly ? true : undefined,
@@ -194,13 +195,13 @@ program
         const base58EncodedTransaction =
           getBase58Decoder().decode(transactionBytes);
         logSuccess(
-          `Buffer successfully created for program ${chalk.bold(programAddress)} and seed "${chalk.bold(seed)}"!\n` +
+          `Buffer successfully created for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"!\n` +
             `Use the following transaction data to apply the buffer:\n\n` +
             `[base64]\n${base64EncodedTransaction}\n\n[base58]\n${base58EncodedTransaction}`
         );
       } else {
         logSuccess(
-          `Metadata uploaded successfully for program ${chalk.bold(programAddress)} and seed "${chalk.bold(seed)}"!`
+          `Metadata uploaded successfully for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"!`
         );
       }
     }
@@ -301,6 +302,9 @@ program
           }),
         ],
       });
+      logSuccess(
+        `Additional authority successfully set to ${chalk.bold(newAuthority)}`
+      );
     }
   );
 
@@ -328,9 +332,7 @@ program
       kind: 'message',
       instructions: [
         ...getComputeUnitInstructions({
-          computeUnitPrice: options.priorityFees
-            ? (BigInt(options.priorityFees) as MicroLamports)
-            : undefined,
+          computeUnitPrice: options.priorityFees,
           computeUnitLimit: 'simulated',
         }),
         getSetAuthorityInstruction({
@@ -342,8 +344,12 @@ program
         }),
       ],
     });
+    logSuccess('Additional authority successfully removed');
   });
 
+type SetImmutableOptions = GlobalOptions & {
+  thirdParty?: string | true;
+};
 program
   .command('set-immutable')
   .description(
@@ -355,8 +361,47 @@ program
     'Program associated with the metadata account',
     address
   )
-  .action(async () => {
-    // TODO
+  .option(
+    '--third-party [address]',
+    'When provided, a non-canonical metadata account will be updated using the provided address or the active keypair as the authority.',
+    false
+  )
+  .action(async (seed: string, program: Address, _, cmd: Command) => {
+    const options = cmd.optsWithGlobals() as SetImmutableOptions;
+    const client = getClient(options);
+    const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+    const { authority: programAuthority } = await getProgramAuthority(
+      client.rpc,
+      program
+    );
+    if (!options.thirdParty && keypair.address !== programAuthority) {
+      logErrorAndExit(
+        'You must be the program authority to upload a canonical metadata account. Use `--third-party` option to upload as a third party.'
+      );
+    }
+    const { metadata, programData } = await getPdaDetails({
+      rpc: client.rpc,
+      program,
+      authority: keypair,
+      seed,
+    });
+    const planExecutor = await getCliPlanExecutor(client, payer, metadata);
+    await planExecutor({
+      kind: 'message',
+      instructions: [
+        ...getComputeUnitInstructions({
+          computeUnitPrice: options.priorityFees,
+          computeUnitLimit: 'simulated',
+        }),
+        getSetImmutableInstruction({
+          metadata,
+          authority: keypair,
+          program,
+          programData,
+        }),
+      ],
+    });
+    logSuccess('Metadata account successfully set as immutable');
   });
 
 program
