@@ -55,7 +55,7 @@ type GlobalOptions = {
   keypair?: string;
   payer?: string;
   rpc?: string;
-  priorityFees?: string;
+  priorityFees?: MicroLamports;
 };
 const program = new Command();
 program
@@ -71,10 +71,15 @@ program
     'Path to keypair file of transaction fee and storage payer. (default: keypair)'
   )
   .option('--rpc <string>', 'RPC URL. (default: solana config or localhost)')
-  .option(
-    '--priority-fees <number>',
-    'Priority fees per compute unit for sending transactions',
-    '100000'
+  .addOption(
+    new Option(
+      '--priority-fees <number>',
+      'Priority fees per compute unit for sending transactions'
+    )
+      .default('100000')
+      .argParser((value: string | undefined) =>
+        value !== undefined ? (BigInt(value) as MicroLamports) : undefined
+      )
   );
 
 // Upload metadata command.
@@ -91,7 +96,17 @@ type UploadOptions = GlobalOptions & {
   bufferOnly: boolean;
 };
 program
-  .command('upload <seed> <program-id> [content]')
+  .command('upload')
+  .argument('<seed>', 'Seed for the metadata account')
+  .argument(
+    '<program>',
+    'Program associated with the metadata account',
+    address
+  )
+  .argument(
+    '[content]',
+    'Direct content to upload. See options for other sources such as --file, --url and --account.'
+  )
   .description('Upload metadata')
   .option(
     '--third-party',
@@ -141,7 +156,7 @@ program
   .action(
     async (
       seed: string,
-      programAddress: string,
+      programAddress: Address,
       content: string | undefined,
       _,
       cmd: Command
@@ -169,9 +184,7 @@ program
         buffer: options.bufferOnly ? true : undefined,
         extractLastTransaction: options.bufferOnly,
         closeBuffer: true,
-        priorityFees: options.priorityFees
-          ? (BigInt(options.priorityFees) as MicroLamports)
-          : undefined,
+        priorityFees: options.priorityFees,
       });
       if (lastTransaction) {
         const transactionBytes =
@@ -199,15 +212,21 @@ type DownloadOptions = GlobalOptions & {
   thirdParty?: string | true;
 };
 program
-  .command('download <seed> <program-id>')
+  .command('download')
   .description('Download IDL to file')
+  .argument('<seed>', 'Seed for the metadata account')
+  .argument(
+    '<program>',
+    'Program associated with the metadata account',
+    address
+  )
   .option('-o, --output <path>', 'Path to save the IDL file')
   .option(
     '--third-party [address]',
     'When provided, a non-canonical metadata account will be downloaded using the provided address or the active keypair as the authority.',
     false
   )
-  .action(async (seed: string, programAddress: string, _, cmd: Command) => {
+  .action(async (seed: string, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as DownloadOptions;
     const client = getClient(options);
     const authority =
@@ -219,7 +238,7 @@ program
     try {
       const content = await downloadMetadata(
         client.rpc,
-        address(programAddress),
+        program,
         seed,
         authority
       );
@@ -237,14 +256,21 @@ program
   });
 
 program
-  .command('set-authority <seed> <program-id> <new-authority>')
+  .command('set-authority')
   .description(
     'Set or update an additional authority on canonical metadata accounts'
   )
+  .argument('<seed>', 'Seed for the metadata account')
+  .argument(
+    '<program>',
+    'Program associated with the metadata account',
+    address
+  )
+  .argument('<new-authority>', 'The new authority to set', address)
   .action(
     async (
       seed: string,
-      programAddress: string,
+      program: Address,
       newAuthority: string,
       _,
       cmd: Command
@@ -252,7 +278,6 @@ program
       const options = cmd.optsWithGlobals() as GlobalOptions;
       const client = getClient(options);
       const [keypair, payer] = await getKeyPairSigners(options, client.configs);
-      const program = address(programAddress);
       const { metadata, programData } = await getPdaDetails({
         rpc: client.rpc,
         program,
@@ -264,9 +289,7 @@ program
         kind: 'message',
         instructions: [
           ...getComputeUnitInstructions({
-            computeUnitPrice: options.priorityFees
-              ? (BigInt(options.priorityFees) as MicroLamports)
-              : undefined,
+            computeUnitPrice: options.priorityFees,
             computeUnitLimit: 'simulated',
           }),
           getSetAuthorityInstruction({
@@ -282,13 +305,18 @@ program
   );
 
 program
-  .command('remove-authority <seed> <program-id>')
+  .command('remove-authority')
+  .argument('<seed>', 'Seed for the metadata account')
+  .argument(
+    '<program>',
+    'Program associated with the metadata account',
+    address
+  )
   .description('Remove the additional authority on canonical metadata accounts')
-  .action(async (seed: string, programAddress: string, _, cmd: Command) => {
+  .action(async (seed: string, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as GlobalOptions;
     const client = getClient(options);
     const [keypair, payer] = await getKeyPairSigners(options, client.configs);
-    const program = address(programAddress);
     const { metadata, programData } = await getPdaDetails({
       rpc: client.rpc,
       program,
@@ -317,26 +345,44 @@ program
   });
 
 program
-  .command('set-immutable <seed> <program-id>')
+  .command('set-immutable')
   .description(
     'Make the metadata account immutable, preventing any further updates'
   )
-  .action(async () => {
-    // TODO
-  });
-
-program
-  .command('trim <seed> <program-id>')
-  .description(
-    'Trim the metadata account data to the minimum required size and recover rent'
+  .argument('<seed>', 'Seed for the metadata account')
+  .argument(
+    '<program>',
+    'Program associated with the metadata account',
+    address
   )
   .action(async () => {
     // TODO
   });
 
 program
-  .command('close <seed> <program-id>')
+  .command('trim')
+  .description(
+    'Trim the metadata account data to the minimum required size and recover rent'
+  )
+  .argument('<seed>', 'Seed for the metadata account')
+  .argument(
+    '<program>',
+    'Program associated with the metadata account',
+    address
+  )
+  .action(async () => {
+    // TODO
+  });
+
+program
+  .command('close')
   .description('Close metadata account and recover rent')
+  .argument('<seed>', 'Seed for the metadata account')
+  .argument(
+    '<program>',
+    'Program associated with the metadata account',
+    address
+  )
   .action(async () => {
     // TODO
   });
