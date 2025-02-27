@@ -30,6 +30,7 @@ import {
   Compression,
   Encoding,
   Format,
+  getCloseInstruction,
   getSetAuthorityInstruction,
   getSetImmutableInstruction,
 } from './generated';
@@ -348,7 +349,7 @@ program
   });
 
 type SetImmutableOptions = GlobalOptions & {
-  thirdParty?: string | true;
+  thirdParty: boolean;
 };
 program
   .command('set-immutable')
@@ -362,8 +363,8 @@ program
     address
   )
   .option(
-    '--third-party [address]',
-    'When provided, a non-canonical metadata account will be updated using the provided address or the active keypair as the authority.',
+    '--third-party',
+    'When provided, a non-canonical metadata account will be updated using the active keypair as the authority.',
     false
   )
   .action(async (seed: string, program: Address, _, cmd: Command) => {
@@ -376,7 +377,7 @@ program
     );
     if (!options.thirdParty && keypair.address !== programAuthority) {
       logErrorAndExit(
-        'You must be the program authority to upload a canonical metadata account. Use `--third-party` option to upload as a third party.'
+        'You must be the program authority to update a canonical metadata account. Use `--third-party` option to update as a third party.'
       );
     }
     const { metadata, programData } = await getPdaDetails({
@@ -404,21 +405,9 @@ program
     logSuccess('Metadata account successfully set as immutable');
   });
 
-program
-  .command('trim')
-  .description(
-    'Trim the metadata account data to the minimum required size and recover rent'
-  )
-  .argument('<seed>', 'Seed for the metadata account')
-  .argument(
-    '<program>',
-    'Program associated with the metadata account',
-    address
-  )
-  .action(async () => {
-    // TODO
-  });
-
+type CloseOptions = GlobalOptions & {
+  thirdParty: boolean;
+};
 program
   .command('close')
   .description('Close metadata account and recover rent')
@@ -428,8 +417,48 @@ program
     'Program associated with the metadata account',
     address
   )
-  .action(async () => {
-    // TODO
+  .option(
+    '--third-party',
+    'When provided, a non-canonical metadata account will be closed using the active keypair as the authority.',
+    false
+  )
+  .action(async (seed: string, program: Address, _, cmd: Command) => {
+    const options = cmd.optsWithGlobals() as CloseOptions;
+    const client = getClient(options);
+    const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+    const { authority: programAuthority } = await getProgramAuthority(
+      client.rpc,
+      program
+    );
+    if (!options.thirdParty && keypair.address !== programAuthority) {
+      logErrorAndExit(
+        'You must be the program authority to close a canonical metadata account. Use `--third-party` option to close as a third party.'
+      );
+    }
+    const { metadata, programData } = await getPdaDetails({
+      rpc: client.rpc,
+      program,
+      authority: keypair,
+      seed,
+    });
+    const planExecutor = await getCliPlanExecutor(client, payer, metadata);
+    await planExecutor({
+      kind: 'message',
+      instructions: [
+        ...getComputeUnitInstructions({
+          computeUnitPrice: options.priorityFees,
+          computeUnitLimit: 'simulated',
+        }),
+        getCloseInstruction({
+          account: metadata,
+          authority: keypair,
+          program,
+          programData,
+          destination: payer.address,
+        }),
+      ],
+    });
+    logSuccess('Account successfully closed and rent recovered');
   });
 
 program
