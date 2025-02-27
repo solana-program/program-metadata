@@ -5,6 +5,7 @@ import os from 'os';
 import path from 'path';
 
 import {
+  Address,
   address,
   Commitment,
   createKeyPairSignerFromBytes,
@@ -25,7 +26,18 @@ import chalk from 'chalk';
 import { Command, Option } from 'commander';
 import { parse as parseYaml } from 'yaml';
 import { downloadMetadata } from './downloadMetadata';
-import { Compression, Encoding, Format } from './generated';
+import {
+  Compression,
+  Encoding,
+  Format,
+  getSetAuthorityInstruction,
+} from './generated';
+import {
+  getComputeUnitInstructions,
+  getDefaultMessageFactory,
+  getMetadataInstructionPlanExecutor,
+  getPdaDetails,
+} from './internals';
 import {
   packDirectData,
   PackedData,
@@ -131,8 +143,10 @@ program
       seed: string,
       programAddress: string,
       content: string | undefined,
-      options: UploadOptions
+      _,
+      cmd: Command
     ) => {
+      const options = cmd.optsWithGlobals() as UploadOptions;
       const client = getClient(options);
       const [keypair, payer] = await getKeyPairSigners(options, client.configs);
       const { authority: programAuthority } = await getProgramAuthority(
@@ -154,6 +168,7 @@ program
         format: getFormat(options),
         buffer: options.bufferOnly ? true : undefined,
         extractLastTransaction: options.bufferOnly,
+        closeBuffer: true,
         priorityFees: options.priorityFees
           ? (BigInt(options.priorityFees) as MicroLamports)
           : undefined,
@@ -192,43 +207,113 @@ program
     'When provided, a non-canonical metadata account will be downloaded using the provided address or the active keypair as the authority.',
     false
   )
-  .action(
-    async (seed: string, programAddress: string, options: DownloadOptions) => {
-      const client = getClient(options);
-      const authority =
-        options.thirdParty === true
-          ? (await getKeyPairSigners(options, client.configs))[0].address
-          : options.thirdParty
-            ? address(options.thirdParty)
-            : undefined;
-      try {
-        const content = await downloadMetadata(
-          client.rpc,
-          address(programAddress),
-          seed,
-          authority
-        );
-        if (options.output) {
-          fs.mkdirSync(path.dirname(options.output), { recursive: true });
-          fs.writeFileSync(options.output, content);
-          logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);
-        } else {
-          console.log(content);
-        }
-      } catch (error) {
-        if (isSolanaError(error)) logErrorAndExit(error.message);
-        throw error;
+  .action(async (seed: string, programAddress: string, _, cmd: Command) => {
+    const options = cmd.optsWithGlobals() as DownloadOptions;
+    const client = getClient(options);
+    const authority =
+      options.thirdParty === true
+        ? (await getKeyPairSigners(options, client.configs))[0].address
+        : options.thirdParty
+          ? address(options.thirdParty)
+          : undefined;
+    try {
+      const content = await downloadMetadata(
+        client.rpc,
+        address(programAddress),
+        seed,
+        authority
+      );
+      if (options.output) {
+        fs.mkdirSync(path.dirname(options.output), { recursive: true });
+        fs.writeFileSync(options.output, content);
+        logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);
+      } else {
+        console.log(content);
       }
+    } catch (error) {
+      if (isSolanaError(error)) logErrorAndExit(error.message);
+      throw error;
+    }
+  });
+
+program
+  .command('set-authority <seed> <program-id> <new-authority>')
+  .description(
+    'Set or update an additional authority on canonical metadata accounts'
+  )
+  .action(
+    async (
+      seed: string,
+      programAddress: string,
+      newAuthority: string,
+      _,
+      cmd: Command
+    ) => {
+      const options = cmd.optsWithGlobals() as GlobalOptions;
+      const client = getClient(options);
+      const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+      const program = address(programAddress);
+      const { metadata, programData } = await getPdaDetails({
+        rpc: client.rpc,
+        program,
+        authority: keypair,
+        seed,
+      });
+      const planExecutor = await getCliPlanExecutor(client, payer, metadata);
+      await planExecutor({
+        kind: 'message',
+        instructions: [
+          ...getComputeUnitInstructions({
+            computeUnitPrice: options.priorityFees
+              ? (BigInt(options.priorityFees) as MicroLamports)
+              : undefined,
+            computeUnitLimit: 'simulated',
+          }),
+          getSetAuthorityInstruction({
+            account: metadata,
+            authority: keypair,
+            newAuthority: address(newAuthority),
+            program,
+            programData,
+          }),
+        ],
+      });
     }
   );
 
 program
-  .command('set-authority <seed> <program-id>')
-  .description(
-    'Set, update or remove an additional authority on canonical metadata accounts'
-  )
-  .action(async () => {
-    // TODO
+  .command('remove-authority <seed> <program-id>')
+  .description('Remove the additional authority on canonical metadata accounts')
+  .action(async (seed: string, programAddress: string, _, cmd: Command) => {
+    const options = cmd.optsWithGlobals() as GlobalOptions;
+    const client = getClient(options);
+    const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+    const program = address(programAddress);
+    const { metadata, programData } = await getPdaDetails({
+      rpc: client.rpc,
+      program,
+      authority: keypair,
+      seed,
+    });
+    const planExecutor = await getCliPlanExecutor(client, payer, metadata);
+    await planExecutor({
+      kind: 'message',
+      instructions: [
+        ...getComputeUnitInstructions({
+          computeUnitPrice: options.priorityFees
+            ? (BigInt(options.priorityFees) as MicroLamports)
+            : undefined,
+          computeUnitLimit: 'simulated',
+        }),
+        getSetAuthorityInstruction({
+          account: metadata,
+          authority: keypair,
+          newAuthority: null,
+          program,
+          programData,
+        }),
+      ],
+    });
   });
 
 program
@@ -300,6 +385,25 @@ async function getKeyPairSignerFromPath(
   const keypairString = fs.readFileSync(keypairPath, 'utf-8');
   const keypairData = new Uint8Array(JSON.parse(keypairString));
   return await createKeyPairSignerFromBytes(keypairData);
+}
+
+async function getCliPlanExecutor(
+  client: Client,
+  payer: KeyPairSigner,
+  metadata: Address
+) {
+  const getDefaultMessage = getDefaultMessageFactory({
+    rpc: client.rpc,
+    payer,
+  });
+  const [defaultMessage] = await Promise.all([getDefaultMessage()]);
+  return getMetadataInstructionPlanExecutor({
+    ...client,
+    getDefaultMessage,
+    payer,
+    metadata,
+    defaultMessage,
+  });
 }
 
 type Client = {
