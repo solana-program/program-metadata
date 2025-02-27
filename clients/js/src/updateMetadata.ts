@@ -12,17 +12,21 @@ import {
 import {
   fetchMetadata,
   getAllocateInstruction,
+  getCloseInstruction,
   getSetAuthorityInstruction,
   getSetDataInstruction,
+  getTrimInstruction,
 } from './generated';
 import {
   calculateMaxChunkSize,
   getComputeUnitInstructions,
   getExtendedMetadataInput,
+  getExtendInstructionPlan,
   getMetadataInstructionPlanExecutor,
   getWriteInstructionPlan,
   messageFitsInOneTransaction,
   PdaDetails,
+  REALLOC_LIMIT,
 } from './internals';
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 import {
@@ -132,8 +136,6 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData(
     );
   }
 
-  // TODO: Use extend instruction if sizeDifference > 10KB.
-
   plan.instructions.push(
     getSetDataInstruction({
       ...input,
@@ -143,7 +145,15 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData(
   );
 
   if (input.sizeDifference < 0) {
-    // TODO: Trim to withdraw excess lamports.
+    plan.instructions.push(
+      getTrimInstruction({
+        account: input.metadata,
+        authority: input.authority,
+        destination: input.payer.address,
+        program: input.program,
+        programData: input.isCanonical ? input.programData : undefined,
+      })
+    );
   }
 
   return plan;
@@ -180,9 +190,6 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
     );
   }
 
-  // TODO: Use extend on metadata instruction if sizeDifference > 10KB.
-  // TODO: Use extend on buffer.
-
   initialMessage.instructions.push(
     getTransferSolInstruction({
       source: input.payer,
@@ -200,6 +207,30 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
     })
   );
   mainPlan.plans.push(initialMessage);
+
+  if (input.sizeDifference > REALLOC_LIMIT) {
+    mainPlan.plans.push(
+      getExtendInstructionPlan({
+        account: input.metadata,
+        authority: input.authority,
+        extraLength: Number(input.sizeDifference),
+        program: input.program,
+        programData: input.isCanonical ? input.programData : undefined,
+        priorityFees: input.priorityFees,
+      })
+    );
+  }
+
+  if (input.data.length > REALLOC_LIMIT) {
+    mainPlan.plans.push(
+      getExtendInstructionPlan({
+        account: input.buffer.address,
+        authority: input.authority,
+        extraLength: input.data.length,
+        priorityFees: input.priorityFees,
+      })
+    );
+  }
 
   let offset = 0;
   const writePlan: InstructionPlan = { kind: 'parallel', plans: [] };
@@ -234,11 +265,27 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
   };
 
   if (input.closeBuffer) {
-    // TODO: Close buffer account.
+    finalizeMessage.instructions.push(
+      getCloseInstruction({
+        account: input.buffer.address,
+        authority: input.authority,
+        destination: input.payer.address,
+        program: input.program,
+        programData: input.isCanonical ? input.programData : undefined,
+      })
+    );
   }
 
   if (input.sizeDifference < 0) {
-    // TODO: Trim to withdraw excess lamports.
+    finalizeMessage.instructions.push(
+      getTrimInstruction({
+        account: input.metadata,
+        authority: input.authority,
+        destination: input.payer.address,
+        program: input.program,
+        programData: input.isCanonical ? input.programData : undefined,
+      })
+    );
   }
 
   mainPlan.plans.push(finalizeMessage);
