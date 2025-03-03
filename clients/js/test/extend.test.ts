@@ -7,7 +7,7 @@ import {
   generateKeyPairSigner,
   getUtf8Encoder,
   pipe,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import test from 'ava';
 import {
   ACCOUNT_HEADER_LENGTH,

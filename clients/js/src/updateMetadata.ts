@@ -8,7 +8,7 @@ import {
   Lamports,
   Rpc,
   TransactionSigner,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import {
   fetchMetadata,
   getAllocateInstruction,

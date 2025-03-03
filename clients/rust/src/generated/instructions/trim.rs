@@ -9,6 +9,7 @@ use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
 
 /// Accounts.
+#[derive(Debug)]
 pub struct Trim {
     /// Buffer or metadata account.
     pub account: solana_program::pubkey::Pubkey,
@@ -71,7 +72,7 @@ impl Trim {
             self.rent, false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let data = TrimInstructionData::new().try_to_vec().unwrap();
+        let data = borsh::to_vec(&TrimInstructionData::new()).unwrap();
 
         solana_program::instruction::Instruction {
             program_id: crate::PROGRAM_METADATA_ID,
@@ -329,7 +330,7 @@ impl<'a, 'b> TrimCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let data = TrimInstructionData::new().try_to_vec().unwrap();
+        let data = borsh::to_vec(&TrimInstructionData::new()).unwrap();
 
         let instruction = solana_program::instruction::Instruction {
             program_id: crate::PROGRAM_METADATA_ID,

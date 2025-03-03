@@ -1,5 +1,5 @@
 import { parse as parseToml } from '@iarna/toml';
-import { Address, GetAccountInfoApi, Rpc } from '@solana/web3.js';
+import { Address, GetAccountInfoApi, Rpc } from '@solana/kit';
 import { parse as parseYaml } from 'yaml';
 import { fetchMetadataFromSeeds, Format, SeedArgs } from './generated';
 import { unpackAndFetchData } from './packData';

@@ -24,7 +24,7 @@ import {
   TransactionMessageWithBlockhashLifetime,
   TransactionMessageWithDurableNonceLifetime,
   TransactionWithBlockhashLifetime,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import {
   getTransactionMessageFromPlan,
   MessageInstructionPlan,

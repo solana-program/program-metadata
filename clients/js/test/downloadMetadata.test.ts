@@ -1,4 +1,4 @@
-import { address } from '@solana/web3.js';
+import { address } from '@solana/kit';
 import test from 'ava';
 import {
   downloadAndParseMetadata,

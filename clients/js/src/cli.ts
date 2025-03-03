@@ -21,7 +21,7 @@ import {
   RpcSubscriptions,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import chalk from 'chalk';
 import { Command, Option } from 'commander';
 import { parse as parseYaml } from 'yaml';

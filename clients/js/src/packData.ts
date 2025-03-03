@@ -15,7 +15,7 @@ import {
   ReadonlyUint8Array,
   Rpc,
   unwrapOption,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import { deflate, gzip, inflate, ungzip } from 'pako';
 import {
   Compression,
