@@ -4,7 +4,7 @@ import {
   GetMinimumBalanceForRentExemptionApi,
   Lamports,
   Rpc,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import {
   getAllocateInstruction,
   getInitializeInstruction,

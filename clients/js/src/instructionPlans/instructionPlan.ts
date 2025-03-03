@@ -2,7 +2,7 @@ import {
   appendTransactionMessageInstructions,
   BaseTransactionMessage,
   IInstruction,
-} from '@solana/web3.js';
+} from '@solana/kit';
 
 export type InstructionPlan =
   | SequentialInstructionPlan

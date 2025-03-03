@@ -26,7 +26,7 @@ import {
   Transaction,
   TransactionSigner,
   unwrapOption,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import {
   CompressionArgs,
   DataSourceArgs,

@@ -1,4 +1,4 @@
-import { fetchEncodedAccount, getUtf8Encoder, none } from '@solana/web3.js';
+import { fetchEncodedAccount, getUtf8Encoder, none } from '@solana/kit';
 import test from 'ava';
 import {
   AccountDiscriminator,

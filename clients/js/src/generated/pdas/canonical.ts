@@ -11,7 +11,7 @@ import {
   getProgramDerivedAddress,
   type Address,
   type ProgramDerivedAddress,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import { getSeedEncoder, type SeedArgs } from '../types';
 
 export type CanonicalSeeds = {

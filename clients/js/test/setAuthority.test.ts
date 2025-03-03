@@ -9,7 +9,7 @@ import {
   SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA,
   SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ARGUMENT,
   some,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import test from 'ava';
 import {
   ACCOUNT_HEADER_LENGTH,

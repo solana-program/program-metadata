@@ -24,7 +24,7 @@ import {
   type ReadonlyUint8Array,
   type TransactionSigner,
   type WritableAccount,
-} from '@solana/web3.js';
+} from '@solana/kit';
 import { getAccountMetaFactory, type ResolvedAccount } from './shared';
 import { LOADER_V3_PROGRAM_ADDRESS } from '../../src';
 
