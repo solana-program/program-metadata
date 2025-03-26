@@ -492,7 +492,7 @@ function getKeyPairPath(
   configs: SolanaConfigs
 ): string {
   if (options.keypair) return options.keypair;
-  if (configs.keypairPath) return configs.keypairPath;
+  if (configs.keypair_path) return configs.keypair_path;
   return path.join(os.homedir(), '.config', 'solana', 'id.json');
 }
 
@@ -545,7 +545,7 @@ function getClient(options: { rpc?: string }): Client {
 
 function getRpcUrl(options: { rpc?: string }, configs: SolanaConfigs): string {
   if (options.rpc) return options.rpc;
-  if (configs.jsonRpcUrl) return configs.jsonRpcUrl;
+  if (configs.json_rpc_url) return configs.json_rpc_url;
   return LOCALHOST_URL;
 }
 
@@ -553,15 +553,15 @@ function getRpcSubscriptionsUrl(
   rpcUrl: string,
   configs: SolanaConfigs
 ): string {
-  if (configs.websocketUrl) return configs.websocketUrl;
+  if (configs.websocket_url) return configs.websocket_url;
   if (rpcUrl === LOCALHOST_URL) return LOCALHOST_WEBSOCKET_URL;
   return rpcUrl.replace(/^http/, 'ws');
 }
 
 type SolanaConfigs = {
-  jsonRpcUrl?: string;
-  websocketUrl?: string;
-  keypairPath?: string;
+  json_rpc_url?: string;
+  websocket_url?: string;
+  keypair_path?: string;
   commitment?: Commitment;
 };
 
