@@ -28,7 +28,7 @@ export async function findNonCanonicalPda(
   config: { programAddress?: Address | undefined } = {}
 ): Promise<ProgramDerivedAddress> {
   const {
-    programAddress = '4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1' as Address<'4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1'>,
+    programAddress = 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S' as Address<'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'>,
   } = config;
   return await getProgramDerivedAddress({
     programAddress,

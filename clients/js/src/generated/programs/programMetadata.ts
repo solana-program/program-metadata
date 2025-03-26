@@ -25,7 +25,7 @@ import {
 } from '../instructions';
 
 export const PROGRAM_METADATA_PROGRAM_ADDRESS =
-  '4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1' as Address<'4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1'>;
+  'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S' as Address<'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'>;
 
 export enum ProgramMetadataAccount {
   Buffer,
@@ -81,7 +81,7 @@ export function identifyProgramMetadataInstruction(
 }
 
 export type ParsedProgramMetadataInstruction<
-  TProgram extends string = '4FX3oHhpAkJcb2tFFrq9JBY8gc4RhCRM5g75VG9QHnj1',
+  TProgram extends string = 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S',
 > =
   | ({
       instructionType: ProgramMetadataInstruction.Write;
