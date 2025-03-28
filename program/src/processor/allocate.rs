@@ -118,7 +118,7 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
             // buffer account to the program (the runtime only allows assigning
             // zeroed accounts, so there is no need to check the contents of the
             // account).
-            if buffer.owner() != &crate::ID {
+            if !buffer.is_owned_by(&crate::ID) {
                 Assign {
                     account: buffer,
                     owner: &crate::ID,

@@ -235,11 +235,11 @@ pub enum ProgramMetadataInstruction {
     Extend,
 }
 
-impl TryFrom<&u8> for ProgramMetadataInstruction {
+impl TryFrom<u8> for ProgramMetadataInstruction {
     type Error = ProgramError;
 
-    fn try_from(value: &u8) -> Result<Self, Self::Error> {
-        match *value {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
             0 => Ok(ProgramMetadataInstruction::Write),
             1 => Ok(ProgramMetadataInstruction::Initialize),
             2 => Ok(ProgramMetadataInstruction::SetAuthority),
