@@ -81,7 +81,7 @@ fn test_extend_canonical() {
 }
 
 #[test]
-fn test_allocate_non_canonical() {
+fn test_extend_non_canonical() {
     let authority_key = Pubkey::new_unique();
 
     let program_data_key = Pubkey::new_unique();
@@ -120,10 +120,6 @@ fn test_allocate_non_canonical() {
                     Check::account(&buffer_key).space(Buffer::LEN).build(),
                     // account discriminator
                     Check::account(&buffer_key).data_slice(0, &[1]).build(),
-                    // lamports
-                    Check::account(&buffer_key)
-                        .lamports(minimum_balance_for(Buffer::LEN))
-                        .build(),
                 ],
             ),
             (
@@ -176,10 +172,6 @@ fn test_extend_buffer() {
                     Check::account(&buffer_key).space(Buffer::LEN).build(),
                     // account discriminator
                     Check::account(&buffer_key).data_slice(0, &[1]).build(),
-                    // lamports
-                    Check::account(&buffer_key)
-                        .lamports(minimum_balance_for(Buffer::LEN))
-                        .build(),
                 ],
             ),
             (
