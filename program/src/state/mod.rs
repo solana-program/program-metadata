@@ -2,7 +2,11 @@ pub mod buffer;
 pub mod data;
 pub mod header;
 
-use pinocchio::{program_error::ProgramError, pubkey::Pubkey, ProgramResult};
+use pinocchio::{
+    program_error::ProgramError,
+    pubkey::{Pubkey, PUBKEY_BYTES},
+    ProgramResult,
+};
 
 use data::{Data, ExternalData};
 use header::Header;
@@ -204,7 +208,7 @@ pub trait Zeroable: PartialEq + Sized {
 }
 
 impl Zeroable for Pubkey {
-    const ZERO: Self = [0u8; core::mem::size_of::<Pubkey>()];
+    const ZERO: Self = [0u8; PUBKEY_BYTES];
 }
 
 impl Zeroable for u32 {

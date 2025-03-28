@@ -52,7 +52,7 @@ fn is_program_authority(
 ) -> Result<bool, ProgramError> {
     // For BPFv1 and BPF Loader v2 programs, there is no program data associated. In this case,
     // the keypair used to deploy the program must be the authority and sign the transaction.
-    if program.owner() != &BPF_LOADER_UPGRABABLE_ID {
+    if !program.is_owned_by(&BPF_LOADER_UPGRABABLE_ID) {
         return Ok(program.executable() && program.key() == authority);
     }
 
@@ -131,10 +131,10 @@ fn validate_metadata(metadata: &AccountInfo) -> Result<&Header, ProgramError> {
 ///
 /// The following validation checks are performed:
 ///
-/// - `[e]` The `authority` account must be a signer.
-/// - `[e]` The `authority` account must match the authority set on the `metadata`
-///   account OR it must be the program upgrade authority if the `metadata` account
-///   is canonical (see `is_program_authority`).
+/// - `authority` account must be a signer.
+/// - `authority` account must match the authority set on the `metadata`
+///   account OR it must be the program upgrade authority if the `metadata`
+///   account is canonical (see `is_program_authority`).
 #[inline(always)]
 fn validate_authority<T: Account>(
     account: &T,

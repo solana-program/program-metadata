@@ -5,7 +5,7 @@ use crate::state::{buffer::Buffer, AccountDiscriminator};
 
 use super::{validate_authority, validate_metadata};
 
-/// Processor for the [`Allocate`](`crate::instruction::ProgramMetadataInstruction::Allocate`)
+/// Processor for the [`Extend`](`crate::instruction::ProgramMetadataInstruction::Extend`)
 /// instruction.
 pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.

@@ -72,7 +72,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
     Ok(())
 }
 
-/// Instruction data expected by the [`Write`](`crate::instruction::ProgramMetadataInstruction::Write`).
+/// Instruction data expected by the `Write` instruction.
 struct Write<'a> {
     /// Offset to write to.
     offset: &'a [u8; 4],
@@ -93,7 +93,7 @@ impl Write<'_> {
 
         Ok(Write {
             offset: unsafe { &*(bytes.as_ptr() as *const [u8; 4]) },
-            data: &bytes[4..],
+            data: unsafe { bytes.get_unchecked(4..) },
         })
     }
 

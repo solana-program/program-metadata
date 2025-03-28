@@ -52,7 +52,7 @@ pub fn trim(accounts: &[AccountInfo]) -> ProgramResult {
 
     let minimum_balance = {
         // SAFETY: single immutable borrow of `rent_sysver` account data.
-        let rent = unsafe { Rent::from_bytes(rent_sysvar.borrow_data_unchecked()) };
+        let rent = unsafe { Rent::from_bytes(rent_sysvar.borrow_data_unchecked())? };
         rent.minimum_balance(length)
     };
 
