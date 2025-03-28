@@ -75,7 +75,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
 
     let discriminator = {
         // SAFETY: scoped immutable borrow of `metadata` account data.
-        AccountDiscriminator::from_bytes(unsafe { metadata.borrow_data_unchecked() })?
+        AccountDiscriminator::try_from_bytes(unsafe { metadata.borrow_data_unchecked() })?
     };
 
     let data_length = match discriminator {
