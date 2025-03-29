@@ -5,9 +5,9 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
+use crate::hooked::RemainderOptionBytes;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderVec;
 
 /// Accounts.
 #[derive(Debug)]
@@ -17,6 +17,7 @@ pub struct Write {
     /// The authority of the buffer.
     pub authority: solana_program::pubkey::Pubkey,
     /// Buffer to copy the data from.
+    /// You may use the `data` argument instead of this account to pass data directly.
     pub source_buffer: Option<solana_program::pubkey::Pubkey>,
 }
 
@@ -89,7 +90,7 @@ impl Default for WriteInstructionData {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WriteInstructionArgs {
     pub offset: u32,
-    pub data: RemainderVec<u8>,
+    pub data: RemainderOptionBytes,
 }
 
 /// Instruction builder for `Write`.
@@ -105,7 +106,7 @@ pub struct WriteBuilder {
     authority: Option<solana_program::pubkey::Pubkey>,
     source_buffer: Option<solana_program::pubkey::Pubkey>,
     offset: Option<u32>,
-    data: Option<RemainderVec<u8>>,
+    data: Option<RemainderOptionBytes>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -127,6 +128,7 @@ impl WriteBuilder {
     }
     /// `[optional account]`
     /// Buffer to copy the data from.
+    /// You may use the `data` argument instead of this account to pass data directly.
     #[inline(always)]
     pub fn source_buffer(
         &mut self,
@@ -141,7 +143,7 @@ impl WriteBuilder {
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderVec<u8>) -> &mut Self {
+    pub fn data(&mut self, data: RemainderOptionBytes) -> &mut Self {
         self.data = Some(data);
         self
     }
@@ -186,6 +188,7 @@ pub struct WriteCpiAccounts<'a, 'b> {
     /// The authority of the buffer.
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Buffer to copy the data from.
+    /// You may use the `data` argument instead of this account to pass data directly.
     pub source_buffer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
@@ -198,6 +201,7 @@ pub struct WriteCpi<'a, 'b> {
     /// The authority of the buffer.
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
     /// Buffer to copy the data from.
+    /// You may use the `data` argument instead of this account to pass data directly.
     pub source_buffer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
     pub __args: WriteInstructionArgs,
@@ -351,6 +355,7 @@ impl<'a, 'b> WriteCpiBuilder<'a, 'b> {
     }
     /// `[optional account]`
     /// Buffer to copy the data from.
+    /// You may use the `data` argument instead of this account to pass data directly.
     #[inline(always)]
     pub fn source_buffer(
         &mut self,
@@ -365,7 +370,7 @@ impl<'a, 'b> WriteCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn data(&mut self, data: RemainderVec<u8>) -> &mut Self {
+    pub fn data(&mut self, data: RemainderOptionBytes) -> &mut Self {
         self.instruction.data = Some(data);
         self
     }
@@ -438,7 +443,7 @@ struct WriteCpiBuilderInstruction<'a, 'b> {
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     source_buffer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     offset: Option<u32>,
-    data: Option<RemainderVec<u8>>,
+    data: Option<RemainderOptionBytes>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

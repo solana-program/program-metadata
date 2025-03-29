@@ -10,12 +10,15 @@ import {
   combineCodec,
   getBytesDecoder,
   getBytesEncoder,
+  getOptionDecoder,
+  getOptionEncoder,
   getStructDecoder,
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
   getU8Decoder,
   getU8Encoder,
+  none,
   transformEncoder,
   type Address,
   type Codec,
@@ -26,6 +29,8 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
+  type Option,
+  type OptionOrNullable,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
   type ReadonlyUint8Array,
@@ -69,13 +74,21 @@ export type WriteInstructionData = {
   discriminator: number;
   /** The offset to write to. */
   offset: number;
-  data: ReadonlyUint8Array;
+  /**
+   * The data to write at the provided offset.
+   * You may use the `source_buffer` account instead of this argument to copy from an existing buffer.
+   */
+  data: Option<ReadonlyUint8Array>;
 };
 
 export type WriteInstructionDataArgs = {
   /** The offset to write to. */
   offset: number;
-  data: ReadonlyUint8Array;
+  /**
+   * The data to write at the provided offset.
+   * You may use the `source_buffer` account instead of this argument to copy from an existing buffer.
+   */
+  data?: OptionOrNullable<ReadonlyUint8Array>;
 };
 
 export function getWriteInstructionDataEncoder(): Encoder<WriteInstructionDataArgs> {
@@ -83,9 +96,13 @@ export function getWriteInstructionDataEncoder(): Encoder<WriteInstructionDataAr
     getStructEncoder([
       ['discriminator', getU8Encoder()],
       ['offset', getU32Encoder()],
-      ['data', getBytesEncoder()],
+      ['data', getOptionEncoder(getBytesEncoder(), { prefix: null })],
     ]),
-    (value) => ({ ...value, discriminator: WRITE_DISCRIMINATOR })
+    (value) => ({
+      ...value,
+      discriminator: WRITE_DISCRIMINATOR,
+      data: value.data ?? none(),
+    })
   );
 }
 
@@ -93,7 +110,7 @@ export function getWriteInstructionDataDecoder(): Decoder<WriteInstructionData> 
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['offset', getU32Decoder()],
-    ['data', getBytesDecoder()],
+    ['data', getOptionDecoder(getBytesDecoder(), { prefix: null })],
   ]);
 }
 
@@ -116,10 +133,13 @@ export type WriteInput<
   buffer: Address<TAccountBuffer>;
   /** The authority of the buffer. */
   authority: TransactionSigner<TAccountAuthority>;
-  /** Buffer to copy the data from. */
+  /**
+   * Buffer to copy the data from.
+   * You may use the `data` argument instead of this account to pass data directly.
+   */
   sourceBuffer?: Address<TAccountSourceBuffer>;
   offset: WriteInstructionDataArgs['offset'];
-  data: WriteInstructionDataArgs['data'];
+  data?: WriteInstructionDataArgs['data'];
 };
 
 export function getWriteInstruction<
@@ -185,7 +205,11 @@ export type ParsedWriteInstruction<
     buffer: TAccountMetas[0];
     /** The authority of the buffer. */
     authority: TAccountMetas[1];
-    /** Buffer to copy the data from. */
+    /**
+     * Buffer to copy the data from.
+     * You may use the `data` argument instead of this account to pass data directly.
+     */
+
     sourceBuffer?: TAccountMetas[2] | undefined;
   };
   data: WriteInstructionData;

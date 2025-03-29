@@ -315,7 +315,10 @@
           {
             "kind": "instructionAccountNode",
             "name": "sourceBuffer",
-            "docs": ["Buffer to copy the data from."],
+            "docs": [
+              "Buffer to copy the data from.",
+              "You may use the `data` argument instead of this account to pass data directly."
+            ],
             "isSigner": false,
             "isWritable": false,
             "isOptional": true
@@ -347,8 +350,15 @@
           {
             "kind": "instructionArgumentNode",
             "name": "data",
-            "docs": [],
-            "type": { "kind": "bytesTypeNode" }
+            "docs": [
+              "The data to write at the provided offset.",
+              "You may use the `source_buffer` account instead of this argument to copy from an existing buffer."
+            ],
+            "defaultValue": { "kind": "noneValueNode" },
+            "type": {
+              "kind": "remainderOptionTypeNode",
+              "item": { "kind": "bytesTypeNode" }
+            }
           }
         ],
         "discriminators": [
