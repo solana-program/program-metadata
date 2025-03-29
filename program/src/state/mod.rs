@@ -69,12 +69,12 @@ pub enum AccountDiscriminator {
 }
 
 impl AccountDiscriminator {
-    pub fn from_bytes(bytes: &[u8]) -> Result<Option<AccountDiscriminator>, ProgramError> {
-        if bytes.is_empty() {
-            Ok(None)
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Option<AccountDiscriminator>, ProgramError> {
+        Ok(if let Some(discriminator) = bytes.first() {
+            Some(AccountDiscriminator::try_from(*discriminator)?)
         } else {
-            Ok(Some(AccountDiscriminator::try_from(bytes[0])?))
-        }
+            None
+        })
     }
 }
 

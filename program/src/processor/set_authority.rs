@@ -38,7 +38,7 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
     // SAFETY: single mutable borrow of `account` account data.
     let account_data = unsafe { account.borrow_mut_data_unchecked() };
 
-    match AccountDiscriminator::from_bytes(account_data)? {
+    match AccountDiscriminator::try_from_bytes(account_data)? {
         Some(AccountDiscriminator::Buffer) => {
             let buffer = Buffer::from_bytes_mut(account_data)?;
 
