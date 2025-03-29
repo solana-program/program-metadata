@@ -311,6 +311,14 @@
             "docs": ["The authority of the buffer."],
             "isSigner": true,
             "isWritable": false
+          },
+          {
+            "kind": "instructionAccountNode",
+            "name": "sourceBuffer",
+            "docs": ["Buffer to copy the data from."],
+            "isSigner": false,
+            "isWritable": false,
+            "isOptional": true
           }
         ],
         "arguments": [

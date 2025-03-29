@@ -16,6 +16,8 @@ pub struct Write {
     pub buffer: solana_program::pubkey::Pubkey,
     /// The authority of the buffer.
     pub authority: solana_program::pubkey::Pubkey,
+    /// Buffer to copy the data from.
+    pub source_buffer: Option<solana_program::pubkey::Pubkey>,
 }
 
 impl Write {
@@ -32,7 +34,7 @@ impl Write {
         args: WriteInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.buffer,
             false,
@@ -41,6 +43,17 @@ impl Write {
             self.authority,
             true,
         ));
+        if let Some(source_buffer) = self.source_buffer {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                source_buffer,
+                false,
+            ));
+        } else {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                crate::PROGRAM_METADATA_ID,
+                false,
+            ));
+        }
         accounts.extend_from_slice(remaining_accounts);
         let mut data = borsh::to_vec(&WriteInstructionData::new()).unwrap();
         let mut args = borsh::to_vec(&args).unwrap();
@@ -85,10 +98,12 @@ pub struct WriteInstructionArgs {
 ///
 ///   0. `[writable]` buffer
 ///   1. `[signer]` authority
+///   2. `[optional]` source_buffer
 #[derive(Clone, Debug, Default)]
 pub struct WriteBuilder {
     buffer: Option<solana_program::pubkey::Pubkey>,
     authority: Option<solana_program::pubkey::Pubkey>,
+    source_buffer: Option<solana_program::pubkey::Pubkey>,
     offset: Option<u32>,
     data: Option<RemainderVec<u8>>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
@@ -108,6 +123,16 @@ impl WriteBuilder {
     #[inline(always)]
     pub fn authority(&mut self, authority: solana_program::pubkey::Pubkey) -> &mut Self {
         self.authority = Some(authority);
+        self
+    }
+    /// `[optional account]`
+    /// Buffer to copy the data from.
+    #[inline(always)]
+    pub fn source_buffer(
+        &mut self,
+        source_buffer: Option<solana_program::pubkey::Pubkey>,
+    ) -> &mut Self {
+        self.source_buffer = source_buffer;
         self
     }
     #[inline(always)]
@@ -143,6 +168,7 @@ impl WriteBuilder {
         let accounts = Write {
             buffer: self.buffer.expect("buffer is not set"),
             authority: self.authority.expect("authority is not set"),
+            source_buffer: self.source_buffer,
         };
         let args = WriteInstructionArgs {
             offset: self.offset.clone().expect("offset is not set"),
@@ -159,6 +185,8 @@ pub struct WriteCpiAccounts<'a, 'b> {
     pub buffer: &'b solana_program::account_info::AccountInfo<'a>,
     /// The authority of the buffer.
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Buffer to copy the data from.
+    pub source_buffer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
 }
 
 /// `write` CPI instruction.
@@ -169,6 +197,8 @@ pub struct WriteCpi<'a, 'b> {
     pub buffer: &'b solana_program::account_info::AccountInfo<'a>,
     /// The authority of the buffer.
     pub authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Buffer to copy the data from.
+    pub source_buffer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// The arguments for the instruction.
     pub __args: WriteInstructionArgs,
 }
@@ -183,6 +213,7 @@ impl<'a, 'b> WriteCpi<'a, 'b> {
             __program: program,
             buffer: accounts.buffer,
             authority: accounts.authority,
+            source_buffer: accounts.source_buffer,
             __args: args,
         }
     }
@@ -220,7 +251,7 @@ impl<'a, 'b> WriteCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.buffer.key,
             false,
@@ -229,6 +260,17 @@ impl<'a, 'b> WriteCpi<'a, 'b> {
             *self.authority.key,
             true,
         ));
+        if let Some(source_buffer) = self.source_buffer {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                *source_buffer.key,
+                false,
+            ));
+        } else {
+            accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+                crate::PROGRAM_METADATA_ID,
+                false,
+            ));
+        }
         remaining_accounts.iter().for_each(|remaining_account| {
             accounts.push(solana_program::instruction::AccountMeta {
                 pubkey: *remaining_account.0.key,
@@ -245,10 +287,13 @@ impl<'a, 'b> WriteCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(4 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.buffer.clone());
         account_infos.push(self.authority.clone());
+        if let Some(source_buffer) = self.source_buffer {
+            account_infos.push(source_buffer.clone());
+        }
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -267,6 +312,7 @@ impl<'a, 'b> WriteCpi<'a, 'b> {
 ///
 ///   0. `[writable]` buffer
 ///   1. `[signer]` authority
+///   2. `[optional]` source_buffer
 #[derive(Clone, Debug)]
 pub struct WriteCpiBuilder<'a, 'b> {
     instruction: Box<WriteCpiBuilderInstruction<'a, 'b>>,
@@ -278,6 +324,7 @@ impl<'a, 'b> WriteCpiBuilder<'a, 'b> {
             __program: program,
             buffer: None,
             authority: None,
+            source_buffer: None,
             offset: None,
             data: None,
             __remaining_accounts: Vec::new(),
@@ -300,6 +347,16 @@ impl<'a, 'b> WriteCpiBuilder<'a, 'b> {
         authority: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.authority = Some(authority);
+        self
+    }
+    /// `[optional account]`
+    /// Buffer to copy the data from.
+    #[inline(always)]
+    pub fn source_buffer(
+        &mut self,
+        source_buffer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    ) -> &mut Self {
+        self.instruction.source_buffer = source_buffer;
         self
     }
     #[inline(always)]
@@ -363,6 +420,8 @@ impl<'a, 'b> WriteCpiBuilder<'a, 'b> {
             buffer: self.instruction.buffer.expect("buffer is not set"),
 
             authority: self.instruction.authority.expect("authority is not set"),
+
+            source_buffer: self.instruction.source_buffer,
             __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
@@ -377,6 +436,7 @@ struct WriteCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     buffer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    source_buffer: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     offset: Option<u32>,
     data: Option<RemainderVec<u8>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
