@@ -5399,7 +5399,12 @@ dependencies = [
  "pinocchio",
  "pinocchio-pubkey",
  "pinocchio-system",
- "solana-sdk",
+ "solana-account",
+ "solana-instruction",
+ "solana-program-error",
+ "solana-pubkey",
+ "solana-rent",
+ "solana-sdk-ids",
  "solana-security-txt",
 ]
 

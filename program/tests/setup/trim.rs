@@ -1,9 +1,7 @@
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    sysvar::rent::ID as RENT_ID,
-};
+use solana_instruction::{AccountMeta, Instruction};
+use solana_program_error::ProgramError;
+use solana_pubkey::Pubkey;
+use solana_sdk_ids::sysvar::rent;
 use spl_program_metadata::instruction::ProgramMetadataInstruction;
 
 use super::PROGRAM_ID;
@@ -21,7 +19,7 @@ pub fn trim(
         AccountMeta::new_readonly(*program.unwrap_or(&PROGRAM_ID), false),
         AccountMeta::new_readonly(*program_data.unwrap_or(&PROGRAM_ID), false),
         AccountMeta::new(*destination, false),
-        AccountMeta::new_readonly(RENT_ID, false),
+        AccountMeta::new_readonly(rent::ID, false),
     ];
 
     Ok(Instruction {

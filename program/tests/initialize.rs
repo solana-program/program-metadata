@@ -1,10 +1,10 @@
-#![cfg(feature = "test-sbf")]
-
 mod setup;
 pub use setup::*;
 
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check};
-use solana_sdk::{account::Account, pubkey::Pubkey, system_program};
+use solana_account::Account;
+use solana_pubkey::Pubkey;
+use solana_sdk_ids::system_program;
 use spl_program_metadata::state::header::Header;
 
 #[test]

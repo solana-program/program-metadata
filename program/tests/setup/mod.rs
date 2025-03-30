@@ -11,13 +11,11 @@ pub use trim::*;
 pub use write::*;
 
 use mollusk_svm::{result::Check, Mollusk};
-use solana_sdk::{
-    account::{create_account_for_test, Account},
-    bpf_loader_upgradeable,
-    instruction::Instruction,
-    pubkey::Pubkey,
-    rent::Rent,
-};
+use solana_account::{create_account_for_test, Account};
+use solana_instruction::Instruction;
+use solana_pubkey::Pubkey;
+use solana_rent::Rent;
+use solana_sdk_ids::bpf_loader_upgradeable;
 
 pub const PROGRAM_ID: Pubkey = Pubkey::new_from_array(spl_program_metadata::ID);
 

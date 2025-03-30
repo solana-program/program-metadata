@@ -1,8 +1,6 @@
-use solana_sdk::{
-    instruction::{AccountMeta, Instruction},
-    program_error::ProgramError,
-    pubkey::Pubkey,
-};
+use solana_instruction::{AccountMeta, Instruction};
+use solana_program_error::ProgramError;
+use solana_pubkey::Pubkey;
 use spl_program_metadata::instruction::ProgramMetadataInstruction;
 
 use super::PROGRAM_ID;
