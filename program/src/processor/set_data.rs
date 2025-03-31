@@ -60,12 +60,14 @@ pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
     let data = match (optional_data, has_buffer) {
         (Some((data_source, Some(remaining_data))), false) => Some((data_source, remaining_data)),
         (Some((data_source, None)), true) => {
+            // SAFETY: singe immutable borrow of `buffer` account data.
             let buffer_data = unsafe { buffer.borrow_data_unchecked() };
-            match AccountDiscriminator::from_bytes(buffer_data)? {
-                Some(AccountDiscriminator::Buffer) => (),
+            match AccountDiscriminator::try_from_bytes(buffer_data)? {
+                Some(AccountDiscriminator::Buffer) => {
+                    Some((data_source, &buffer_data[Header::LEN..]))
+                }
                 _ => return Err(ProgramError::InvalidAccountData),
             }
-            Some((data_source, &buffer_data[Header::LEN..]))
         }
         (None, false) => None,
         _ => return Err(ProgramError::InvalidInstructionData),

@@ -163,3 +163,49 @@ test('it appends to the end of buffers when doing multiple writes', async (t) =>
     data: new Uint8Array([...dataChunk1, ...dataChunk2]),
   });
 });
+
+test('it writes to buffers using other buffers', async (t) => {
+  // Given the following authority and deployed program.
+  const client = createDefaultSolanaClient();
+  const authority = await generateKeyPairSignerWithSol(client);
+  const [program, programData] = await createDeployedProgram(client, authority);
+
+  // And an existing keypair buffer account with data.
+  const data = getUtf8Encoder().encode('Hello, World!');
+  const sourceBuffer = await createKeypairBuffer(client, {
+    payer: authority,
+    data,
+  });
+
+  // And the following pre-allocated pre-funded empty canonical buffer account.
+  const seed = 'dummy';
+  const [buffer] = await createCanonicalBuffer(client, {
+    authority,
+    program,
+    programData,
+    seed,
+    dataLength: data.length,
+  });
+
+  // When we write some data to the canonical buffer account
+  // using the keypair buffer account as source.
+  const writeIx = getWriteInstruction({
+    buffer,
+    authority,
+    offset: 0,
+    sourceBuffer: sourceBuffer.address,
+  });
+  await pipe(
+    await createDefaultTransaction(client, authority),
+    (tx) => appendTransactionMessageInstruction(writeIx, tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
+
+  // Then we expect the buffer account to contain the data from the source buffer.
+  const bufferAccount = await fetchBuffer(client.rpc, buffer);
+  t.like(bufferAccount.data, <Partial<Buffer>>{
+    discriminator: AccountDiscriminator.Buffer,
+    canonical: true,
+    data,
+  });
+});
