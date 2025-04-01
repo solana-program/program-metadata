@@ -8,6 +8,7 @@ use super::{validate_authority, validate_metadata};
 
 /// Processor for the [`Trim`](`crate::instruction::ProgramMetadataInstruction::Trim`)
 /// instruction.
+#[allow(clippy::arithmetic_side_effects)]
 pub fn trim(accounts: &[AccountInfo]) -> ProgramResult {
     // Access accounts.
 

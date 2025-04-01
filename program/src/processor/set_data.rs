@@ -10,6 +10,7 @@ use super::{validate_authority, validate_metadata};
 
 /// Processor for the [`SetData`](`crate::instruction::ProgramMetadataInstruction::SetData`)
 /// instruction.
+#[allow(clippy::arithmetic_side_effects)]
 pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 
@@ -77,6 +78,9 @@ pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
 
     if let Some(data) = update_header(metadata, args, data)? {
         // Realloc the metadata account if necessary.
+        //
+        // The realloc validates that the new size does not exceed the
+        // maximum size of an account.
         metadata.realloc(Header::LEN + data.len(), false)?;
 
         // SAFETY: There are no other active borrows to the `metadata`

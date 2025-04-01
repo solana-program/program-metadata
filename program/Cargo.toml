@@ -26,7 +26,7 @@ pinocchio-system = "0.2"
 solana-security-txt = "1.1.1"
 
 [dev-dependencies]
-mollusk-svm = "0.1"
+mollusk-svm = { version = "0.1", git = "https://github.com/anza-xyz/mollusk.git" }
 solana-account = "2.2.1"
 solana-instruction = "2.2.1"
 solana-program-error = "2.2.1"

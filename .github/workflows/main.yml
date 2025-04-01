@@ -158,7 +158,6 @@ jobs:
   generate_clients:
     name: Check Client Generation
     runs-on: ubuntu-latest
-    needs: format_and_lint_programs
     steps:
       - name: Git Checkout
         uses: actions/checkout@v4

@@ -19,6 +19,7 @@ use super::is_program_authority;
 
 /// Processor for the [`Initialize`](`crate::instruction::ProgramMetadataInstruction::Initialize`)
 /// instruction.
+#[allow(clippy::arithmetic_side_effects)]
 pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 
@@ -92,6 +93,8 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             if !remaining_data.is_empty() {
                 return Err(ProgramError::InvalidAccountData);
             }
+            // A pre-allocated buffer length is at least the size of the
+            // `Header`.
             metadata.data_len() - Header::LEN
         }
         Some(AccountDiscriminator::Metadata) => {
@@ -124,6 +127,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
 
             Allocate {
                 account: metadata,
+                // Instruction data is limited to 1232 bytes.
                 space: (Header::LEN + remaining_data.len()) as u64,
             }
             .invoke_signed(signer)?;

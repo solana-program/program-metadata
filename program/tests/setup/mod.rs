@@ -50,7 +50,9 @@ pub fn create_funded_account(lamports: u64, owner: Pubkey) -> Account {
     }
 }
 
+#[allow(clippy::arithmetic_side_effects)]
 pub fn lamports_for(bytes: usize) -> u64 {
+    // `bytes` is guaranteed at least 0.
     Rent::default().minimum_balance(bytes) - Rent::default().minimum_balance(0)
 }
 

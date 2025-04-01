@@ -7,6 +7,7 @@ use super::{validate_authority, validate_metadata};
 
 /// Processor for the [`Extend`](`crate::instruction::ProgramMetadataInstruction::Extend`)
 /// instruction.
+#[allow(clippy::arithmetic_side_effects)]
 pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 

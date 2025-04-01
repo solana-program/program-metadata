@@ -44,6 +44,7 @@ const BPF_LOADER_UPGRABABLE_ID: Pubkey = [
 ///
 /// - `program_data` account must have 32 bytes of data in the range `[13..45]`,
 ///   matching the provided `authority`.
+#[allow(clippy::arithmetic_side_effects)]
 #[inline(always)]
 fn is_program_authority(
     program: &AccountInfo,
@@ -90,8 +91,10 @@ fn is_program_authority(
                 let option_offset: usize = 4 /* discriminator */ + 8 /* slot */;
                 if data[option_offset] == 1 {
                     let pubkey_offset: usize = option_offset + 1 /* option */;
-                    let authority_key = Pubkey::try_from(&data[pubkey_offset..pubkey_offset + 32])
-                        .map_err(|_| ProgramError::InvalidAccountData)?;
+                    // The `authority_key` is a `Pubkey`.
+                    let authority_key =
+                        Pubkey::try_from(&data[pubkey_offset..pubkey_offset + PUBKEY_BYTES])
+                            .map_err(|_| ProgramError::InvalidAccountData)?;
                     authority == &authority_key
                 } else {
                     false

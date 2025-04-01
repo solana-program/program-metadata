@@ -15,6 +15,7 @@ const lintArgs = [
   '-Zunstable-options',
   '--all-targets',
   '--all-features',
+  '--no-deps',
   '--',
   '--deny=warnings',
   '--deny=clippy::arithmetic_side_effects',
