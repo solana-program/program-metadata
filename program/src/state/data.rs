@@ -4,7 +4,7 @@ use super::{DataSource, ZeroableOption};
 
 /// Metadata account data.
 pub enum Data<'a> {
-    /// Represents the case where the metadata is inlined.
+    /// Represents the case where the metadata is stored on the account.
     Direct(DirectData<'a>),
 
     /// Represents the case where the metadata is a URL.
