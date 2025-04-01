@@ -9,13 +9,13 @@ Attach custom data to any program.
 
 ## Overview
 
-The Program Metadata provides the ability to attach metadata information to any program. The metadata information is represented by a PDA account with a pre-defined derivation, e.g., it can be used to add the IDL of a program, with the PDA derived using the `"idl"` string.
+The Program Metadata provides the ability to attach metadata information to any program. The information is represented by a PDA account with a pre-defined derivation, e.g., it can be used to add the IDL of a program, with a PDA derived using the `"idl"` string.
 
 There are two types of metadata accounts:
-* `canonical`: these are metadata accounts created by the program upgrade authority. They are derived from `[program key, seed]`.
-* `non-canonical` (a.k.a. *third-party*): these are metadata account created by any authority. They are derived from `[program key, authority key, seed]`.
+* canonical: these are metadata accounts created by the program upgrade authority. They are derived from `[program key, seed]`.
+* non-canonical (a.k.a. *third-party*): these are metadata account created by any authority. They are derived from `[program key, authority key, seed]`.
 
-There can only be a single canonical metadata account for a pair *(program, seed)*, at the same time, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.
+While there can only be a single canonical metadata account for a pair *(program, seed)*, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.
 
 ## Building
 
