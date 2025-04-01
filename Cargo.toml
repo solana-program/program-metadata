@@ -5,8 +5,9 @@ members = ["program", "clients/rust"]
 [workspace.metadata.cli]
 solana = "2.1.9"
 
-# Specify Rust toolchains for rustfmt, clippy, and build.
-# Any unprovided toolchains default to stable.
 [workspace.metadata.toolchains]
 format = "nightly-2024-11-22"
 lint = "nightly-2024-11-22"
+
+[workspace.metadata.spellcheck]
+config = "scripts/spellcheck.toml"
