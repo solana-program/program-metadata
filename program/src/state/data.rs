@@ -4,7 +4,7 @@ use super::{DataSource, ZeroableOption};
 
 /// Metadata account data.
 pub enum Data<'a> {
-    /// Represents the case where the metadata is inlined data.
+    /// Represents the case where the metadata is inlined.
     Direct(DirectData<'a>),
 
     /// Represents the case where the metadata is a URL.
@@ -37,9 +37,9 @@ impl<'a> Data<'a> {
     }
 }
 
-/// Type to represent inlined data.
+/// Type to represent inline data.
 ///
-/// Inlined data is stored directly in the account.
+/// Inline data is stored directly in the account.
 pub struct DirectData<'a>(pub &'a [u8]);
 
 /// Type to represent URL data.

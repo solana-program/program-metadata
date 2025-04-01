@@ -84,7 +84,7 @@ impl Buffer {
     ///
     /// # Safety
     ///
-    /// The caller must ensure that it is safe to borrow the account data – e.g., there are
+    /// The caller must ensure that it is safe to borrow the account data, e.g., there are
     /// no mutable borrows of the account data.
     #[inline]
     pub unsafe fn from_account_info_unchecked(

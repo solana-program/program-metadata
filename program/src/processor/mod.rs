@@ -16,7 +16,7 @@ pub mod set_immutable;
 pub mod trim;
 pub mod write;
 
-/// The program ID of the BPF Loader v3.
+/// The program ID of the SVM Loader `v3`.
 const BPF_LOADER_UPGRABABLE_ID: Pubkey = [
     2, 168, 246, 145, 78, 136, 161, 176, 226, 16, 21, 62, 247, 99, 174, 43, 0, 194, 185, 61, 22,
     193, 36, 210, 192, 83, 122, 16, 4, 128, 0, 0,
@@ -29,17 +29,17 @@ const BPF_LOADER_UPGRABABLE_ID: Pubkey = [
 ///
 /// - `program` account must be executable.
 ///
-/// - When a program is owned by BPF Loader v2, program must match the authority;
+/// - When a program is owned by SVM Loader `v2`, program must match the authority;
 ///   otherwise, the `program_data` account must be provided.
 ///
-/// For BPF Loader v2 programs:
+/// For SVM Loader `v2` programs:
 ///
-/// - `program` account discriminator (first byte) must be `2` — i.e. defining a
+/// - `program` account discriminator (first byte) must be `2`, i.e., defining a
 ///   `Program` account.
 ///
 /// - `program_data` account must be the one set on the `program` account data.
 ///
-/// - `program_data` account discriminator (first byte) must be `3` — i.e. defining
+/// - `program_data` account discriminator (first byte) must be `3`, i.e., defining
 ///   a `ProgramData` account.
 ///
 /// - `program_data` account must have 32 bytes of data in the range `[13..45]`,
