@@ -23,6 +23,7 @@ crate-type = ["cdylib", "lib"]
 pinocchio = "0.8"
 pinocchio-pubkey = "0.2"
 pinocchio-system = "0.2"
+solana-security-txt = "1.1.1"
 
 [dev-dependencies]
 mollusk-svm = "0.1"
