@@ -1,4 +1,7 @@
-import { getTransferSolInstruction } from '@solana-program/system';
+import {
+  getCreateAccountInstruction,
+  getTransferSolInstruction,
+} from '@solana-program/system';
 import {
   CompilableTransactionMessage,
   generateKeyPairSigner,
@@ -16,6 +19,7 @@ import {
   getSetAuthorityInstruction,
   getSetDataInstruction,
   getTrimInstruction,
+  PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
 import {
   calculateMaxChunkSize,
@@ -191,10 +195,12 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
   }
 
   initialMessage.instructions.push(
-    getTransferSolInstruction({
-      source: input.payer,
-      destination: input.buffer.address,
-      amount: input.bufferRent,
+    getCreateAccountInstruction({
+      payer: input.payer,
+      newAccount: input.buffer,
+      lamports: input.bufferRent,
+      space: getAccountSize(input.data.length),
+      programAddress: PROGRAM_METADATA_PROGRAM_ADDRESS,
     }),
     getAllocateInstruction({
       buffer: input.buffer.address,
@@ -216,17 +222,6 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
         extraLength: Number(input.sizeDifference),
         program: input.program,
         programData: input.isCanonical ? input.programData : undefined,
-        priorityFees: input.priorityFees,
-      })
-    );
-  }
-
-  if (input.data.length > REALLOC_LIMIT) {
-    mainPlan.plans.push(
-      getExtendInstructionPlan({
-        account: input.buffer.address,
-        authority: input.authority,
-        extraLength: input.data.length,
         priorityFees: input.priorityFees,
       })
     );
