@@ -1,10 +1,10 @@
-#![cfg(feature = "test-sbf")]
-
 mod setup;
 pub use setup::*;
 
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check};
-use solana_sdk::{account::Account, pubkey::Pubkey, system_program, sysvar};
+use solana_account::Account;
+use solana_pubkey::Pubkey;
+use solana_sdk_ids::system_program;
 use spl_program_metadata::state::{buffer::Buffer, header::Header};
 
 const EXCESS_LAMPORTS: usize = 90;
@@ -99,7 +99,7 @@ fn test_trim_canonical() {
             (program_data_key, program_data_account),
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
-            (sysvar::rent::ID, rent_sysvar()),
+            (solana_rent::sysvar::ID, rent_sysvar()),
         ],
     );
 }
@@ -196,7 +196,7 @@ fn test_trim_non_canonical() {
             (program_data_key, program_data_account),
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
-            (sysvar::rent::ID, rent_sysvar()),
+            (solana_rent::sysvar::ID, rent_sysvar()),
         ],
     );
 }
@@ -252,7 +252,7 @@ fn test_trim_buffer() {
             (PROGRAM_ID, Account::default()),
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
-            (sysvar::rent::ID, rent_sysvar()),
+            (solana_rent::sysvar::ID, rent_sysvar()),
         ],
     );
 }

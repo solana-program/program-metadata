@@ -81,7 +81,7 @@ pub enum ProgramMetadataInstruction {
     ///
     /// Instruction data:
     ///
-    ///  - `u8`: option (0 = remove authority, 1 = set authority)
+    ///  - `u8`: option (0 `=` remove authority, 1 `=` set authority)
     ///  - `[u8; 32]`: (optional) new authority
     SetAuthority,
 
@@ -179,7 +179,7 @@ pub enum ProgramMetadataInstruction {
     ///  5. `[w]` Destination account.
     Close,
 
-    /// Alocates a buffer account.
+    /// Allocates a buffer account.
     ///
     /// The buffer account can either be a PDA or a keypair account.
     /// It must be pre-funded with enough lamports to cover the storage

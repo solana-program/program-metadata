@@ -8,10 +8,12 @@ use crate::state::{buffer::Buffer, header::Header, AccountDiscriminator};
 
 /// Processor for the [`Write`](`crate::instruction::ProgramMetadataInstruction::Write`)
 /// instruction.
+#[allow(clippy::arithmetic_side_effects)]
 pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 
     let args = Write::try_from_bytes(instruction_data)?;
+    // The `offset` value is guaranteed to fit in a `usize`.
     let offset = args.offset() as usize + Buffer::LEN;
 
     // Access accounts.
@@ -72,6 +74,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
             _ => return Err(ProgramError::InvalidInstructionData),
         };
 
+        // The length of the data to write is validated by the `realloc`.
         (max(data.len(), offset + source_data.len()), source_data)
     };
 
