@@ -8,9 +8,9 @@ const jsClientPkg = require(
   path.join(__dirname, '..', 'clients', 'js', 'package.json')
 );
 const templateArgs = [
-  'token',
+  'program-metadata',
   '--address',
-  'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+  'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S',
   '--org',
   'solana-program',
   '--rust-client-crate-name',
