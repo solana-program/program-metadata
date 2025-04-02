@@ -6,6 +6,10 @@ readme = "./README.md"
 license-file = "../LICENSE"
 publish = false
 
+[lints.rust.unexpected_cfgs]
+level = "warn"
+check-cfg = ['cfg(target_os, values("solana"))']
+
 [package.metadata.solana]
 program-id = "ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S"
 program-dependencies = []
@@ -16,9 +20,9 @@ account-dependencies = []
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-pinocchio = "0.7.0"
-pinocchio-pubkey = "0.2.2"
-pinocchio-system = "0.2.1"
+pinocchio = "0.8"
+pinocchio-pubkey = "0.2"
+pinocchio-system = "0.2"
 
 [dev-dependencies]
 mollusk-svm = "0.1"

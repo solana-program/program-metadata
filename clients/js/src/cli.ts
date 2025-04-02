@@ -86,7 +86,7 @@ program
 
 // Upload metadata command.
 type UploadOptions = GlobalOptions & {
-  thirdParty: boolean;
+  nonCanonical: boolean;
   file?: string;
   url?: string;
   account?: string;
@@ -111,7 +111,7 @@ program
   )
   .description('Upload metadata')
   .option(
-    '--third-party',
+    '--non-canonical',
     'When provided, a non-canonical metadata account will be uploaded using the active keypair as the authority.',
     false
   )
@@ -170,9 +170,9 @@ program
         client.rpc,
         program
       );
-      if (!options.thirdParty && keypair.address !== programAuthority) {
+      if (!options.nonCanonical && keypair.address !== programAuthority) {
         logErrorAndExit(
-          'You must be the program authority to upload a canonical metadata account. Use `--third-party` option to upload as a third party.'
+          'You must be the program authority to upload a canonical metadata account. Use `--non-canonical` option to upload as a third party.'
         );
       }
       const { lastTransaction } = await uploadMetadata({
@@ -211,7 +211,7 @@ program
 // Download metadata command.
 type DownloadOptions = GlobalOptions & {
   output?: string;
-  thirdParty?: string | true;
+  nonCanonical?: string | true;
 };
 program
   .command('download')
@@ -224,7 +224,7 @@ program
   )
   .option('-o, --output <path>', 'Path to save the IDL file')
   .option(
-    '--third-party [address]',
+    '--non-canonical [address]',
     'When provided, a non-canonical metadata account will be downloaded using the provided address or the active keypair as the authority.',
     false
   )
@@ -232,10 +232,10 @@ program
     const options = cmd.optsWithGlobals() as DownloadOptions;
     const client = getClient(options);
     const authority =
-      options.thirdParty === true
+      options.nonCanonical === true
         ? (await getKeyPairSigners(options, client.configs))[0].address
-        : options.thirdParty
-          ? address(options.thirdParty)
+        : options.nonCanonical
+          ? address(options.nonCanonical)
           : undefined;
     try {
       const content = await downloadMetadata(
@@ -349,7 +349,7 @@ program
   });
 
 type SetImmutableOptions = GlobalOptions & {
-  thirdParty: boolean;
+  nonCanonical: boolean;
 };
 program
   .command('set-immutable')
@@ -363,7 +363,7 @@ program
     address
   )
   .option(
-    '--third-party',
+    '--non-canonical',
     'When provided, a non-canonical metadata account will be updated using the active keypair as the authority.',
     false
   )
@@ -375,9 +375,9 @@ program
       client.rpc,
       program
     );
-    if (!options.thirdParty && keypair.address !== programAuthority) {
+    if (!options.nonCanonical && keypair.address !== programAuthority) {
       logErrorAndExit(
-        'You must be the program authority to update a canonical metadata account. Use `--third-party` option to update as a third party.'
+        'You must be the program authority to update a canonical metadata account. Use `--non-canonical` option to update as a third party.'
       );
     }
     const { metadata, programData } = await getPdaDetails({
@@ -406,7 +406,7 @@ program
   });
 
 type CloseOptions = GlobalOptions & {
-  thirdParty: boolean;
+  nonCanonical: boolean;
 };
 program
   .command('close')
@@ -418,7 +418,7 @@ program
     address
   )
   .option(
-    '--third-party',
+    '--non-canonical',
     'When provided, a non-canonical metadata account will be closed using the active keypair as the authority.',
     false
   )
@@ -430,9 +430,9 @@ program
       client.rpc,
       program
     );
-    if (!options.thirdParty && keypair.address !== programAuthority) {
+    if (!options.nonCanonical && keypair.address !== programAuthority) {
       logErrorAndExit(
-        'You must be the program authority to close a canonical metadata account. Use `--third-party` option to close as a third party.'
+        'You must be the program authority to close a canonical metadata account. Use `--non-canonical` option to close as a third party.'
       );
     }
     const { metadata, programData } = await getPdaDetails({

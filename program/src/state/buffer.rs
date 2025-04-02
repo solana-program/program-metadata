@@ -63,7 +63,7 @@ impl Buffer {
     ///  3. Borrow data: it must be allowed to borrow the account data.
     #[inline]
     pub fn from_account_info(account_info: &AccountInfo) -> Result<Ref<Self>, ProgramError> {
-        if account_info.owner() != &crate::ID {
+        if !account_info.is_owned_by(&crate::ID) {
             return Err(ProgramError::InvalidAccountOwner);
         }
         let data = account_info.try_borrow_data()?;

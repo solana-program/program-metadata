@@ -12,11 +12,12 @@ pub enum ProgramMetadataInstruction {
     ///
     /// 0. `[w]` Buffer to write to.
     /// 1. `[s]` Authority account.
+    /// 2. `[o]` Buffer to copy the data from.
     ///
     /// Instruction data:
     ///
     /// - `u32`: offset to write to
-    /// - `[u8]`: bytes to write
+    /// - `[u8]`: (optional) bytes to write
     Write,
 
     /// Initializes a metadata account.
@@ -235,11 +236,11 @@ pub enum ProgramMetadataInstruction {
     Extend,
 }
 
-impl TryFrom<&u8> for ProgramMetadataInstruction {
+impl TryFrom<u8> for ProgramMetadataInstruction {
     type Error = ProgramError;
 
-    fn try_from(value: &u8) -> Result<Self, Self::Error> {
-        match *value {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
             0 => Ok(ProgramMetadataInstruction::Write),
             1 => Ok(ProgramMetadataInstruction::Initialize),
             2 => Ok(ProgramMetadataInstruction::SetAuthority),
