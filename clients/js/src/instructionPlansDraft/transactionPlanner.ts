@@ -86,100 +86,122 @@ export function createBaseTransactionPlanner({
       (plan as Mutable<SingleTransactionPlan>).message = message;
     };
 
-    // Recursive function that traverses the instruction plan and constructs the transaction plan.
-    const traverse = async (
-      instructionPlan: InstructionPlan,
-      parentCandidates: SingleTransactionPlan[] = []
-    ): Promise<TransactionPlan | null> => {
-      if (instructionPlan.kind === 'sequential' && !instructionPlan.divisible) {
-        throw new Error(
-          'Non-divisible sequential plans are not supported yet.'
-        );
-      }
+    const plan = await traverse(originalInstructionPlan, {
+      parent: null,
+      parentCandidates: [],
+      createSingleTransactionPlan,
+      addInstructionsToSingleTransactionPlan,
+    });
 
-      if (instructionPlan.kind === 'sequential') {
-        // TODO: This is true if the parent is parallel. We don't need to be as strict with sequential parents.
-        // TODO: But we may need to be just as strict with non-divisible sequential parents.
-        const allInstructions = getAllSingleInstructionPlans(instructionPlan);
-        let candidate: SingleTransactionPlan | null = selectCandidate(
-          parentCandidates,
-          allInstructions
-        );
-        if (candidate) {
-          // The whole branch can be added to the candidate.
-          await addInstructionsToSingleTransactionPlan(
-            candidate,
-            allInstructions
-          );
-          return null;
-        }
-        const transactionPlans: TransactionPlan[] = [];
-        for (const plan of instructionPlan.plans) {
-          const transactionPlan = await traverse(
-            plan,
-            candidate ? [candidate] : []
-          );
-          if (transactionPlan) {
-            transactionPlans.push(transactionPlan);
-            candidate = getSequentialCandidate(transactionPlan);
-          }
-        }
-        if (transactionPlans.length === 1) {
-          return transactionPlans[0];
-        }
-        if (transactionPlans.length > 0) {
-          return null;
-        }
-        return { kind: 'sequential', divisible: true, plans: transactionPlans };
-      }
-
-      if (instructionPlan.kind === 'parallel') {
-        const candidates: SingleTransactionPlan[] = [...parentCandidates];
-        const transactionPlans: TransactionPlan[] = [];
-        for (const plan of instructionPlan.plans) {
-          const transactionPlan = await traverse(plan, candidates);
-          if (transactionPlan) {
-            transactionPlans.push(transactionPlan);
-            candidates.push(...getParallelCandidates(transactionPlan));
-          }
-        }
-        if (transactionPlans.length === 1) {
-          return transactionPlans[0];
-        }
-        if (transactionPlans.length > 0) {
-          return null;
-        }
-        return { kind: 'parallel', plans: transactionPlans };
-      }
-
-      if (instructionPlan.kind === 'dynamic') {
-        throw new Error('Dynamic plans are not supported yet.');
-      }
-
-      if (instructionPlan.kind === 'single') {
-        const candidate = selectCandidate(parentCandidates, [instructionPlan]);
-        if (candidate) {
-          await addInstructionsToSingleTransactionPlan(candidate, [
-            instructionPlan,
-          ]);
-          return null;
-        }
-        return await createSingleTransactionPlan([instructionPlan]);
-      }
-
-      instructionPlan satisfies never;
-      throw new Error(
-        `Unknown instruction plan kind: ${(instructionPlan as { kind: string }).kind}`
-      );
-    };
-
-    const plan = await traverse(originalInstructionPlan);
     if (!plan) {
       throw new Error('Transaction plan is null.'); // Should never happen.
     }
 
     return plan;
   };
+}
+
+// Recursive function that traverses the instruction plan and constructs the transaction plan.
+async function traverse(
+  instructionPlan: InstructionPlan,
+  context: {
+    parent: InstructionPlan | null;
+    parentCandidates: SingleTransactionPlan[];
+    createSingleTransactionPlan: (
+      instructions?: SingleInstructionPlan[]
+    ) => Promise<SingleTransactionPlan>;
+    addInstructionsToSingleTransactionPlan: (
+      plan: SingleTransactionPlan,
+      instructions: SingleInstructionPlan[]
+    ) => Promise<void>;
+  }
+): Promise<TransactionPlan | null> {
+  if (instructionPlan.kind === 'sequential') {
+    let candidate: SingleTransactionPlan | null = null;
+    const mustEntirelyFitInCandidate =
+      context.parent?.kind === 'parallel' || !instructionPlan.divisible;
+    if (mustEntirelyFitInCandidate) {
+      const allInstructions = getAllSingleInstructionPlans(instructionPlan);
+      candidate = selectCandidate(context.parentCandidates, allInstructions);
+      if (candidate) {
+        await context.addInstructionsToSingleTransactionPlan(
+          candidate,
+          allInstructions
+        );
+        return null;
+      }
+    } else {
+      candidate =
+        context.parentCandidates.length > 0
+          ? context.parentCandidates[0]
+          : null;
+    }
+
+    const transactionPlans: TransactionPlan[] = [];
+    for (const plan of instructionPlan.plans) {
+      const transactionPlan = await traverse(plan, {
+        ...context,
+        parent: instructionPlan,
+        parentCandidates: candidate ? [candidate] : [],
+      });
+      if (transactionPlan) {
+        transactionPlans.push(transactionPlan);
+        candidate = getSequentialCandidate(transactionPlan);
+      }
+    }
+    if (transactionPlans.length === 1) {
+      return transactionPlans[0];
+    }
+    if (transactionPlans.length > 0) {
+      return null;
+    }
+    return { kind: 'sequential', divisible: true, plans: transactionPlans };
+  }
+
+  if (instructionPlan.kind === 'parallel') {
+    const candidates: SingleTransactionPlan[] = [...context.parentCandidates];
+    const transactionPlans: TransactionPlan[] = [];
+    for (const plan of instructionPlan.plans) {
+      const transactionPlan = await traverse(plan, {
+        ...context,
+        parent: instructionPlan,
+        parentCandidates: candidates,
+      });
+      if (transactionPlan) {
+        transactionPlans.push(transactionPlan);
+        candidates.push(...getParallelCandidates(transactionPlan));
+      }
+    }
+    if (transactionPlans.length === 1) {
+      return transactionPlans[0];
+    }
+    if (transactionPlans.length > 0) {
+      return null;
+    }
+    return { kind: 'parallel', plans: transactionPlans };
+  }
+
+  if (instructionPlan.kind === 'dynamic') {
+    throw new Error('Dynamic plans are not supported yet.');
+  }
+
+  if (instructionPlan.kind === 'single') {
+    const candidate = selectCandidate(context.parentCandidates, [
+      instructionPlan,
+    ]);
+    if (candidate) {
+      await context.addInstructionsToSingleTransactionPlan(candidate, [
+        instructionPlan,
+      ]);
+      return null;
+    }
+    return await context.createSingleTransactionPlan([instructionPlan]);
+  }
+
+  instructionPlan satisfies never;
+  throw new Error(
+    `Unknown instruction plan kind: ${(instructionPlan as { kind: string }).kind}`
+  );
 }
 
 function getSequentialCandidate(
