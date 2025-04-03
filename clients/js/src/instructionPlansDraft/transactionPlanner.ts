@@ -293,20 +293,17 @@ function isValidCandidate(
   return getRemainingTransactionSize(message) >= 0;
 }
 
-function getRemainingTransactionSize(message: BaseTransactionMessage) {
-  return (
-    TRANSACTION_SIZE_LIMIT -
-    getTransactionSize(message) -
-    1 /* Subtract 1 byte buffer to account for shortvec encoding. */
-  );
+export function getRemainingTransactionSize(message: BaseTransactionMessage) {
+  return TRANSACTION_SIZE_LIMIT - getTransactionSize(message);
 }
 
-function getTransactionSize(
+export function getTransactionSize(
   message: BaseTransactionMessage & Partial<CompilableTransactionMessage>
 ): number {
-  const mockFeePayer = '11111111111111111111111111111111' as Address;
+  const mockFeePayer =
+    'Gm1uVH3JxiLgafByNNmnoxLncB7ytpyWNqX3kRM9tSxN' as Address;
   const mockBlockhash = {
-    blockhash: '11111111111111111111111111111111' as Blockhash,
+    blockhash: '2WCjwT4P5tJF7tjMtTVEnN6o53bcZ8MhszcfXMERtU3z' as Blockhash,
     lastValidBlockHeight: 0n,
   };
   const transaction = pipe(
