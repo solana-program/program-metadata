@@ -85,11 +85,11 @@ test('it plans a sequential plan with instructions that must be split accross mu
 });
 
 /**
- *           [Seq] ──────────────▶ [Tx: A + B]
- *          /     \
- *     [Ix: A]   [Seq]
- *                 |
- *              [Ix: B]
+ *       [Seq] ──────────────▶ [Tx: A + B]
+ *      /     \
+ * [Ix: A]   [Seq]
+ *             |
+ *          [Ix: B]
  */
 test('it simplifies nested sequential plans', async (t) => {
   const instruction = instructionFactory();
@@ -166,11 +166,11 @@ test('it plans a parallel plan with instructions that must be split accross mult
 });
 
 /**
- *           [Par] ──────────────▶ [Tx: A + B]
- *          /     \
- *     [Ix: A]   [Par]
- *                 |
- *              [Ix: B]
+ *       [Par] ──────────────▶ [Tx: A + B]
+ *      /     \
+ * [Ix: A]   [Par]
+ *             |
+ *          [Ix: B]
  */
 test('it simplifies nested parallel plans', async (t) => {
   const instruction = instructionFactory();
@@ -188,5 +188,40 @@ test('it simplifies nested parallel plans', async (t) => {
       ])
     ),
     singleTransactionPlan([instructionA, instructionB])
+  );
+});
+
+/**
+ *            [Par] ──────────────────────────▶ [Par]
+ *          /   |    \                        /      \
+ *      [Seq] [Ix: C] [Ix: D]      [Tx: A + B + D]   [Tx: C]
+ *      /   \
+ * [Ix: A] [Ix: B]
+ */
+test('it re-uses previous parallel transactions if there is space', async (t) => {
+  const instruction = instructionFactory();
+  const singleTransactionPlan = singleTransactionPlanFactory();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(50));
+  const instructionB = instruction(txPercent(25));
+  const instructionC = instruction(txPercent(90));
+  const instructionD = instruction(txPercent(25));
+
+  t.deepEqual(
+    await planner(
+      parallelInstructionPlan([
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionA),
+          singleInstructionPlan(instructionB),
+        ]),
+        singleInstructionPlan(instructionC),
+        singleInstructionPlan(instructionD),
+      ])
+    ),
+    parallelTransactionPlan([
+      singleTransactionPlan([instructionA, instructionB, instructionD]),
+      singleTransactionPlan([instructionC]),
+    ])
   );
 });
