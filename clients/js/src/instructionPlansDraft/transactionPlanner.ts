@@ -135,5 +135,5 @@ function getTransactionSize(
     },
     (tx) => compileTransaction(tx)
   );
-  return getTransactionEncoder().encode(transaction).length;
+  return getTransactionEncoder().getSizeFromValue(transaction);
 }
