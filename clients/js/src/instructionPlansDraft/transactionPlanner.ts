@@ -89,7 +89,7 @@ export function createBaseTransactionPlanner({
     // Recursive function that traverses the instruction plan and constructs the transaction plan.
     const traverse = async (
       instructionPlan: InstructionPlan,
-      candidates: SingleTransactionPlan[] = []
+      parentCandidates: SingleTransactionPlan[] = []
     ): Promise<TransactionPlan | null> => {
       if (instructionPlan.kind === 'sequential' && !instructionPlan.divisible) {
         throw new Error(
@@ -98,7 +98,21 @@ export function createBaseTransactionPlanner({
       }
 
       if (instructionPlan.kind === 'sequential') {
-        let candidate: SingleTransactionPlan | null = null;
+        // TODO: This is true if the parent is parallel. We don't need to be as strict with sequential parents.
+        // TODO: But we may need to be just as strict with non-divisible sequential parents.
+        const allInstructions = getAllSingleInstructionPlans(instructionPlan);
+        let candidate: SingleTransactionPlan | null = selectCandidate(
+          parentCandidates,
+          allInstructions
+        );
+        if (candidate) {
+          // The whole branch can be added to the candidate.
+          await addInstructionsToSingleTransactionPlan(
+            candidate,
+            allInstructions
+          );
+          return null;
+        }
         const transactionPlans: TransactionPlan[] = [];
         for (const plan of instructionPlan.plans) {
           const transactionPlan = await traverse(
@@ -120,7 +134,7 @@ export function createBaseTransactionPlanner({
       }
 
       if (instructionPlan.kind === 'parallel') {
-        const candidates: SingleTransactionPlan[] = [];
+        const candidates: SingleTransactionPlan[] = [...parentCandidates];
         const transactionPlans: TransactionPlan[] = [];
         for (const plan of instructionPlan.plans) {
           const transactionPlan = await traverse(plan, candidates);
@@ -143,7 +157,7 @@ export function createBaseTransactionPlanner({
       }
 
       if (instructionPlan.kind === 'single') {
-        const candidate = selectCandidate(candidates, [instructionPlan]);
+        const candidate = selectCandidate(parentCandidates, [instructionPlan]);
         if (candidate) {
           await addInstructionsToSingleTransactionPlan(candidate, [
             instructionPlan,
@@ -198,6 +212,22 @@ function getAllSingleTransactionPlans(
     return transactionPlan.plans.flatMap(getAllSingleTransactionPlans);
   }
   return [transactionPlan];
+}
+
+// TODO: This will need tweaking when adding support for dynamic instructions.
+function getAllSingleInstructionPlans(
+  instructionPlan: InstructionPlan
+): SingleInstructionPlan[] {
+  if (instructionPlan.kind === 'sequential') {
+    return instructionPlan.plans.flatMap(getAllSingleInstructionPlans);
+  }
+  if (instructionPlan.kind === 'parallel') {
+    return instructionPlan.plans.flatMap(getAllSingleInstructionPlans);
+  }
+  if (instructionPlan.kind === 'dynamic') {
+    throw new Error('Dynamic plans are not supported yet.');
+  }
+  return [instructionPlan];
 }
 
 function selectCandidate(
