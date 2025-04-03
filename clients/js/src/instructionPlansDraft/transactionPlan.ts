@@ -3,11 +3,12 @@ import { BaseTransactionMessage } from '@solana/kit';
 export type TransactionPlan =
   | SequentialTransactionPlan
   | ParallelTransactionPlan
-  | StaticTransactionPlan;
+  | SingleTransactionPlan;
 
 export type SequentialTransactionPlan = Readonly<{
   kind: 'sequential';
   plans: TransactionPlan[];
+  divisible: boolean;
 }>;
 
 export type ParallelTransactionPlan = Readonly<{
@@ -15,9 +16,9 @@ export type ParallelTransactionPlan = Readonly<{
   plans: TransactionPlan[];
 }>;
 
-export type StaticTransactionPlan<
+export type SingleTransactionPlan<
   TTransactionMessage extends BaseTransactionMessage = BaseTransactionMessage,
 > = Readonly<{
-  kind: 'static';
+  kind: 'single';
   message: TTransactionMessage;
 }>;

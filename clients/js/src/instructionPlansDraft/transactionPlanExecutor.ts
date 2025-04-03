@@ -8,7 +8,7 @@ import {
   Signature,
   SolanaRpcSubscriptionsApi,
 } from '@solana/kit';
-import { StaticTransactionPlan, TransactionPlan } from './transactionPlan';
+import { SingleTransactionPlan, TransactionPlan } from './transactionPlan';
 import { TransactionPlanResult } from './transactionPlanResult';
 
 export type TransactionPlanExecutor<TContext extends object | null = null> = (
@@ -31,8 +31,8 @@ export function getDefaultTransactionPlanExecutor(options: {
     await new Promise((resolve) => setTimeout(resolve, 500));
     return {
       context: null,
-      kind: 'static',
-      message: (plan as StaticTransactionPlan).message,
+      kind: 'single',
+      message: (plan as SingleTransactionPlan).message,
       signature: 'signature' as Signature,
       status: { kind: 'success' },
     };
@@ -54,7 +54,7 @@ export function refreshBlockheightTransactionPlanExecutor(
     lastValidBlockHeight: bigint;
   } | null = null;
   return async (transactionPlan) => {
-    if (transactionPlan.kind !== 'static') {
+    if (transactionPlan.kind !== 'single') {
       return await executor(transactionPlan);
     }
 
@@ -81,7 +81,7 @@ export function retryTransactionPlanExecutor(
   executor: TransactionPlanExecutor
 ): TransactionPlanExecutor {
   return async (transactionPlan) => {
-    if (transactionPlan.kind !== 'static') {
+    if (transactionPlan.kind !== 'single') {
       return await executor(transactionPlan);
     }
 

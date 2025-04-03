@@ -3,7 +3,7 @@ import { IInstruction } from '@solana/kit';
 export type InstructionPlan =
   | SequentialInstructionPlan
   | ParallelInstructionPlan
-  | StaticInstructionPlan
+  | SingleInstructionPlan
   | DynamicInstructionPlan;
 
 export type SequentialInstructionPlan = Readonly<{
@@ -17,10 +17,10 @@ export type ParallelInstructionPlan = Readonly<{
   plans: InstructionPlan[];
 }>;
 
-export type StaticInstructionPlan<
+export type SingleInstructionPlan<
   TInstruction extends IInstruction = IInstruction,
 > = Readonly<{
-  kind: 'static';
+  kind: 'single';
   instruction: TInstruction;
 }>;
 

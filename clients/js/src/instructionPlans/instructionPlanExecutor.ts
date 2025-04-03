@@ -37,7 +37,9 @@ export function chunkParallelInstructionPlans(
   executor: InstructionPlanExecutor,
   chunkSize: number
 ): InstructionPlanExecutor {
-  const chunkPlan = (plan: ParallelInstructionPlan) => {
+  const chunkPlan = (
+    plan: ParallelInstructionPlan
+  ): ParallelInstructionPlan[] => {
     return plan.plans
       .reduce(
         (chunks, subPlan) => {
