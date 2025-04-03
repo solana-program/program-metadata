@@ -145,7 +145,8 @@ async function traverseSequential(
 ): Promise<TransactionPlan | null> {
   let candidate: SingleTransactionPlan | null = null;
   const mustEntirelyFitInCandidate =
-    context.parent?.kind === 'parallel' || !instructionPlan.divisible;
+    context.parent &&
+    (context.parent.kind === 'parallel' || !instructionPlan.divisible);
   if (mustEntirelyFitInCandidate) {
     const allInstructions = getAllSingleInstructionPlans(instructionPlan);
     candidate = selectCandidate(context.parentCandidates, allInstructions);
@@ -176,7 +177,7 @@ async function traverseSequential(
   if (transactionPlans.length === 1) {
     return transactionPlans[0];
   }
-  if (transactionPlans.length > 0) {
+  if (transactionPlans.length === 0) {
     return null;
   }
   return { kind: 'sequential', divisible: true, plans: transactionPlans };
@@ -202,7 +203,7 @@ async function traverseParallel(
   if (transactionPlans.length === 1) {
     return transactionPlans[0];
   }
-  if (transactionPlans.length > 0) {
+  if (transactionPlans.length === 0) {
     return null;
   }
   return { kind: 'parallel', plans: transactionPlans };
