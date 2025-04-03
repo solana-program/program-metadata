@@ -99,7 +99,7 @@ export function createBaseTransactionPlanner({
     });
 
     if (!plan) {
-      throw new Error('Transaction plan is null.'); // Should never happen.
+      throw new Error('No instructions were found in the instruction plan.');
     }
 
     return plan;
