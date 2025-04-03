@@ -29,7 +29,7 @@ export function nonDivisibleSequentialTransactionPlan(
   return { kind: 'sequential', divisible: false, plans };
 }
 
-export function getSingleTransactionPlanFactory(
+export function singleTransactionPlanFactory(
   defaultMessage?: () => BaseTransactionMessage
 ) {
   const defaultMessageFn =

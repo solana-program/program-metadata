@@ -1,21 +1,20 @@
 import test from 'ava';
 import { createBaseTransactionPlanner } from '../../src';
-import { getSingleInstructionPlanFactory } from './_instructionPlanHelpers';
-import { getSingleTransactionPlanFactory } from './_transactionPlanHelpers';
+import {
+  instructionFactory,
+  singleInstructionPlan,
+} from './_instructionPlanHelpers';
+import { singleTransactionPlanFactory } from './_transactionPlanHelpers';
 
 /**
  * [Ix: A] => [Tx: A]
  */
 test('it plans a single instruction', async (t) => {
-  const singleInstructionPlan = getSingleInstructionPlanFactory();
-  const singleTransactionPlan = getSingleTransactionPlanFactory();
+  const instruction = instructionFactory();
+  const singleTransactionPlan = singleTransactionPlanFactory();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
-  const instructionPlan = singleInstructionPlan(500);
-  const transactionPlan = await planner(singleInstructionPlan(500));
-
-  t.deepEqual(
-    transactionPlan,
-    singleTransactionPlan([instructionPlan.instruction])
-  );
+  const instructionA = instruction(42);
+  const transactionPlan = await planner(singleInstructionPlan(instructionA));
+  t.deepEqual(transactionPlan, singleTransactionPlan([instructionA]));
 });

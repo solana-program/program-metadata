@@ -1,4 +1,4 @@
-import { Address } from '@solana/kit';
+import { Address, IInstruction } from '@solana/kit';
 import {
   InstructionPlan,
   ParallelInstructionPlan,
@@ -28,9 +28,15 @@ export function nonDivisibleSequentialInstructionPlan(
   return { kind: 'sequential', divisible: false, plans };
 }
 
-export function getSingleInstructionPlanFactory() {
+export function singleInstructionPlan(
+  instruction: IInstruction
+): SingleInstructionPlan {
+  return { kind: 'single', instruction };
+}
+
+export function instructionFactory() {
   let counter = 0n;
-  return (bytes: number): SingleInstructionPlan => {
+  return (bytes: number): IInstruction => {
     if (bytes < MINIMUM_INSTRUCTION_SIZE) {
       throw new Error(
         `Instruction size must be at least ${MINIMUM_INSTRUCTION_SIZE} bytes`
@@ -39,11 +45,8 @@ export function getSingleInstructionPlanFactory() {
     const programAddress = BigInt('11111111111111111111111111111111') + counter;
     counter += 1n;
     return {
-      kind: 'single',
-      instruction: {
-        programAddress: programAddress.toString() as Address,
-        data: new Uint8Array(bytes - MINIMUM_INSTRUCTION_SIZE),
-      },
+      programAddress: programAddress.toString() as Address,
+      data: new Uint8Array(bytes - MINIMUM_INSTRUCTION_SIZE),
     };
   };
 }
