@@ -170,8 +170,12 @@ async function traverseSequential(
       parentCandidates: candidate ? [candidate] : [],
     });
     if (transactionPlan) {
-      transactionPlans.push(transactionPlan);
       candidate = getSequentialCandidate(transactionPlan);
+      const newPlans =
+        transactionPlan.kind === 'sequential' && transactionPlan.divisible
+          ? transactionPlan.plans
+          : [transactionPlan];
+      transactionPlans.push(...newPlans);
     }
   }
   if (transactionPlans.length === 1) {
@@ -200,8 +204,12 @@ async function traverseParallel(
       parentCandidates: candidates,
     });
     if (transactionPlan) {
-      transactionPlans.push(transactionPlan);
       candidates.push(...getParallelCandidates(transactionPlan));
+      const newPlans =
+        transactionPlan.kind === 'parallel'
+          ? transactionPlan.plans
+          : [transactionPlan];
+      transactionPlans.push(...newPlans);
     }
   }
   if (transactionPlans.length === 1) {
