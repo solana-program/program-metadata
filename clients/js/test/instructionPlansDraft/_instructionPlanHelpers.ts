@@ -1,5 +1,6 @@
-import { Address, IInstruction } from '@solana/kit';
+import { Address, BaseTransactionMessage, IInstruction } from '@solana/kit';
 import {
+  getTransactionSize,
   InstructionPlan,
   ParallelInstructionPlan,
   SequentialInstructionPlan,
@@ -51,8 +52,15 @@ export function instructionFactory() {
   };
 }
 
-export function txPercent(percent: number) {
-  return Math.floor(
-    ((MAXIMUM_TRANSACTION_SIZE - MINIMUM_TRANSACTION_SIZE) * percent) / 100
-  );
+export function transactionPercentFactory(
+  defaultMessage?: () => BaseTransactionMessage
+) {
+  const minimumTransactionSize = defaultMessage
+    ? getTransactionSize(defaultMessage())
+    : MINIMUM_TRANSACTION_SIZE;
+  return (percent: number) => {
+    return Math.floor(
+      ((MAXIMUM_TRANSACTION_SIZE - minimumTransactionSize) * percent) / 100
+    );
+  };
 }
