@@ -393,3 +393,52 @@ test('it can split parallel plans inside sequential plans as long as they follow
     ])
   );
 });
+
+/**
+ *  [Seq] ───────────────────▶ [Seq]
+ *   │                          │
+ *   ├── [Par]                  ├── [Tx: A + B]
+ *   │    ├── [A: 33%]          ├── [Tx: C + D]
+ *   │    └── [B: 33%]          └── [Tx: E + F]
+ *   ├── [Par]
+ *   │    ├── [C: 50%]
+ *   │    └── [D: 50%]
+ *   └── [Par]
+ *         ├── [E: 33%]
+ *         └── [F: 33%]
+ */
+test('it cannnot split a parallel plan in a sequential plan if that would break the sequence', async (t) => {
+  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(33));
+  const instructionB = instruction(txPercent(33));
+  const instructionC = instruction(txPercent(50));
+  const instructionD = instruction(txPercent(50));
+  const instructionE = instruction(txPercent(33));
+  const instructionF = instruction(txPercent(33));
+
+  t.deepEqual(
+    await planner(
+      sequentialInstructionPlan([
+        parallelInstructionPlan([
+          singleInstructionPlan(instructionA),
+          singleInstructionPlan(instructionB),
+        ]),
+        parallelInstructionPlan([
+          singleInstructionPlan(instructionC),
+          singleInstructionPlan(instructionD),
+        ]),
+        parallelInstructionPlan([
+          singleInstructionPlan(instructionE),
+          singleInstructionPlan(instructionF),
+        ]),
+      ])
+    ),
+    sequentialTransactionPlan([
+      singleTransactionPlan([instructionA, instructionB]),
+      singleTransactionPlan([instructionC, instructionD]),
+      singleTransactionPlan([instructionE, instructionF]),
+    ])
+  );
+});
