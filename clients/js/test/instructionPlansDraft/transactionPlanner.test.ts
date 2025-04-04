@@ -127,9 +127,10 @@ test('it plans a sequential plan with instructions that must be split accross mu
  *   │
  *   ├── [A: 50%]
  *   └── [Seq]
+ *   └── [Seq]
  *        └── [B: 50%]
  */
-test('it simplifies nested sequential plans', async (t) => {
+test('it simplifies sequential plans with one child or less', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
@@ -140,6 +141,7 @@ test('it simplifies nested sequential plans', async (t) => {
     await planner(
       sequentialInstructionPlan([
         singleInstructionPlan(instructionA),
+        sequentialInstructionPlan([]),
         sequentialInstructionPlan([singleInstructionPlan(instructionB)]),
       ])
     ),
@@ -236,9 +238,10 @@ test('it plans a parallel plan with instructions that must be split accross mult
  *   │
  *   ├── [A: 50%]
  *   └── [Par]
+ *   └── [Par]
  *        └── [B: 50%]
  */
-test('it simplifies nested parallel plans', async (t) => {
+test('it simplifies parallel plans with one child or less', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
@@ -249,6 +252,7 @@ test('it simplifies nested parallel plans', async (t) => {
     await planner(
       parallelInstructionPlan([
         singleInstructionPlan(instructionA),
+        parallelInstructionPlan([]),
         parallelInstructionPlan([singleInstructionPlan(instructionB)]),
       ])
     ),
@@ -549,9 +553,10 @@ test('it plans a non-divisible sequential plan with instructions that must be sp
  *   │
  *   ├── [A: 50%]
  *   └── [NonDivSeq]
+ *   └── [NonDivSeq]
  *        └── [B: 50%]
  */
-test('it simplifies nested non-divisible sequential plans', async (t) => {
+test('it simplifies non-divisible sequential plans with one child or less', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
@@ -562,6 +567,7 @@ test('it simplifies nested non-divisible sequential plans', async (t) => {
     await planner(
       nonDivisibleSequentialInstructionPlan([
         singleInstructionPlan(instructionA),
+        nonDivisibleSequentialInstructionPlan([]),
         nonDivisibleSequentialInstructionPlan([
           singleInstructionPlan(instructionB),
         ]),
