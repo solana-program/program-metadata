@@ -22,7 +22,7 @@ function defaultFactories() {
 }
 
 /**
- * [Ix: A] ──────────────▶ [Tx: A]
+ *  [A: 42] ───────────────────▶ [Tx: A]
  */
 test('it plans a single instruction', async (t) => {
   const { instruction, singleTransactionPlan } = defaultFactories();
@@ -37,10 +37,10 @@ test('it plans a single instruction', async (t) => {
 });
 
 /**
- *         [Seq] ──────────────▶ [Tx: A + B]
- *          | |
- *   ┌──────┘ └──────┐
- * [Ix: A]       [Ix: B]
+ *  [Seq] ───────────────────▶ [Tx: A + B]
+ *   │
+ *   ├── [A: 50%]
+ *   └── [B: 50%]
  */
 test('it plans a sequential plan with instructions that all fit in a single transaction', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -61,10 +61,11 @@ test('it plans a sequential plan with instructions that all fit in a single tran
 });
 
 /**
- *         [Seq] ────────────────────────▶ [Seq]
- *       /   |   \                          | |
- * [Ix: A] [Ix: B] [Ix: C]         ┌────────┘ └───────┐
- *                             [Tx: A + B]         [Tx: C]
+ *  [Seq] ───────────────────▶ [Seq]
+ *   │                          │
+ *   ├── [A: 50%]               ├── [Tx: A + B]
+ *   ├── [B: 50%]               └── [Tx: C]
+ *   └── [C: 50%]
  */
 test('it plans a sequential plan with instructions that must be split accross multiple transactions (v1)', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -90,10 +91,11 @@ test('it plans a sequential plan with instructions that must be split accross mu
 });
 
 /**
- *         [Seq] ────────────────────────▶ [Seq]
- *       /   |   \                          | |
- * [Ix: A] [Ix: B] [Ix: C]         ┌────────┘ └───────┐
- *                             [Tx: A]          [Tx: B + C]
+ *  [Seq] ───────────────────▶ [Seq]
+ *   │                          │
+ *   ├── [A: 60%]               ├── [Tx: A]
+ *   ├── [B: 50%]               └── [Tx: B + C]
+ *   └── [C: 50%]
  */
 test('it plans a sequential plan with instructions that must be split accross multiple transactions (v2)', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -119,11 +121,11 @@ test('it plans a sequential plan with instructions that must be split accross mu
 });
 
 /**
- *       [Seq] ──────────────▶ [Tx: A + B]
- *      /     \
- * [Ix: A]   [Seq]
- *             |
- *          [Ix: B]
+ *  [Seq] ───────────────────▶ [Tx: A + B]
+ *   │
+ *   ├── [A: 50%]
+ *   └── [Seq]
+ *        └── [B: 50%]
  */
 test('it simplifies nested sequential plans', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -144,10 +146,10 @@ test('it simplifies nested sequential plans', async (t) => {
 });
 
 /**
- *         [Par] ──────────────▶ [Tx: A + B]
- *          | |
- *   ┌──────┘ └──────┐
- * [Ix: A]       [Ix: B]
+ *  [Par] ───────────────────▶ [Tx: A + B]
+ *   │
+ *   ├── [A: 50%]
+ *   └── [B: 50%]
  */
 test('it plans a parallel plan with instructions that all fit in a single transaction', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -168,10 +170,11 @@ test('it plans a parallel plan with instructions that all fit in a single transa
 });
 
 /**
- *         [Par] ────────────────────────▶ [Par]
- *       /   |   \                          | |
- * [Ix: A] [Ix: B] [Ix: C]         ┌────────┘ └───────┐
- *                             [Tx: A + B]         [Tx: C]
+ *  [Par] ───────────────────▶ [Par]
+ *   │                          │
+ *   ├── [A: 50%]               ├── [Tx: A + B]
+ *   ├── [B: 50%]               └── [Tx: C]
+ *   └── [C: 50%]
  */
 test('it plans a parallel plan with instructions that must be split accross multiple transactions (v1)', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -197,10 +200,11 @@ test('it plans a parallel plan with instructions that must be split accross mult
 });
 
 /**
- *         [Par] ────────────────────────▶ [Par]
- *       /   |   \                          | |
- * [Ix: A] [Ix: B] [Ix: C]         ┌────────┘ └───────┐
- *                             [Tx: A]         [Tx: B + C]
+ *  [Par] ───────────────────▶ [Par]
+ *   │                          │
+ *   ├── [A: 60%]               ├── [Tx: A]
+ *   ├── [B: 50%]               └── [Tx: B + C]
+ *   └── [C: 50%]
  */
 test('it plans a parallel plan with instructions that must be split accross multiple transactions (v2)', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -226,11 +230,11 @@ test('it plans a parallel plan with instructions that must be split accross mult
 });
 
 /**
- *       [Par] ──────────────▶ [Tx: A + B]
- *      /     \
- * [Ix: A]   [Par]
- *             |
- *          [Ix: B]
+ *  [Par] ───────────────────▶ [Tx: A + B]
+ *   │
+ *   ├── [A: 50%]
+ *   └── [Par]
+ *        └── [B: 50%]
  */
 test('it simplifies nested parallel plans', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -251,11 +255,13 @@ test('it simplifies nested parallel plans', async (t) => {
 });
 
 /**
- *            [Par] ──────────────────────────▶ [Par]
- *          /   |    \                        /      \
- *      [Seq] [Ix: C] [Ix: D]      [Tx: A + B + D]   [Tx: C]
- *      /   \
- * [Ix: A] [Ix: B]
+ *  [Par] ───────────────────▶ [Par]
+ *   │                          │
+ *   ├── [Seq]                  ├── [Tx: A + B + D]
+ *   │    ├── [A: 50%]          └── [Tx: C]
+ *   │    └── [B: 25%]
+ *   ├── [C: 90%]
+ *   └── [D: 25%]
  */
 test('it re-uses previous parallel transactions if there is space', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -285,11 +291,14 @@ test('it re-uses previous parallel transactions if there is space', async (t) =>
 });
 
 /**
- *             [Par] ──────────────▶ [Tx: A + B + C + D]
- *           /       \
- *       [Seq]       [Seq]
- *      /    \       /    \
- * [Ix: A] [Ix: B] [Ix: C] [Ix: D]
+ *  [Par] ───────────────────▶ [Tx: A + B + C + D]
+ *   │
+ *   ├── [Seq]
+ *   │    ├── [A: 25%]
+ *   │    └── [B: 25%]
+ *   └── [Seq]
+ *        ├── [C: 25%]
+ *        └── [D: 25%]
  */
 test('it can merge sequential plans in a parallel plan if the whole sequential plan fits', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -323,11 +332,14 @@ test('it can merge sequential plans in a parallel plan if the whole sequential p
 });
 
 /**
- *             [Par] ──────────────────────────▶ [Par]
- *           /       \                          /     \
- *       [Seq]       [Seq]             [Tx: A + B]   [Tx: C + D]
- *      /    \       /    \
- * [Ix: A] [Ix: B] [Ix: C] [Ix: D]
+ *  [Par] ───────────────────▶ [Par]
+ *   │                          │
+ *   ├── [Seq]                  ├── [Tx: A + B]
+ *   │    ├── [A: 33%]          └── [Tx: C + D]
+ *   │    └── [B: 33%]
+ *   └── [Seq]
+ *        ├── [C: 33%]
+ *        └── [D: 33%]
  */
 test('it does not split a sequential plan on a parallel parent', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
@@ -359,11 +371,14 @@ test('it does not split a sequential plan on a parallel parent', async (t) => {
 });
 
 /**
- *             [Seq] ──────────────────────────▶ [Seq]
- *           /       \                          /     \
- *       [Par]       [Par]         [Tx: A + B + C]   [Tx: D]
- *      /    \       /    \
- * [Ix: A] [Ix: B] [Ix: C] [Ix: D]
+ *  [Seq] ───────────────────▶ [Seq]
+ *   │                          │
+ *   ├── [Par]                  ├── [Tx: A + B + C]
+ *   │    ├── [A: 33%]          └── [Tx: D]
+ *   │    └── [B: 33%]
+ *   └── [Par]
+ *        ├── [C: 33%]
+ *        └── [D: 33%]
  */
 test('it can split parallel plans inside sequential plans as long as they follow the sequence', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
