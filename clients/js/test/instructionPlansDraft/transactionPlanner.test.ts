@@ -225,3 +225,79 @@ test('it re-uses previous parallel transactions if there is space', async (t) =>
     ])
   );
 });
+
+/**
+ *             [Par] ──────────────▶ [Tx: A + B + C + D]
+ *           /       \
+ *       [Seq]       [Seq]
+ *      /    \       /    \
+ * [Ix: A] [Ix: B] [Ix: C] [Ix: D]
+ */
+test('it can merge sequential plans in a parallel plan if the whole sequential plan fits', async (t) => {
+  const instruction = instructionFactory();
+  const singleTransactionPlan = singleTransactionPlanFactory();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(25));
+  const instructionB = instruction(txPercent(25));
+  const instructionC = instruction(txPercent(25));
+  const instructionD = instruction(txPercent(25));
+
+  t.deepEqual(
+    await planner(
+      parallelInstructionPlan([
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionA),
+          singleInstructionPlan(instructionB),
+        ]),
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionC),
+          singleInstructionPlan(instructionD),
+        ]),
+      ])
+    ),
+    singleTransactionPlan([
+      instructionA,
+      instructionB,
+      instructionC,
+      instructionD,
+    ])
+  );
+});
+
+/**
+ *             [Par] ──────────────────────────▶ [Par]
+ *           /       \                          /     \
+ *       [Seq]       [Seq]             [Tx: A + B]   [Tx: C + D]
+ *      /    \       /    \
+ * [Ix: A] [Ix: B] [Ix: C] [Ix: D]
+ */
+test('it does not split a sequential plan on a parallel parent', async (t) => {
+  const instruction = instructionFactory();
+  const singleTransactionPlan = singleTransactionPlanFactory();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(33));
+  const instructionB = instruction(txPercent(33));
+  const instructionC = instruction(txPercent(33));
+  const instructionD = instruction(txPercent(33));
+
+  t.deepEqual(
+    await planner(
+      parallelInstructionPlan([
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionA),
+          singleInstructionPlan(instructionB),
+        ]),
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionC),
+          singleInstructionPlan(instructionD),
+        ]),
+      ])
+    ),
+    parallelTransactionPlan([
+      singleTransactionPlan([instructionA, instructionB]),
+      singleTransactionPlan([instructionC, instructionD]),
+    ])
+  );
+});
