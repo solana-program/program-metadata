@@ -180,7 +180,11 @@ async function traverseSequential(
   if (transactionPlans.length === 0) {
     return null;
   }
-  return { kind: 'sequential', divisible: true, plans: transactionPlans };
+  return {
+    kind: 'sequential',
+    divisible: instructionPlan.divisible,
+    plans: transactionPlans,
+  };
 }
 
 async function traverseParallel(
