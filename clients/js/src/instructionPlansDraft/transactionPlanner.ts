@@ -172,7 +172,8 @@ async function traverseSequential(
     if (transactionPlan) {
       candidate = getSequentialCandidate(transactionPlan);
       const newPlans =
-        transactionPlan.kind === 'sequential' && transactionPlan.divisible
+        transactionPlan.kind === 'sequential' &&
+        (transactionPlan.divisible || !instructionPlan.divisible)
           ? transactionPlan.plans
           : [transactionPlan];
       transactionPlans.push(...newPlans);

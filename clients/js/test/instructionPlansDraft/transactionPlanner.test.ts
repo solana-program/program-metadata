@@ -653,7 +653,7 @@ test('it simplifies non-divisible sequential plans with one child or less', asyn
  *        ├── [B: 100%]            └── [Tx: C]
  *        └── [C: 100%]
  */
-test.skip('it simplifies nested non-divisible sequential plans', async (t) => {
+test('it simplifies nested non-divisible sequential plans', async (t) => {
   const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
