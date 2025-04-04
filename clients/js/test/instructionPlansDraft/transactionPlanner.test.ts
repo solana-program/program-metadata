@@ -731,7 +731,89 @@ test('it does not split a non-divisible sequential plan on a sequential parent',
   );
 });
 
-// TODO: NonDivSeq with Par children
+/**
+ *  [NonDivSeq] ─────────────▶ [NonDivSeq]
+ *   │                          │
+ *   ├── [Par]                  ├── [Tx: A + B]
+ *   │    ├── [A: 50%]          └── [Par]
+ *   │    └── [B: 50%]               ├── [Tx: C]
+ *   └── [Par]                       └── [Tx: D]
+ *        ├── [C: 100%]
+ *        └── [D: 100%]
+ */
+test('it plans non-divisible sequentials plans with parallel children', async (t) => {
+  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(50));
+  const instructionB = instruction(txPercent(50));
+  const instructionC = instruction(txPercent(100));
+  const instructionD = instruction(txPercent(100));
+
+  t.deepEqual(
+    await planner(
+      nonDivisibleSequentialInstructionPlan([
+        parallelInstructionPlan([
+          singleInstructionPlan(instructionA),
+          singleInstructionPlan(instructionB),
+        ]),
+        parallelInstructionPlan([
+          singleInstructionPlan(instructionC),
+          singleInstructionPlan(instructionD),
+        ]),
+      ])
+    ),
+    nonDivisibleSequentialTransactionPlan([
+      singleTransactionPlan([instructionA, instructionB]),
+      parallelTransactionPlan([
+        singleTransactionPlan([instructionC]),
+        singleTransactionPlan([instructionD]),
+      ]),
+    ])
+  );
+});
+
+/**
+ *  [NonDivSeq] ─────────────▶ [NonDivSeq]
+ *   │                          │
+ *   ├── [Seq]                  ├── [Tx: A + B]
+ *   │    ├── [A: 50%]          └── [Seq]
+ *   │    └── [B: 50%]               ├── [Tx: C]
+ *   └── [Seq]                       └── [Tx: D]
+ *        ├── [C: 100%]
+ *        └── [D: 100%]
+ */
+test('it plans non-divisible sequentials plans with divisible sequential children', async (t) => {
+  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(50));
+  const instructionB = instruction(txPercent(50));
+  const instructionC = instruction(txPercent(100));
+  const instructionD = instruction(txPercent(100));
+
+  t.deepEqual(
+    await planner(
+      nonDivisibleSequentialInstructionPlan([
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionA),
+          singleInstructionPlan(instructionB),
+        ]),
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionC),
+          singleInstructionPlan(instructionD),
+        ]),
+      ])
+    ),
+    nonDivisibleSequentialTransactionPlan([
+      singleTransactionPlan([instructionA, instructionB]),
+      sequentialTransactionPlan([
+        singleTransactionPlan([instructionC]),
+        singleTransactionPlan([instructionD]),
+      ]),
+    ])
+  );
+});
 
 /**
  *  [Par] ───────────────────────────▶ [Par]
