@@ -22,7 +22,9 @@ import {
 } from './instructionPlan';
 import { SingleTransactionPlan, TransactionPlan } from './transactionPlan';
 
-const TRANSACTION_SIZE_LIMIT =
+// TODO: This would need to be a first-class citizen of @solana/kit.
+// We should consider two constants. One for `1280` and another for `1_280 - 48`.
+export const TRANSACTION_SIZE_LIMIT =
   1_280 -
   40 /* 40 bytes is the size of the IPv6 header. */ -
   8; /* 8 bytes is the size of the fragment header. */
@@ -311,6 +313,10 @@ export function getRemainingTransactionSize(message: BaseTransactionMessage) {
   return TRANSACTION_SIZE_LIMIT - getTransactionSize(message);
 }
 
+// TODO: This would need to be a first-class citizen of @solana/kit.
+// It should accepts both `Transaction` and `BaseTransactionMessage` instances.
+// Over time, efforts should be made to improve the performance of this function.
+// E.g. maybe we don't need to compile the transaction message to get the size.
 export function getTransactionSize(
   message: BaseTransactionMessage & Partial<CompilableTransactionMessage>
 ): number {
