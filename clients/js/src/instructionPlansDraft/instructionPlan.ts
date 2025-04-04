@@ -34,8 +34,12 @@ export type IterableInstructionPlan<
 export type InstructionIterator<
   TInstruction extends IInstruction = IInstruction,
 > = Readonly<{
+  /** Checks whether there are more instructions to retrieve. */
   hasNext: () => boolean;
-  getNext: (bytes: number) => TInstruction | null;
-  getMax: () => TInstruction | null;
-  commitNext: (bytes: number) => void;
+  /** Get the next instruction. */
+  next: (bytes: number) => TInstruction;
+  /** Get the next instruction without advancing the iterator. */
+  peek: (bytes: number) => TInstruction;
+  /** Tries to get all remaining instructions or return `null` if not possible */
+  peekAll: () => TInstruction[] | null;
 }>;
