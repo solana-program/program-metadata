@@ -4,7 +4,7 @@ export type InstructionPlan =
   | SequentialInstructionPlan
   | ParallelInstructionPlan
   | SingleInstructionPlan
-  | DynamicInstructionPlan;
+  | IterableInstructionPlan;
 
 export type SequentialInstructionPlan = Readonly<{
   kind: 'sequential';
@@ -24,12 +24,18 @@ export type SingleInstructionPlan<
   instruction: TInstruction;
 }>;
 
-export type DynamicInstructionPlan<
+export type IterableInstructionPlan<
   TInstruction extends IInstruction = IInstruction,
 > = Readonly<{
-  kind: 'dynamic';
-  instructionFactory: (bytesAvailable: number) => {
-    instruction: TInstruction | null;
-    hasMore: boolean;
-  };
+  kind: 'iterable';
+  getIterator: () => InstructionIterator<TInstruction>;
+}>;
+
+export type InstructionIterator<
+  TInstruction extends IInstruction = IInstruction,
+> = Readonly<{
+  hasNext: () => boolean;
+  getNext: (bytes: number) => TInstruction | null;
+  getMax: () => TInstruction | null;
+  commitNext: (bytes: number) => void;
 }>;

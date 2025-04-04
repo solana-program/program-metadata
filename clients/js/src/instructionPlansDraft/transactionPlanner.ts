@@ -129,8 +129,8 @@ async function traverse(
       return await traverseParallel(instructionPlan, context);
     case 'single':
       return await traverseSingle(instructionPlan, context);
-    case 'dynamic':
-      throw new Error('Dynamic plans are not supported yet.');
+    case 'iterable':
+      throw new Error('Iterable plans are not supported yet.');
     default:
       instructionPlan satisfies never;
       throw new Error(
@@ -280,8 +280,8 @@ function getAllSingleInstructionPlans(
   if (instructionPlan.kind === 'parallel') {
     return instructionPlan.plans.flatMap(getAllSingleInstructionPlans);
   }
-  if (instructionPlan.kind === 'dynamic') {
-    throw new Error('Dynamic plans are not supported yet.');
+  if (instructionPlan.kind === 'iterable') {
+    throw new Error('Iterable plans are not supported yet.');
   }
   return [instructionPlan];
 }
