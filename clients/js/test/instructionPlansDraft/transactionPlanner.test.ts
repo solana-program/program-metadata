@@ -730,3 +730,67 @@ test('it does not split a non-divisible sequential plan on a sequential parent',
     ])
   );
 });
+
+// TODO: NonDivSeq with Par children
+
+/**
+ *  [Par] ───────────────────────────▶ [Par]
+ *   │                                 │
+ *   ├── [Seq]                         ├── [Tx: A + B]
+ *   │    ├── [A: 40%]                 └── [NonDivSeq]
+ *   │    └── [B: 40%]                      ├── [Tx: C + D + E + G]
+ *   ├── [NonDivSeq]                        └── [Tx: F]
+ *   │    ├── [Par]
+ *   │    │    ├── [C: 25%]
+ *   │    │    └── [D: 25%]
+ *   │    └── [Par]
+ *   │         ├── [E: 25%]
+ *   │         └── [F: 50%]
+ *   └── [G: 25%]
+ */
+test('complex example 1', async (t) => {
+  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(40));
+  const instructionB = instruction(txPercent(40));
+  const instructionC = instruction(txPercent(25));
+  const instructionD = instruction(txPercent(25));
+  const instructionE = instruction(txPercent(25));
+  const instructionF = instruction(txPercent(50));
+  const instructionG = instruction(txPercent(25));
+
+  t.deepEqual(
+    await planner(
+      parallelInstructionPlan([
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionA),
+          singleInstructionPlan(instructionB),
+        ]),
+        nonDivisibleSequentialInstructionPlan([
+          parallelInstructionPlan([
+            singleInstructionPlan(instructionC),
+            singleInstructionPlan(instructionD),
+          ]),
+          parallelInstructionPlan([
+            singleInstructionPlan(instructionE),
+            singleInstructionPlan(instructionF),
+          ]),
+        ]),
+        singleInstructionPlan(instructionG),
+      ])
+    ),
+    parallelTransactionPlan([
+      singleTransactionPlan([instructionA, instructionB]),
+      nonDivisibleSequentialTransactionPlan([
+        singleTransactionPlan([
+          instructionC,
+          instructionD,
+          instructionE,
+          instructionG,
+        ]),
+        singleTransactionPlan([instructionF]),
+      ]),
+    ])
+  );
+});
