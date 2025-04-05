@@ -2,6 +2,7 @@ import test from 'ava';
 import { createBaseTransactionPlanner } from '../../src';
 import {
   instructionFactory,
+  instructionIteratorFactory,
   nonDivisibleSequentialInstructionPlan,
   parallelInstructionPlan,
   sequentialInstructionPlan,
@@ -14,10 +15,12 @@ import {
   sequentialTransactionPlan,
   singleTransactionPlanFactory,
 } from './_transactionPlanHelpers';
+import { createTransactionMessage, IInstruction } from '@solana/kit';
 
 function defaultFactories() {
   return {
     instruction: instructionFactory(),
+    iterator: instructionIteratorFactory(),
     txPercent: transactionPercentFactory(),
     singleTransactionPlan: singleTransactionPlanFactory(),
   };
@@ -989,6 +992,35 @@ test('it plans non-divisible sequentials plans with divisible sequential childre
       singleTransactionPlan([instructionD]),
     ])
   );
+});
+
+// TODO
+test.skip('it iterate over iterable instruction plans', async (t) => {
+  const { txPercent, iterator } = defaultFactories();
+  // const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
+  // const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionAx = iterator(txPercent(200));
+
+  const all = instructionAx.getAll();
+  const foo = instructionAx.getIterator();
+  const ixs: IInstruction[] = [];
+  while (foo.hasNext()) {
+    console.log('HAS_NEXT');
+    const ix = foo.next(createTransactionMessage({ version: 0 }));
+    if (ix) ixs.push(ix);
+  }
+  console.log({ all, ixs });
+
+  await Promise.resolve(null);
+  t.pass();
+  // t.deepEqual(
+  //   await planner(instructionAx),
+  //   sequentialTransactionPlan([
+  //     singleTransactionPlan([instruction(txPercent(100))]),
+  //     singleTransactionPlan([instruction(txPercent(100))]),
+  //   ])
+  // );
 });
 
 /**
