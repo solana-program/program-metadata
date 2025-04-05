@@ -36,14 +36,15 @@ export type IterableInstructionPlan<
   TInstruction extends IInstruction = IInstruction,
 > = Readonly<{
   kind: 'iterable';
+  /** Get all the instructions in one go or return `null` if not possible */
+  getAll: () => TInstruction[] | null;
+  /** Get an iterator for the instructions. */
   getIterator: () => InstructionIterator<TInstruction>;
 }>;
 
 export type InstructionIterator<
   TInstruction extends IInstruction = IInstruction,
 > = Readonly<{
-  /** Get all remaining instructions or return `null` if not possible */
-  all: () => TInstruction[] | null;
   /** Checks whether there are more instructions to retrieve. */
   hasNext: () => boolean;
   /** Get the next instruction for the given transaction message or return `null` if not possible. */
@@ -59,10 +60,10 @@ export function getLinearIterableInstructionPlan({
 }): IterableInstructionPlan {
   return {
     kind: 'iterable',
+    getAll: () => [getInstruction(0, totalBytes)],
     getIterator: () => {
       let offset = 0;
       return {
-        all: () => [getInstruction(offset, totalBytes - offset)],
         hasNext: () => offset < totalBytes,
         next: (tx: BaseTransactionMessage) => {
           const baseTransactionSize = getTransactionSize(
@@ -85,6 +86,25 @@ export function getLinearIterableInstructionPlan({
   };
 }
 
+export function getIterableInstructionPlanFromInstructions<
+  TInstruction extends IInstruction = IInstruction,
+>(instructions: TInstruction[]): IterableInstructionPlan<TInstruction> {
+  return {
+    kind: 'iterable',
+    getAll: () => instructions,
+    getIterator: () => {
+      let instructionIndex = 0;
+      return {
+        hasNext: () => instructionIndex < instructions.length,
+        next: () =>
+          instructionIndex < instructions.length
+            ? instructions[instructionIndex++]
+            : null,
+      };
+    },
+  };
+}
+
 const REALLOC_LIMIT = 10_240;
 
 export function getReallocIterableInstructionPlan({
@@ -94,29 +114,12 @@ export function getReallocIterableInstructionPlan({
   getInstruction: (size: number) => IInstruction;
   totalSize: number;
 }): IterableInstructionPlan {
-  return {
-    kind: 'iterable',
-    getIterator: () => {
-      let instructionIndex = 0;
-      const numberOfInstructions = Math.ceil(totalSize / REALLOC_LIMIT);
-      const lastInstructionSize = totalSize % REALLOC_LIMIT;
-      const instructions = new Array(numberOfInstructions)
-        .fill(0)
-        .map((_, i) => {
-          const size =
-            i === numberOfInstructions - 1
-              ? lastInstructionSize
-              : REALLOC_LIMIT;
-          return getInstruction(size);
-        });
-      return {
-        all: () => instructions,
-        hasNext: () => instructionIndex < numberOfInstructions,
-        next: () =>
-          instructionIndex < numberOfInstructions
-            ? instructions[instructionIndex++]
-            : null,
-      };
-    },
-  };
+  const numberOfInstructions = Math.ceil(totalSize / REALLOC_LIMIT);
+  const lastInstructionSize = totalSize % REALLOC_LIMIT;
+  const instructions = new Array(numberOfInstructions).fill(0).map((_, i) => {
+    const size =
+      i === numberOfInstructions - 1 ? lastInstructionSize : REALLOC_LIMIT;
+    return getInstruction(size);
+  });
+  return getIterableInstructionPlanFromInstructions(instructions);
 }
