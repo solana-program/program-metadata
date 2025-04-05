@@ -276,14 +276,15 @@ async function traverseIterable(
   if (transactionPlans.length === 0) {
     return null;
   }
-  if (context.parent?.kind === 'sequential') {
-    return {
-      kind: 'sequential',
-      divisible: context.parent.divisible,
-      plans: transactionPlans,
-    };
+  if (context.parent?.kind === 'parallel') {
+    return { kind: 'parallel', plans: transactionPlans };
   }
-  return { kind: 'parallel', plans: transactionPlans };
+  return {
+    kind: 'sequential',
+    divisible:
+      context.parent?.kind === 'sequential' ? context.parent.divisible : true,
+    plans: transactionPlans,
+  };
 }
 
 function getSequentialCandidate(

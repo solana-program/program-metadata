@@ -1,7 +1,9 @@
 import { Address, BaseTransactionMessage, IInstruction } from '@solana/kit';
 import {
+  getLinearIterableInstructionPlan,
   getTransactionSize,
   InstructionPlan,
+  IterableInstructionPlan,
   ParallelInstructionPlan,
   SequentialInstructionPlan,
   SingleInstructionPlan,
@@ -33,6 +35,16 @@ export function singleInstructionPlan(
   instruction: IInstruction
 ): SingleInstructionPlan {
   return { kind: 'single', instruction };
+}
+
+export function linearIterableInstructionPlan(
+  totalBytes: number,
+  instructionFactory: (bytes: number) => IInstruction
+): IterableInstructionPlan {
+  return getLinearIterableInstructionPlan({
+    totalBytes,
+    getInstruction: (offset, length) => instructionFactory(length - offset),
+  });
 }
 
 export function instructionFactory() {
