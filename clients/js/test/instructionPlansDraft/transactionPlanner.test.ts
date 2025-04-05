@@ -1063,6 +1063,21 @@ test('it can handle non-divisible sequential iterable instruction plans', async 
 });
 
 /**
+ *  [A(x, 100%)] ─────────────▶ [Tx: A(1, 100%)]
+ */
+test('it simplifies iterable instruction plans that fit in a single transaction', async (t) => {
+  const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const iteratorIx = iterator(txPercent(100));
+
+  t.deepEqual(
+    await planner(iteratorIx),
+    singleTransactionPlan([iteratorIx.get(txPercent(100), 0)])
+  );
+});
+
+/**
  *  [Par] ───────────────────────────▶ [Par]
  *   │                                 │
  *   ├── [Seq]                         ├── [Tx: A + B]
