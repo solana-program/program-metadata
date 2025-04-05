@@ -16,6 +16,7 @@ import {
   TransactionVersion,
 } from '@solana/kit';
 import {
+  InstructionIterator,
   InstructionPlan,
   IterableInstructionPlan,
   ParallelInstructionPlan,
@@ -243,17 +244,46 @@ async function traverseSingle(
 }
 
 async function traverseIterable(
-  _instructionPlan: IterableInstructionPlan,
-  _context: TraverseContext
+  instructionPlan: IterableInstructionPlan,
+  context: TraverseContext
 ): Promise<TransactionPlan | null> {
-  return await Promise.resolve(null);
-  // const ix = instructionPlan.instruction;
-  // const candidate = selectCandidate(context.parentCandidates, [ix]);
-  // if (candidate) {
-  //   await context.addInstructionsToSingleTransactionPlan(candidate, [ix]);
-  //   return null;
-  // }
-  // return await context.createSingleTransactionPlan([ix]);
+  const iterator = instructionPlan.getIterator();
+  const transactionPlans: SingleTransactionPlan[] = [];
+  const candidates = [...context.parentCandidates]; // TODO: Use some caching mechanism to avoid trying filled candidates.
+
+  while (iterator.hasNext()) {
+    const candidateResult = selectCandidateForIterator(candidates, iterator);
+    if (candidateResult) {
+      const [candidate, ix] = candidateResult;
+      await context.addInstructionsToSingleTransactionPlan(candidate, [ix]);
+    } else {
+      const newPlan = await context.createSingleTransactionPlan();
+      const ix = iterator.next(newPlan.message);
+      if (!ix) {
+        throw new Error(
+          'Could not fit `InterableInstructionPlan` into a transaction'
+        );
+      }
+      await context.addInstructionsToSingleTransactionPlan(newPlan, [ix]);
+      transactionPlans.push(newPlan);
+      candidates.push(newPlan);
+    }
+  }
+
+  if (transactionPlans.length === 1) {
+    return transactionPlans[0];
+  }
+  if (transactionPlans.length === 0) {
+    return null;
+  }
+  if (context.parent?.kind === 'sequential') {
+    return {
+      kind: 'sequential',
+      divisible: context.parent.divisible,
+      plans: transactionPlans,
+    };
+  }
+  return { kind: 'parallel', plans: transactionPlans };
 }
 
 function getSequentialCandidate(
@@ -304,6 +334,19 @@ function getAllInstructions(
     },
     [] as IInstruction[] | null
   );
+}
+
+function selectCandidateForIterator(
+  candidates: SingleTransactionPlan[],
+  iterator: InstructionIterator
+): [SingleTransactionPlan, IInstruction] | null {
+  for (const candidate of candidates) {
+    const ix = iterator.next(candidate.message);
+    if (ix) {
+      return [candidate, ix];
+    }
+  }
+  return null;
 }
 
 function selectCandidate(
