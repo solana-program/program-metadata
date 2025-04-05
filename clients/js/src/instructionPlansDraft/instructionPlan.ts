@@ -72,7 +72,7 @@ export function getLinearIterableInstructionPlan({
           const maxLength =
             TRANSACTION_SIZE_LIMIT -
             baseTransactionSize -
-            2; /* Leeway for shortU16 numbers in transaction headers. */
+            1; /* Leeway for shortU16 numbers in transaction headers. */
 
           if (maxLength <= 0) {
             return null;

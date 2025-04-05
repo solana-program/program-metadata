@@ -19,7 +19,7 @@ import {
 
 const MINIMUM_INSTRUCTION_SIZE = 35;
 const MINIMUM_TRANSACTION_SIZE = 136;
-const MAXIMUM_TRANSACTION_SIZE = 1230; // 1280 - 48 (for header) - 2 (for shortU16)
+const MAXIMUM_TRANSACTION_SIZE = 1231; // 1280 - 48 (for header) - 1 (for shortU16)
 
 export function parallelInstructionPlan(
   plans: InstructionPlan[]
@@ -73,7 +73,7 @@ export function instructionIteratorFactory() {
             const maxLength =
               TRANSACTION_SIZE_LIMIT -
               baseTransactionSize -
-              2; /* Leeway for shortU16 numbers in transaction headers. */
+              1; /* Leeway for shortU16 numbers in transaction headers. */
 
             if (maxLength <= 0) {
               return null;
