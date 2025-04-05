@@ -7,6 +7,7 @@ import {
   compileTransaction,
   createTransactionMessage,
   getTransactionEncoder,
+  IInstruction,
   ITransactionMessageWithFeePayer,
   pipe,
   setTransactionMessageFeePayer,
@@ -16,6 +17,7 @@ import {
 } from '@solana/kit';
 import {
   InstructionPlan,
+  IterableInstructionPlan,
   ParallelInstructionPlan,
   SequentialInstructionPlan,
   SingleInstructionPlan,
@@ -64,7 +66,7 @@ export function createBaseTransactionPlanner({
 }): TransactionPlanner {
   return async (originalInstructionPlan, config): Promise<TransactionPlan> => {
     const createSingleTransactionPlan = async (
-      instructions: SingleInstructionPlan[] = []
+      instructions: IInstruction[] = []
     ): Promise<SingleTransactionPlan> => {
       const plan: SingleTransactionPlan = {
         kind: 'single',
@@ -82,10 +84,10 @@ export function createBaseTransactionPlanner({
 
     const addInstructionsToSingleTransactionPlan = async (
       plan: SingleTransactionPlan,
-      instructions: SingleInstructionPlan[]
+      instructions: IInstruction[]
     ): Promise<void> => {
       let message = appendTransactionMessageInstructions(
-        instructions.map((i) => i.instruction),
+        instructions,
         plan.message
       );
       if (config?.newInstructionsTransformer) {
@@ -113,11 +115,11 @@ type TraverseContext = {
   parent: InstructionPlan | null;
   parentCandidates: SingleTransactionPlan[];
   createSingleTransactionPlan: (
-    instructions?: SingleInstructionPlan[]
+    instructions?: IInstruction[]
   ) => Promise<SingleTransactionPlan>;
   addInstructionsToSingleTransactionPlan: (
     plan: SingleTransactionPlan,
-    instructions: SingleInstructionPlan[]
+    instructions: IInstruction[]
   ) => Promise<void>;
 };
 
@@ -133,7 +135,7 @@ async function traverse(
     case 'single':
       return await traverseSingle(instructionPlan, context);
     case 'iterable':
-      throw new Error('Iterable plans are not supported yet.');
+      throw await traverseIterable(instructionPlan, context);
     default:
       instructionPlan satisfies never;
       throw new Error(
@@ -151,9 +153,11 @@ async function traverseSequential(
     context.parent &&
     (context.parent.kind === 'parallel' || !instructionPlan.divisible);
   if (mustEntirelyFitInCandidate) {
-    const allInstructions = getAllSingleInstructionPlans(instructionPlan);
-    candidate = selectCandidate(context.parentCandidates, allInstructions);
-    if (candidate) {
+    const allInstructions = getAllInstructions(instructionPlan);
+    candidate = allInstructions
+      ? selectCandidate(context.parentCandidates, allInstructions)
+      : null;
+    if (candidate && allInstructions) {
       await context.addInstructionsToSingleTransactionPlan(
         candidate,
         allInstructions
@@ -229,16 +233,27 @@ async function traverseSingle(
   instructionPlan: SingleInstructionPlan,
   context: TraverseContext
 ): Promise<TransactionPlan | null> {
-  const candidate = selectCandidate(context.parentCandidates, [
-    instructionPlan,
-  ]);
+  const ix = instructionPlan.instruction;
+  const candidate = selectCandidate(context.parentCandidates, [ix]);
   if (candidate) {
-    await context.addInstructionsToSingleTransactionPlan(candidate, [
-      instructionPlan,
-    ]);
+    await context.addInstructionsToSingleTransactionPlan(candidate, [ix]);
     return null;
   }
-  return await context.createSingleTransactionPlan([instructionPlan]);
+  return await context.createSingleTransactionPlan([ix]);
+}
+
+async function traverseIterable(
+  _instructionPlan: IterableInstructionPlan,
+  _context: TraverseContext
+): Promise<TransactionPlan | null> {
+  return await Promise.resolve(null);
+  // const ix = instructionPlan.instruction;
+  // const candidate = selectCandidate(context.parentCandidates, [ix]);
+  // if (candidate) {
+  //   await context.addInstructionsToSingleTransactionPlan(candidate, [ix]);
+  //   return null;
+  // }
+  // return await context.createSingleTransactionPlan([ix]);
 }
 
 function getSequentialCandidate(
@@ -273,38 +288,43 @@ function getAllSingleTransactionPlans(
   return [transactionPlan];
 }
 
-// TODO: This will need tweaking when adding support for dynamic instructions.
-function getAllSingleInstructionPlans(
+function getAllInstructions(
   instructionPlan: InstructionPlan
-): SingleInstructionPlan[] {
-  if (instructionPlan.kind === 'sequential') {
-    return instructionPlan.plans.flatMap(getAllSingleInstructionPlans);
-  }
-  if (instructionPlan.kind === 'parallel') {
-    return instructionPlan.plans.flatMap(getAllSingleInstructionPlans);
+): IInstruction[] | null {
+  if (instructionPlan.kind === 'single') {
+    return [instructionPlan.instruction];
   }
   if (instructionPlan.kind === 'iterable') {
     throw new Error('Iterable plans are not supported yet.');
   }
-  return [instructionPlan];
+  return instructionPlan.plans.reduce(
+    (acc, plan) => {
+      if (acc === null) return null;
+      const instructions = getAllInstructions(plan);
+      if (instructions === null) return null;
+      acc.push(...instructions);
+      return acc;
+    },
+    [] as IInstruction[] | null
+  );
 }
 
 function selectCandidate(
   candidates: SingleTransactionPlan[],
-  instructionPlans: SingleInstructionPlan[]
+  instructions: IInstruction[]
 ): SingleTransactionPlan | null {
   const firstValidCandidate = candidates.find((candidate) =>
-    isValidCandidate(candidate, instructionPlans)
+    isValidCandidate(candidate, instructions)
   );
   return firstValidCandidate ?? null;
 }
 
 function isValidCandidate(
   candidate: SingleTransactionPlan,
-  instructionPlans: SingleInstructionPlan[]
+  instructions: IInstruction[]
 ): boolean {
   const message = appendTransactionMessageInstructions(
-    instructionPlans.map((i) => i.instruction),
+    instructions,
     candidate.message
   );
   return getRemainingTransactionSize(message) >= 0;
