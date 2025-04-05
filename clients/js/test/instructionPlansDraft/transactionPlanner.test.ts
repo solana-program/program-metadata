@@ -1017,6 +1017,31 @@ test('it iterate over iterable instruction plans', async (t) => {
 });
 
 /**
+ *  [Seq] ───────────────────▶ [Tx: A + B(1, 50%)]
+ *   │
+ *   ├── [A: 50%]
+ *   └── [B(x, 50%)]
+ */
+test('it combines single instruction plans with iterable instruction plans', async (t) => {
+  const { txPercent, iterator, instruction, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(50));
+  const iteratorB = iterator(txPercent(50));
+
+  t.deepEqual(
+    await planner(
+      sequentialInstructionPlan([
+        singleInstructionPlan(instructionA),
+        iteratorB,
+      ])
+    ),
+    singleTransactionPlan([instructionA, iteratorB.get(txPercent(50), 0)])
+  );
+});
+
+/**
  *  [Par] ────────────────────▶ [Par]
  *   │                           │
  *   └── [A(x, 250%)]            ├── [Tx: A(1, 100%)]
@@ -1027,14 +1052,14 @@ test('it can handle parallel iterable instruction plans', async (t) => {
   const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
-  const iteratorIx = iterator(txPercent(250));
+  const iteratorA = iterator(txPercent(250));
 
   t.deepEqual(
-    await planner(parallelInstructionPlan([iteratorIx])),
+    await planner(parallelInstructionPlan([iteratorA])),
     parallelTransactionPlan([
-      singleTransactionPlan([iteratorIx.get(txPercent(100), 0)]),
-      singleTransactionPlan([iteratorIx.get(txPercent(100), 1)]),
-      singleTransactionPlan([iteratorIx.get(txPercent(50), 2)]),
+      singleTransactionPlan([iteratorA.get(txPercent(100), 0)]),
+      singleTransactionPlan([iteratorA.get(txPercent(100), 1)]),
+      singleTransactionPlan([iteratorA.get(txPercent(50), 2)]),
     ])
   );
 });
@@ -1050,14 +1075,14 @@ test('it can handle non-divisible sequential iterable instruction plans', async 
   const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
-  const iteratorIx = iterator(txPercent(250));
+  const iteratorA = iterator(txPercent(250));
 
   t.deepEqual(
-    await planner(nonDivisibleSequentialInstructionPlan([iteratorIx])),
+    await planner(nonDivisibleSequentialInstructionPlan([iteratorA])),
     nonDivisibleSequentialTransactionPlan([
-      singleTransactionPlan([iteratorIx.get(txPercent(100), 0)]),
-      singleTransactionPlan([iteratorIx.get(txPercent(100), 1)]),
-      singleTransactionPlan([iteratorIx.get(txPercent(50), 2)]),
+      singleTransactionPlan([iteratorA.get(txPercent(100), 0)]),
+      singleTransactionPlan([iteratorA.get(txPercent(100), 1)]),
+      singleTransactionPlan([iteratorA.get(txPercent(50), 2)]),
     ])
   );
 });
@@ -1069,11 +1094,11 @@ test('it simplifies iterable instruction plans that fit in a single transaction'
   const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
-  const iteratorIx = iterator(txPercent(100));
+  const iteratorA = iterator(txPercent(100));
 
   t.deepEqual(
-    await planner(iteratorIx),
-    singleTransactionPlan([iteratorIx.get(txPercent(100), 0)])
+    await planner(iteratorA),
+    singleTransactionPlan([iteratorA.get(txPercent(100), 0)])
   );
 });
 
@@ -1085,22 +1110,22 @@ test.skip('it uses iterable instruction plans to fill gaps in parallel candidate
     defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
-  const iteratorIx = iterator(txPercent(100));
-  const instructionA = instruction(txPercent(60));
-  const instructionB = instruction(txPercent(50));
+  const iteratorA = iterator(txPercent(100));
+  const instructionB = instruction(txPercent(60));
+  const instructionC = instruction(txPercent(50));
 
   t.deepEqual(
     await planner(
       parallelInstructionPlan([
-        singleInstructionPlan(instructionA),
         singleInstructionPlan(instructionB),
-        iteratorIx,
+        singleInstructionPlan(instructionC),
+        iteratorA,
       ])
     ),
     parallelTransactionPlan([
-      singleTransactionPlan([instructionA, iteratorIx.get(txPercent(40), 0)]),
-      singleTransactionPlan([instructionB, iteratorIx.get(txPercent(50), 1)]),
-      singleTransactionPlan([iteratorIx.get(txPercent(10), 2)]),
+      singleTransactionPlan([instructionB, iteratorA.get(txPercent(40), 0)]),
+      singleTransactionPlan([instructionC, iteratorA.get(txPercent(50), 1)]),
+      singleTransactionPlan([iteratorA.get(txPercent(10), 2)]),
     ])
   );
 });
