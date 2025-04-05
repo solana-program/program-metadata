@@ -1017,6 +1017,52 @@ test('it iterate over iterable instruction plans', async (t) => {
 });
 
 /**
+ *  [Par] ────────────────────▶ [Par]
+ *   │                           │
+ *   └── [A(x, 250%)]            ├── [Tx: A(1, 100%)]
+ *                               ├── [Tx: A(2, 100%)]
+ *                               └── [Tx: A(3, 50%)]
+ */
+test('it can handle parallel iterable instruction plans', async (t) => {
+  const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const iteratorIx = iterator(txPercent(250));
+
+  t.deepEqual(
+    await planner(parallelInstructionPlan([iteratorIx])),
+    parallelTransactionPlan([
+      singleTransactionPlan([iteratorIx.get(txPercent(100), 0)]),
+      singleTransactionPlan([iteratorIx.get(txPercent(100), 1)]),
+      singleTransactionPlan([iteratorIx.get(txPercent(50), 2)]),
+    ])
+  );
+});
+
+/**
+ *  [NonDivSeq] ──────────────▶ [NonDivSeq]
+ *   │                           │
+ *   └── [A(x, 250%)]            ├── [Tx: A(1, 100%)]
+ *                               ├── [Tx: A(2, 100%)]
+ *                               └── [Tx: A(3, 50%)]
+ */
+test('it can handle non-divisible sequential iterable instruction plans', async (t) => {
+  const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const iteratorIx = iterator(txPercent(250));
+
+  t.deepEqual(
+    await planner(nonDivisibleSequentialInstructionPlan([iteratorIx])),
+    nonDivisibleSequentialTransactionPlan([
+      singleTransactionPlan([iteratorIx.get(txPercent(100), 0)]),
+      singleTransactionPlan([iteratorIx.get(txPercent(100), 1)]),
+      singleTransactionPlan([iteratorIx.get(txPercent(50), 2)]),
+    ])
+  );
+});
+
+/**
  *  [Par] ───────────────────────────▶ [Par]
  *   │                                 │
  *   ├── [Seq]                         ├── [Tx: A + B]
