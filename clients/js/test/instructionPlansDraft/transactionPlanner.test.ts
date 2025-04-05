@@ -1110,8 +1110,8 @@ test.skip('it uses iterable instruction plans to fill gaps in parallel candidate
     defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
-  const iteratorA = iterator(txPercent(100));
-  const instructionB = instruction(txPercent(60));
+  const iteratorA = iterator(txPercent(125));
+  const instructionB = instruction(txPercent(75));
   const instructionC = instruction(txPercent(50));
 
   t.deepEqual(
@@ -1123,9 +1123,9 @@ test.skip('it uses iterable instruction plans to fill gaps in parallel candidate
       ])
     ),
     parallelTransactionPlan([
-      singleTransactionPlan([instructionB, iteratorA.get(txPercent(40), 0)]),
+      singleTransactionPlan([instructionB, iteratorA.get(txPercent(25), 0)]),
       singleTransactionPlan([instructionC, iteratorA.get(txPercent(50), 1)]),
-      singleTransactionPlan([iteratorA.get(txPercent(10), 2)]),
+      singleTransactionPlan([iteratorA.get(txPercent(50), 2)]),
     ])
   );
 });
