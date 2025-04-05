@@ -279,13 +279,10 @@ function getParallelCandidates(
 function getAllSingleTransactionPlans(
   transactionPlan: TransactionPlan
 ): SingleTransactionPlan[] {
-  if (transactionPlan.kind === 'sequential') {
-    return transactionPlan.plans.flatMap(getAllSingleTransactionPlans);
+  if (transactionPlan.kind === 'single') {
+    return [transactionPlan];
   }
-  if (transactionPlan.kind === 'parallel') {
-    return transactionPlan.plans.flatMap(getAllSingleTransactionPlans);
-  }
-  return [transactionPlan];
+  return transactionPlan.plans.flatMap(getAllSingleTransactionPlans);
 }
 
 function getAllInstructions(
@@ -295,7 +292,7 @@ function getAllInstructions(
     return [instructionPlan.instruction];
   }
   if (instructionPlan.kind === 'iterable') {
-    throw new Error('Iterable plans are not supported yet.');
+    return instructionPlan.getAll();
   }
   return instructionPlan.plans.reduce(
     (acc, plan) => {
