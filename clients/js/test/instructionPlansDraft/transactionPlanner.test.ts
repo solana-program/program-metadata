@@ -1078,6 +1078,38 @@ test('it simplifies iterable instruction plans that fit in a single transaction'
 });
 
 /**
+ *  TODO
+ */
+test.skip('it uses iterable instruction plans to fill gaps in parallel candidates', async (t) => {
+  const { txPercent, instruction, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const iteratorIx = iterator(txPercent(100));
+  const instructionA = instruction(txPercent(60));
+  const instructionB = instruction(txPercent(50));
+
+  t.deepEqual(
+    await planner(
+      parallelInstructionPlan([
+        singleInstructionPlan(instructionA),
+        singleInstructionPlan(instructionB),
+        iteratorIx,
+      ])
+    ),
+    parallelTransactionPlan([
+      singleTransactionPlan([instructionA, iteratorIx.get(txPercent(40), 0)]),
+      singleTransactionPlan([instructionB, iteratorIx.get(txPercent(50), 1)]),
+      singleTransactionPlan([iteratorIx.get(txPercent(10), 2)]),
+    ])
+  );
+});
+
+// TODO: regardless of the order.
+// TODO: with sequential plans.
+// TODO: with non-divisible sequential plans.
+
+/**
  *  [Par] ───────────────────────────▶ [Par]
  *   │                                 │
  *   ├── [Seq]                         ├── [Tx: A + B]
