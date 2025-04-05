@@ -136,7 +136,7 @@ async function traverse(
     case 'single':
       return await traverseSingle(instructionPlan, context);
     case 'iterable':
-      throw await traverseIterable(instructionPlan, context);
+      return await traverseIterable(instructionPlan, context);
     default:
       instructionPlan satisfies never;
       throw new Error(
