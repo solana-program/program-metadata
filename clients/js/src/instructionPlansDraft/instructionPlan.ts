@@ -84,3 +84,39 @@ export function getLinearIterableInstructionPlan({
     },
   };
 }
+
+const REALLOC_LIMIT = 10_240;
+
+export function getReallocIterableInstructionPlan({
+  getInstruction,
+  totalSize,
+}: {
+  getInstruction: (size: number) => IInstruction;
+  totalSize: number;
+}): IterableInstructionPlan {
+  return {
+    kind: 'iterable',
+    getIterator: () => {
+      let instructionIndex = 0;
+      const numberOfInstructions = Math.ceil(totalSize / REALLOC_LIMIT);
+      const lastInstructionSize = totalSize % REALLOC_LIMIT;
+      const instructions = new Array(numberOfInstructions)
+        .fill(0)
+        .map((_, i) => {
+          const size =
+            i === numberOfInstructions - 1
+              ? lastInstructionSize
+              : REALLOC_LIMIT;
+          return getInstruction(size);
+        });
+      return {
+        all: () => instructions,
+        hasNext: () => instructionIndex < numberOfInstructions,
+        next: () =>
+          instructionIndex < numberOfInstructions
+            ? instructions[instructionIndex++]
+            : null,
+      };
+    },
+  };
+}
