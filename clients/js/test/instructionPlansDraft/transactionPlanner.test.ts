@@ -998,14 +998,14 @@ test.skip('it iterate over iterable instruction plans', async (t) => {
   const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
-  const iteratorIx = iterator(txPercent(200));
+  const iteratorIx = iterator(txPercent(250));
 
   t.deepEqual(
     await planner(iteratorIx),
     sequentialTransactionPlan([
       singleTransactionPlan([iteratorIx.get(txPercent(100), 0)]),
       singleTransactionPlan([iteratorIx.get(txPercent(100), 1)]),
-      singleTransactionPlan([iteratorIx.get(70 + 35, 2)]),
+      singleTransactionPlan([iteratorIx.get(txPercent(50), 2)]),
     ])
   );
 });

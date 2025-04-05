@@ -1,5 +1,6 @@
 import {
   Address,
+  appendTransactionMessageInstruction,
   BaseTransactionMessage,
   fixEncoderSize,
   getAddressDecoder,
@@ -7,13 +8,13 @@ import {
   IInstruction,
 } from '@solana/kit';
 import {
-  getLinearIterableInstructionPlan,
   getTransactionSize,
   InstructionPlan,
   IterableInstructionPlan,
   ParallelInstructionPlan,
   SequentialInstructionPlan,
   SingleInstructionPlan,
+  TRANSACTION_SIZE_LIMIT,
 } from '../../src';
 
 const MINIMUM_INSTRUCTION_SIZE = 35;
@@ -53,18 +54,42 @@ export function instructionIteratorFactory() {
   ): IterableInstructionPlan & {
     get: (bytes: number, index: number) => IInstruction;
   } => {
-    const get = instructionFactory(baseCounter + iteratorCounter);
+    const getInstruction = instructionFactory(baseCounter + iteratorCounter);
     iteratorCounter += iteratorIncrement;
+    const baseInstruction = getInstruction(MINIMUM_INSTRUCTION_SIZE, 0);
 
-    const iterator = getLinearIterableInstructionPlan({
-      totalBytes,
-      getInstruction: (offset, length) => {
-        console.log({ offset, length });
-        return get(length + MINIMUM_INSTRUCTION_SIZE);
+    return {
+      get: getInstruction,
+      kind: 'iterable',
+      getAll: () => [getInstruction(totalBytes, 0)],
+      getIterator: () => {
+        let offset = 0;
+        return {
+          hasNext: () => offset < totalBytes,
+          next: (tx: BaseTransactionMessage) => {
+            const baseTransactionSize = getTransactionSize(
+              appendTransactionMessageInstruction(baseInstruction, tx)
+            );
+            const maxLength =
+              TRANSACTION_SIZE_LIMIT -
+              baseTransactionSize -
+              2; /* Leeway for shortU16 numbers in transaction headers. */
+
+            if (maxLength <= 0) {
+              return null;
+            }
+
+            const length =
+              Math.min(totalBytes - offset, maxLength) +
+              MINIMUM_INSTRUCTION_SIZE;
+
+            const instruction = getInstruction(length);
+            offset += length;
+            return instruction;
+          },
+        };
       },
-    });
-
-    return { ...iterator, get };
+    };
   };
 }
 
