@@ -69,17 +69,19 @@ export function getLinearIterableInstructionPlan({
           const baseTransactionSize = getTransactionSize(
             appendTransactionMessageInstruction(getInstruction(offset, 0), tx)
           );
-          const length =
+          const maxLength =
             TRANSACTION_SIZE_LIMIT -
             baseTransactionSize -
             2; /* Leeway for shortU16 numbers in transaction headers. */
 
-          if (length <= 0) {
+          if (maxLength <= 0) {
             return null;
           }
 
-          offset += length;
-          return getInstruction(offset, length);
+          const length = Math.min(totalBytes - offset, maxLength);
+          const instruction = getInstruction(offset, length);
+          offset += maxLength;
+          return instruction;
         },
       };
     },
