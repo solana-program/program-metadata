@@ -23,11 +23,12 @@ import {
 import { SingleTransactionPlan, TransactionPlan } from './transactionPlan';
 
 // TODO: This would need to be a first-class citizen of @solana/kit.
-// We should consider two constants. One for `1280` and another for `1_280 - 48`.
-export const TRANSACTION_SIZE_LIMIT =
-  1_280 -
-  40 /* 40 bytes is the size of the IPv6 header. */ -
+export const TRANSACTION_PACKET_SIZE = 1280;
+export const TRANSACTION_PACKET_HEADER =
+  40 /* 40 bytes is the size of the IPv6 header. */ +
   8; /* 8 bytes is the size of the fragment header. */
+export const TRANSACTION_SIZE_LIMIT =
+  TRANSACTION_PACKET_SIZE - TRANSACTION_PACKET_HEADER;
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 
