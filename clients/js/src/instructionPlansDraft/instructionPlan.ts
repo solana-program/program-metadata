@@ -80,7 +80,7 @@ export function getLinearIterableInstructionPlan({
 
           const length = Math.min(totalBytes - offset, maxLength);
           const instruction = getInstruction(offset, length);
-          offset += maxLength;
+          offset += length;
           return instruction;
         },
       };
