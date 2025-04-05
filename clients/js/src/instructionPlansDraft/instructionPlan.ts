@@ -96,10 +96,23 @@ export function getIterableInstructionPlanFromInstructions<
       let instructionIndex = 0;
       return {
         hasNext: () => instructionIndex < instructions.length,
-        next: () =>
-          instructionIndex < instructions.length
-            ? instructions[instructionIndex++]
-            : null,
+        next: (tx: BaseTransactionMessage) => {
+          if (instructionIndex >= instructions.length) {
+            return null;
+          }
+
+          const instruction = instructions[instructionIndex];
+          const transactionSize = getTransactionSize(
+            appendTransactionMessageInstruction(instruction, tx)
+          );
+
+          if (transactionSize > TRANSACTION_SIZE_LIMIT) {
+            return null;
+          }
+
+          instructionIndex++;
+          return instruction;
+        },
       };
     },
   };
@@ -116,10 +129,13 @@ export function getReallocIterableInstructionPlan({
 }): IterableInstructionPlan {
   const numberOfInstructions = Math.ceil(totalSize / REALLOC_LIMIT);
   const lastInstructionSize = totalSize % REALLOC_LIMIT;
-  const instructions = new Array(numberOfInstructions).fill(0).map((_, i) => {
-    const size =
-      i === numberOfInstructions - 1 ? lastInstructionSize : REALLOC_LIMIT;
-    return getInstruction(size);
-  });
+  const instructions = new Array(numberOfInstructions)
+    .fill(0)
+    .map((_, i) =>
+      getInstruction(
+        i === numberOfInstructions - 1 ? lastInstructionSize : REALLOC_LIMIT
+      )
+    );
+
   return getIterableInstructionPlanFromInstructions(instructions);
 }
