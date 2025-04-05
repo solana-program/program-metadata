@@ -79,9 +79,10 @@ export function instructionIteratorFactory() {
               return null;
             }
 
-            const length =
-              Math.min(totalBytes - offset, maxLength) +
-              MINIMUM_INSTRUCTION_SIZE;
+            const length = Math.min(
+              totalBytes - offset,
+              maxLength + MINIMUM_INSTRUCTION_SIZE
+            );
 
             const instruction = getInstruction(length);
             offset += length;

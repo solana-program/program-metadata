@@ -993,8 +993,14 @@ test('it plans non-divisible sequentials plans with divisible sequential childre
   );
 });
 
-// TODO
-test.skip('it iterate over iterable instruction plans', async (t) => {
+/**
+ *  [A(x, 250%)] ─────────────▶ [Seq]
+ *                               │
+ *                               ├── [Tx: A(1, 100%)]
+ *                               ├── [Tx: A(2, 100%)]
+ *                               └── [Tx: A(3, 50%)]
+ */
+test('it iterate over iterable instruction plans', async (t) => {
   const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
