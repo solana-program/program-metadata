@@ -1179,26 +1179,54 @@ test('it uses iterable instruction plans to fill gaps in sequential candidates',
   const planner = createBaseTransactionPlanner({ version: 0 });
 
   const instructionA = instruction(txPercent(75));
-  const instructionB = instruction(txPercent(50));
-  const iteratorC = iterator(txPercent(25) + txPercent(50) + txPercent(50)); // 125%
+  const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
+  const instructionC = instruction(txPercent(50));
 
   t.deepEqual(
     await planner(
-      parallelInstructionPlan([
+      sequentialInstructionPlan([
         singleInstructionPlan(instructionA),
-        singleInstructionPlan(instructionB),
-        iteratorC,
+        iteratorB,
+        singleInstructionPlan(instructionC),
       ])
     ),
-    parallelTransactionPlan([
-      singleTransactionPlan([instructionA, iteratorC.get(txPercent(25), 0)]),
-      singleTransactionPlan([instructionB, iteratorC.get(txPercent(50), 1)]),
-      singleTransactionPlan([iteratorC.get(txPercent(50), 2)]),
+    sequentialTransactionPlan([
+      singleTransactionPlan([instructionA, iteratorB.get(txPercent(25), 0)]),
+      singleTransactionPlan([iteratorB.get(txPercent(50), 1), instructionC]),
     ])
   );
 });
 
-// TODO: with non-divisible sequential plans.
+/**
+ *  [NonDivSeq] ───────────────▶ [NonDivSeq]
+ *   │                            │
+ *   ├── [A: 75%]                 ├── [Tx: A + B(1, 25%)]
+ *   ├── [B(x, 75%)]              └── [Tx: B(2, 50%) + C]
+ *   └── [C: 50%]
+ */
+test('it uses iterable instruction plans to fill gaps in non-divisible sequential candidates', async (t) => {
+  const { txPercent, instruction, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(75));
+  const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
+  const instructionC = instruction(txPercent(50));
+
+  t.deepEqual(
+    await planner(
+      nonDivisibleSequentialInstructionPlan([
+        singleInstructionPlan(instructionA),
+        iteratorB,
+        singleInstructionPlan(instructionC),
+      ])
+    ),
+    nonDivisibleSequentialTransactionPlan([
+      singleTransactionPlan([instructionA, iteratorB.get(txPercent(25), 0)]),
+      singleTransactionPlan([iteratorB.get(txPercent(50), 1), instructionC]),
+    ])
+  );
+});
 
 // TODO: [Seq] -> [Par] -> [Iter] filling [Seq] candidate.
 
