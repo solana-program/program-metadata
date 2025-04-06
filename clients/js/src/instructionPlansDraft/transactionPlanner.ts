@@ -53,13 +53,6 @@ export type TransactionPlanner = (
   config?: TransactionPlannerConfig
 ) => Promise<TransactionPlan>;
 
-// TODO: Implement
-// - Ask for additional instructions for each message. Maybe `getDefaultMessage` or `messageModifier` functions?
-// - Add Compute Unit instructions.
-// - Split instruction by sizes.
-// - Provide remaining bytes to dynamic instructions.
-// - Pack transaction messages as much as possible.
-// - simulate CU.
 export function createBaseTransactionPlanner({
   version,
 }: {
