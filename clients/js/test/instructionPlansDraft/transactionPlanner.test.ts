@@ -1141,7 +1141,7 @@ test('it uses iterable instruction plans to fill gaps in parallel candidates', a
  *   ├── [C: 50%]                       ├── [Tx: C + A(2, 50%)]
  *   └── [B: 75%]                       └── [Tx: A(3, 50%)]
  */
-test.skip('it uses iterable instruction plans to fill gaps in parallel candidates regardless of the order', async (t) => {
+test('it uses iterable instruction plans to fill gaps in parallel candidates regardless of the order', async (t) => {
   const { txPercent, instruction, iterator, singleTransactionPlan } =
     defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
@@ -1153,9 +1153,9 @@ test.skip('it uses iterable instruction plans to fill gaps in parallel candidate
   t.deepEqual(
     await planner(
       parallelInstructionPlan([
+        iteratorA,
         singleInstructionPlan(instructionB),
         singleInstructionPlan(instructionC),
-        iteratorA,
       ])
     ),
     parallelTransactionPlan([

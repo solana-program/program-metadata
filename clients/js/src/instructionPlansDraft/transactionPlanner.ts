@@ -206,7 +206,14 @@ async function traverseParallel(
 ): Promise<TransactionPlan | null> {
   const candidates: SingleTransactionPlan[] = [...context.parentCandidates];
   const transactionPlans: TransactionPlan[] = [];
-  for (const plan of instructionPlan.plans) {
+
+  // Reorder children so iterable plans are last.
+  const sortedChildren = [
+    ...instructionPlan.plans.filter((plan) => plan.kind !== 'iterable'),
+    ...instructionPlan.plans.filter((plan) => plan.kind === 'iterable'),
+  ];
+
+  for (const plan of sortedChildren) {
     const transactionPlan = await traverse(plan, {
       ...context,
       parent: instructionPlan,
