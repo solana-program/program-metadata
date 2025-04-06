@@ -1393,3 +1393,62 @@ test('complex example 1', async (t) => {
     ])
   );
 });
+
+/**
+ *  [Seq] ─────────────────────────────────▶ [Seq]
+ *   │                                        │
+ *   ├── [A: 20%]                             ├── [Tx: A + B + C + E(1, 40%)]
+ *   ├── [NonDivSeq]                          ├── [Par]
+ *   │    ├── [B: 20%]                        │    ├── [Tx: D + E(2, 50%)]
+ *   │    └── [C: 20%]                        │    ├── [Tx: E(3, 100%)]
+ *   ├── [Par]                                │    └── [Tx: E(4, 60%)]
+ *   │    ├── [D: 50%]                        └── [Tx: F + G]
+ *   │    └── [E(x, 250%)]
+ *   ├── [F: 50%]
+ *   └── [G: 50%]
+ */
+test('complex example 2', async (t) => {
+  const { instruction, iterator, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(20));
+  const instructionB = instruction(txPercent(20));
+  const instructionC = instruction(txPercent(20));
+  const instructionD = instruction(txPercent(50));
+  const iteratorE = iterator(txPercent(250));
+  const instructionF = instruction(txPercent(50));
+  const instructionG = instruction(txPercent(50));
+
+  t.deepEqual(
+    await planner(
+      sequentialInstructionPlan([
+        singleInstructionPlan(instructionA),
+        nonDivisibleSequentialInstructionPlan([
+          singleInstructionPlan(instructionB),
+          singleInstructionPlan(instructionC),
+        ]),
+        parallelInstructionPlan([
+          singleInstructionPlan(instructionD),
+          iteratorE,
+        ]),
+        singleInstructionPlan(instructionF),
+        singleInstructionPlan(instructionG),
+      ])
+    ),
+    sequentialTransactionPlan([
+      singleTransactionPlan([
+        instructionA,
+        instructionB,
+        instructionC,
+        iteratorE.get(txPercent(40) - 3, 0),
+      ]),
+      parallelTransactionPlan([
+        singleTransactionPlan([instructionD, iteratorE.get(txPercent(50), 1)]),
+        singleTransactionPlan([iteratorE.get(txPercent(100), 2)]),
+        singleTransactionPlan([iteratorE.get(txPercent(60) + 3, 3)]),
+      ]),
+      singleTransactionPlan([instructionF, instructionG]),
+    ])
+  );
+});
