@@ -256,7 +256,7 @@ async function traverseIterable(
 ): Promise<TransactionPlan | null> {
   const iterator = instructionPlan.getIterator();
   const transactionPlans: SingleTransactionPlan[] = [];
-  const candidates = [...context.parentCandidates]; // TODO: Use some caching mechanism to avoid trying filled candidates.
+  const candidates = [...context.parentCandidates];
 
   while (iterator.hasNext()) {
     const candidateResult = selectCandidateForIterator(candidates, iterator);
@@ -273,6 +273,9 @@ async function traverseIterable(
       }
       await context.addInstructionsToSingleTransactionPlan(newPlan, [ix]);
       transactionPlans.push(newPlan);
+
+      // Adding the new plan to the candidates is important for cases
+      // where the next instruction doesn't fill the entire transaction.
       candidates.push(newPlan);
     }
   }
