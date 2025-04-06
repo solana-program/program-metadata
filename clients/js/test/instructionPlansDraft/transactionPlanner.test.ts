@@ -1228,7 +1228,38 @@ test('it uses iterable instruction plans to fill gaps in non-divisible sequentia
   );
 });
 
-// TODO: [Seq] -> [Par] -> [Iter] filling [Seq] candidate.
+/**
+ *  [Seq] ───────────────────────▶ [Seq]
+ *   │                              │
+ *   ├── [A: 75%]                   ├── [Tx: A + B(1, 25%)]
+ *   └── [Par]                      └── [Tx: C + B(2, 50%)]
+ *        ├── [B(x, 75%)]
+ *        └── [C: 50%]
+ */
+test('it uses parallel iterable instruction plans to fill gaps in sequential candidates', async (t) => {
+  const { txPercent, instruction, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(75));
+  const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
+  const instructionC = instruction(txPercent(50));
+
+  const result = await planner(
+    sequentialInstructionPlan([
+      singleInstructionPlan(instructionA),
+      parallelInstructionPlan([iteratorB, singleInstructionPlan(instructionC)]),
+    ])
+  );
+
+  t.deepEqual(
+    result,
+    sequentialTransactionPlan([
+      singleTransactionPlan([instructionA, iteratorB.get(txPercent(25), 0)]),
+      singleTransactionPlan([instructionC, iteratorB.get(txPercent(50), 1)]),
+    ])
+  );
+});
 
 /**
  *  [Par] ───────────────────────────▶ [Par]
