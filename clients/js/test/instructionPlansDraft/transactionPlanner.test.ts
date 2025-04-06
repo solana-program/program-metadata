@@ -1103,14 +1103,50 @@ test('it simplifies iterable instruction plans that fit in a single transaction'
 });
 
 /**
- *  TODO
+ *  [Par] ───────────────────────────▶ [Par]
+ *   │                                  │
+ *   ├── [A: 75%]                       ├── [Tx: A + C(1, 25%)]
+ *   ├── [B: 50%]                       ├── [Tx: B + C(2, 50%)]
+ *   └── [C(x, 125%)]                   └── [Tx: C(3, 50%)]
  */
-test.skip('it uses iterable instruction plans to fill gaps in parallel candidates', async (t) => {
+test('it uses iterable instruction plans to fill gaps in parallel candidates', async (t) => {
   const { txPercent, instruction, iterator, singleTransactionPlan } =
     defaultFactories();
   const planner = createBaseTransactionPlanner({ version: 0 });
 
-  const iteratorA = iterator(txPercent(125));
+  const instructionA = instruction(txPercent(75));
+  const instructionB = instruction(txPercent(50));
+  const iteratorC = iterator(txPercent(25) + txPercent(50) + txPercent(50)); // 125%
+
+  t.deepEqual(
+    await planner(
+      parallelInstructionPlan([
+        singleInstructionPlan(instructionA),
+        singleInstructionPlan(instructionB),
+        iteratorC,
+      ])
+    ),
+    parallelTransactionPlan([
+      singleTransactionPlan([instructionA, iteratorC.get(txPercent(25), 0)]),
+      singleTransactionPlan([instructionB, iteratorC.get(txPercent(50), 1)]),
+      singleTransactionPlan([iteratorC.get(txPercent(50), 2)]),
+    ])
+  );
+});
+
+/**
+ *  [Par] ───────────────────────────▶ [Par]
+ *   │                                  │
+ *   ├── [A(x, 125%)]                   ├── [Tx: B + A(1, 25%)]
+ *   ├── [C: 50%]                       ├── [Tx: C + A(2, 50%)]
+ *   └── [B: 75%]                       └── [Tx: A(3, 50%)]
+ */
+test.skip('it uses iterable instruction plans to fill gaps in parallel candidates regardless of the order', async (t) => {
+  const { txPercent, instruction, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const iteratorA = iterator(txPercent(25) + txPercent(50) + txPercent(50)); // 125%
   const instructionB = instruction(txPercent(75));
   const instructionC = instruction(txPercent(50));
 
@@ -1130,7 +1166,6 @@ test.skip('it uses iterable instruction plans to fill gaps in parallel candidate
   );
 });
 
-// TODO: regardless of the order.
 // TODO: with sequential plans.
 // TODO: with non-divisible sequential plans.
 
