@@ -1245,18 +1245,89 @@ test('it uses parallel iterable instruction plans to fill gaps in sequential can
   const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
   const instructionC = instruction(txPercent(50));
 
-  const result = await planner(
-    sequentialInstructionPlan([
-      singleInstructionPlan(instructionA),
-      parallelInstructionPlan([iteratorB, singleInstructionPlan(instructionC)]),
-    ])
-  );
-
   t.deepEqual(
-    result,
+    await planner(
+      sequentialInstructionPlan([
+        singleInstructionPlan(instructionA),
+        parallelInstructionPlan([
+          iteratorB,
+          singleInstructionPlan(instructionC),
+        ]),
+      ])
+    ),
     sequentialTransactionPlan([
       singleTransactionPlan([instructionA, iteratorB.get(txPercent(25), 0)]),
       singleTransactionPlan([instructionC, iteratorB.get(txPercent(50), 1)]),
+    ])
+  );
+});
+
+/**
+ *  [Par] ─────────────────────────▶ [Tx: A + B(1, 50%) + C]
+ *   │
+ *   ├── [A: 25%]
+ *   └── [Seq]
+ *        ├── [B(x, 50%)]
+ *        └── [C: 25%]
+ */
+test('it uses the whole sequential iterable instruction plan when it fits in the parent parallel candidate', async (t) => {
+  const { txPercent, instruction, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(25));
+  const iteratorB = iterator(txPercent(50));
+  const instructionC = instruction(txPercent(25));
+
+  t.deepEqual(
+    await planner(
+      parallelInstructionPlan([
+        singleInstructionPlan(instructionA),
+        sequentialInstructionPlan([
+          iteratorB,
+          singleInstructionPlan(instructionC),
+        ]),
+      ])
+    ),
+    singleTransactionPlan([
+      instructionA,
+      iteratorB.get(txPercent(50), 0),
+      instructionC,
+    ])
+  );
+});
+
+/**
+ *  [Seq] ─────────────────────────▶ [Tx: A + B(1, 50%) + C]
+ *   │
+ *   ├── [A: 25%]
+ *   └── [NonDivSeq]
+ *        ├── [B(x, 50%)]
+ *        └── [C: 25%]
+ */
+test('it uses the whole non-divisible sequential iterable instruction plan when it fits in the parent sequential candidate', async (t) => {
+  const { txPercent, instruction, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createBaseTransactionPlanner({ version: 0 });
+
+  const instructionA = instruction(txPercent(25));
+  const iteratorB = iterator(txPercent(50));
+  const instructionC = instruction(txPercent(25));
+
+  t.deepEqual(
+    await planner(
+      sequentialInstructionPlan([
+        singleInstructionPlan(instructionA),
+        nonDivisibleSequentialInstructionPlan([
+          iteratorB,
+          singleInstructionPlan(instructionC),
+        ]),
+      ])
+    ),
+    singleTransactionPlan([
+      instructionA,
+      iteratorB.get(txPercent(50), 0),
+      instructionC,
     ])
   );
 });
