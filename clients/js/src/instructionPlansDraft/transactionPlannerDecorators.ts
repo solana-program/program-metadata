@@ -2,34 +2,35 @@ import {
   Address,
   appendTransactionMessageInstructions,
   BaseTransactionMessage,
+  GetLatestBlockhashApi,
   IInstruction,
   ITransactionMessageWithFeePayer,
   ITransactionMessageWithFeePayerSigner,
-  pipe,
   prependTransactionMessageInstructions,
+  Rpc,
   setTransactionMessageFeePayer,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/kit';
-import { TransactionPlanner } from './transactionPlanner';
+import {
+  TransactionPlanner,
+  TransactionPlannerConfig,
+} from './transactionPlanner';
 
 export function transformTransactionPlannerMessage(
-  transformer: <TTransactionMessage extends BaseTransactionMessage>(
-    transactionMessage: TTransactionMessage
-  ) => TTransactionMessage,
+  transformer: Required<TransactionPlannerConfig>['newTransactionTransformer'],
   planner: TransactionPlanner
 ): TransactionPlanner {
   return async (instructionPlan, config) => {
     return await planner(instructionPlan, {
       ...config,
-      newTransactionTransformer: (transactionMessage) =>
-        pipe(transactionMessage, transformer, (tx) =>
-          config?.newTransactionTransformer
-            ? config.newTransactionTransformer(tx)
-            : Promise.resolve(tx)
-        ),
+      newTransactionTransformer: async (tx) => {
+        const transformedTx = await transformer(tx);
+        return config?.newTransactionTransformer
+          ? await config.newTransactionTransformer(transformedTx)
+          : transformedTx;
+      },
     });
   };
 }
@@ -39,7 +40,8 @@ export function prependTransactionPlannerInstructions(
   planner: TransactionPlanner
 ): TransactionPlanner {
   return transformTransactionPlannerMessage(
-    (tx) => prependTransactionMessageInstructions(instructions, tx),
+    (tx) =>
+      Promise.resolve(prependTransactionMessageInstructions(instructions, tx)),
     planner
   );
 }
@@ -49,7 +51,8 @@ export function appendTransactionPlannerInstructions(
   planner: TransactionPlanner
 ): TransactionPlanner {
   return transformTransactionPlannerMessage(
-    (tx) => appendTransactionMessageInstructions(instructions, tx),
+    (tx) =>
+      Promise.resolve(appendTransactionMessageInstructions(instructions, tx)),
     planner
   );
 }
@@ -62,8 +65,10 @@ export function setTransactionPlannerFeePayer(
     <TTransactionMessage extends BaseTransactionMessage>(
       tx: TTransactionMessage
     ) =>
-      setTransactionMessageFeePayer(feePayer, tx) as TTransactionMessage &
-        ITransactionMessageWithFeePayer,
+      Promise.resolve(
+        setTransactionMessageFeePayer(feePayer, tx) as TTransactionMessage &
+          ITransactionMessageWithFeePayer
+      ),
     planner
   );
 }
@@ -76,22 +81,52 @@ export function setTransactionPlannerFeePayerSigner(
     <TTransactionMessage extends BaseTransactionMessage>(
       tx: TTransactionMessage
     ) =>
-      setTransactionMessageFeePayerSigner(
-        feePayerSigner,
-        tx
-      ) as TTransactionMessage & ITransactionMessageWithFeePayerSigner,
+      Promise.resolve(
+        setTransactionMessageFeePayerSigner(
+          feePayerSigner,
+          tx
+        ) as TTransactionMessage & ITransactionMessageWithFeePayerSigner
+      ),
     planner
   );
 }
 
-export function setTransactionPlannerLifetimeUsingBlockhash(
-  latestBlockhash: TransactionMessageWithBlockhashLifetime['lifetimeConstraint'],
+export function setTransactionPlannerLifetimeUsingLatestBlockhash(
+  rpc: Rpc<GetLatestBlockhashApi>,
   planner: TransactionPlanner
 ): TransactionPlanner {
+  // Cache the latest blockhash for 60 seconds.
+  const getBlockhash = getTimedCacheFunction(async () => {
+    const { value } = await rpc.getLatestBlockhash().send();
+    return value;
+  }, 60_000);
+
   return transformTransactionPlannerMessage(
-    (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+    async (tx) =>
+      setTransactionMessageLifetimeUsingBlockhash(await getBlockhash(), tx),
     planner
   );
 }
 
 // TODO: estimateAndSetComputeUnitLimitForTransactionPlanner
+
+function getTimedCacheFunction<T>(
+  fn: () => Promise<T>,
+  timeoutInMilliseconds: number
+): () => Promise<T> {
+  let cache: T | null = null;
+  let lastFetchTime = 0;
+  return async () => {
+    const currentTime = Date.now();
+
+    // Cache hit.
+    if (cache && currentTime - lastFetchTime < timeoutInMilliseconds) {
+      return cache;
+    }
+
+    // Cache miss.
+    cache = await fn();
+    lastFetchTime = currentTime;
+    return cache;
+  };
+}

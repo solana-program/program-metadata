@@ -25,7 +25,7 @@ import {
 } from './instructionPlan';
 import { SingleTransactionPlan, TransactionPlan } from './transactionPlan';
 
-// TODO: This would need to be a first-class citizen of @solana/kit.
+// TODO: This would need to be a first-class citizen of @solana/transactions.
 export const TRANSACTION_PACKET_SIZE = 1280;
 export const TRANSACTION_PACKET_HEADER =
   40 /* 40 bytes is the size of the IPv6 header. */ +
@@ -378,7 +378,7 @@ export function getRemainingTransactionSize(message: BaseTransactionMessage) {
   return TRANSACTION_SIZE_LIMIT - getTransactionSize(message);
 }
 
-// TODO: This would need to be a first-class citizen of @solana/kit.
+// TODO: This would need to be a first-class citizen of @solana/transactions.
 // It should accepts both `Transaction` and `BaseTransactionMessage` instances.
 // Over time, efforts should be made to improve the performance of this function.
 // E.g. maybe we don't need to compile the transaction message to get the size.
