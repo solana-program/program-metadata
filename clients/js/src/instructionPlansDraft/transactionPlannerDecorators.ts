@@ -2,6 +2,7 @@ import {
   Address,
   appendTransactionMessageInstructions,
   BaseTransactionMessage,
+  getComputeUnitEstimateForTransactionMessageFactory,
   GetLatestBlockhashApi,
   IInstruction,
   ITransactionMessageWithFeePayer,
@@ -11,12 +12,19 @@ import {
   setTransactionMessageFeePayer,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
+  SimulateTransactionApi,
   TransactionSigner,
 } from '@solana/kit';
 import {
   TransactionPlanner,
   TransactionPlannerConfig,
 } from './transactionPlanner';
+import {
+  COMPUTE_BUDGET_PROGRAM_ADDRESS,
+  ComputeBudgetInstruction,
+  getSetComputeUnitLimitInstruction,
+  identifyComputeBudgetInstruction,
+} from '@solana-program/compute-budget';
 
 export function transformTransactionPlannerMessage(
   transformer: Required<TransactionPlannerConfig>['newTransactionTransformer'],
@@ -108,7 +116,39 @@ export function setTransactionPlannerLifetimeUsingLatestBlockhash(
   );
 }
 
-// TODO: estimateAndSetComputeUnitLimitForTransactionPlanner
+const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
+
+// TODO: This will need decoupling from `@solana-program/compute-budget`
+// when added to `@solana/instruction-plans`. Also, the function
+// `getComputeUnitEstimateForTransactionMessageFactory` will need to
+// move in a granular package so `instruction-plans` can use it.
+export function estimateAndSetComputeUnitLimitForTransactionPlanner(
+  rpc: Rpc<SimulateTransactionApi>,
+  planner: TransactionPlanner
+): TransactionPlanner {
+  const estimate = getComputeUnitEstimateForTransactionMessageFactory({ rpc });
+
+  return transformTransactionPlannerMessage((tx) => {
+    const hasComputeBudgetLimit = tx.instructions.some((ix) => {
+      return (
+        ix.programAddress === COMPUTE_BUDGET_PROGRAM_ADDRESS &&
+        identifyComputeBudgetInstruction(ix.data as Uint8Array) ===
+          ComputeBudgetInstruction.SetComputeUnitLimit
+      );
+    });
+
+    if (hasComputeBudgetLimit) {
+      return Promise.resolve(tx);
+    }
+
+    return Promise.resolve(
+      prependTransactionMessageInstructions(
+        [getSetComputeUnitLimitInstruction({ units: MAX_COMPUTE_UNIT_LIMIT })],
+        tx
+      )
+    );
+  }, planner);
+}
 
 function getTimedCacheFunction<T>(
   fn: () => Promise<T>,
