@@ -24,6 +24,7 @@ import {
   SingleInstructionPlan,
 } from './instructionPlan';
 import { SingleTransactionPlan, TransactionPlan } from './transactionPlan';
+import { Mutable } from './internal';
 
 // TODO: This would need to be a first-class citizen of @solana/transactions.
 export const TRANSACTION_PACKET_SIZE = 1280;
@@ -32,8 +33,6 @@ export const TRANSACTION_PACKET_HEADER =
   8; /* 8 bytes is the size of the fragment header. */
 export const TRANSACTION_SIZE_LIMIT =
   TRANSACTION_PACKET_SIZE - TRANSACTION_PACKET_HEADER;
-
-type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 
 export type TransactionPlannerConfig = {
   newTransactionTransformer?: <

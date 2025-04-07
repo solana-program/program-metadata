@@ -8,15 +8,14 @@ import {
 } from '@solana/kit';
 import { SingleTransactionPlan } from './transactionPlan';
 import { TransactionPlanExecutor } from './transactionPlanExecutor';
-
-type Mutable<T> = { -readonly [P in keyof T]: T[P] };
+import { Mutable } from './internal';
 
 // TODO: implement
 // - Chunk parallel transactions
 // - Add support for curstom <TContext>
 // - Handle cancellation (i.e. don't continue past a failing sequential plan)
 
-export function refreshBlockheightTransactionPlanExecutor(
+export function refreshBlockhashForTransactionPlanExecutor(
   rpc: Rpc<GetLatestBlockhashApi>,
   executor: TransactionPlanExecutor
 ): TransactionPlanExecutor {

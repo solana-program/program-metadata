@@ -28,8 +28,7 @@ import {
   identifyComputeBudgetInstruction,
 } from '@solana-program/compute-budget';
 import { SingleTransactionPlan, TransactionPlan } from './transactionPlan';
-
-type Mutable<T> = { -readonly [P in keyof T]: T[P] };
+import { getTimedCacheFunction, Mutable } from './internal';
 
 export function transformNewTransactionPlannerMessage(
   transformer: Required<TransactionPlannerConfig>['newTransactionTransformer'],
@@ -212,27 +211,6 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
 
     return plan;
   }, plannerWithComputeBudgetLimits);
-}
-
-function getTimedCacheFunction<T>(
-  fn: () => Promise<T>,
-  timeoutInMilliseconds: number
-): () => Promise<T> {
-  let cache: T | null = null;
-  let lastFetchTime = 0;
-  return async () => {
-    const currentTime = Date.now();
-
-    // Cache hit.
-    if (cache && currentTime - lastFetchTime < timeoutInMilliseconds) {
-      return cache;
-    }
-
-    // Cache miss.
-    cache = await fn();
-    lastFetchTime = currentTime;
-    return cache;
-  };
 }
 
 function getComputeUnitLimitInstructionIndex(
