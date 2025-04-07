@@ -1,59 +1,37 @@
 import {
-  Blockhash,
   GetLatestBlockhashApi,
-  isSolanaError,
   Rpc,
   setTransactionMessageLifetimeUsingBlockhash,
-  SOLANA_ERROR__TRANSACTION_ERROR__BLOCKHASH_NOT_FOUND,
 } from '@solana/kit';
+import { getTimedCacheFunction, Mutable } from './internal';
 import { SingleTransactionPlan } from './transactionPlan';
 import { TransactionPlanExecutor } from './transactionPlanExecutor';
-import { Mutable } from './internal';
 
 // TODO: implement
-// - Chunk parallel transactions
+// - Chunk parallel transactions (Needs special transformer)
 // - Add support for curstom <TContext>
-// - Handle cancellation (i.e. don't continue past a failing sequential plan)
 
 export function refreshBlockhashForTransactionPlanExecutor(
   rpc: Rpc<GetLatestBlockhashApi>,
   executor: TransactionPlanExecutor
 ): TransactionPlanExecutor {
-  let latestBlockhash: {
-    blockhash: Blockhash;
-    lastValidBlockHeight: bigint;
-  } | null = null;
-  return async function traverse(transactionPlan) {
+  // Cache the latest blockhash for 60 seconds.
+  const getBlockhash = getTimedCacheFunction(async () => {
+    const { value } = await rpc.getLatestBlockhash().send();
+    return value;
+  }, 60_000);
+
+  return async (transactionPlan) => {
     if (transactionPlan.kind !== 'single') {
       return await executor(transactionPlan);
     }
 
-    // Replace the blockhash in the message, if a new one is available.
-    if (latestBlockhash) {
-      (transactionPlan as Mutable<SingleTransactionPlan>).message =
-        setTransactionMessageLifetimeUsingBlockhash(
-          latestBlockhash,
-          transactionPlan.message
-        );
-    }
-
-    try {
-      return await executor(transactionPlan);
-    } catch (error) {
-      if (
-        isSolanaError(
-          error,
-          // TODO: Retry on blockhash expired error.
-          SOLANA_ERROR__TRANSACTION_ERROR__BLOCKHASH_NOT_FOUND
-        )
-      ) {
-        const result = await rpc.getLatestBlockhash().send();
-        latestBlockhash = result.value;
-        return await traverse(transactionPlan);
-      } else {
-        throw error;
-      }
-    }
+    (transactionPlan as Mutable<SingleTransactionPlan>).message =
+      setTransactionMessageLifetimeUsingBlockhash(
+        await getBlockhash(),
+        transactionPlan.message
+      );
+    return await executor(transactionPlan);
   };
 }
 

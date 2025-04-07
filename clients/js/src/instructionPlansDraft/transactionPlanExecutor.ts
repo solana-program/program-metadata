@@ -59,6 +59,8 @@ async function traverseSequential(
   for (const subPlan of transactionPlan.plans) {
     const result = await traverse(subPlan, context);
     results.push(result);
+
+    // TODO: Handle cancellations.
   }
   return { kind: 'sequential', plans: results };
 }
