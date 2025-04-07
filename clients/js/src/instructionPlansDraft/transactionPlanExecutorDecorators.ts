@@ -11,6 +11,11 @@ import { TransactionPlanExecutor } from './transactionPlanExecutor';
 
 type Mutable<T> = { -readonly [P in keyof T]: T[P] };
 
+// TODO: implement
+// - Chunk parallel transactions
+// - Add support for curstom <TContext>
+// - Handle cancellation (i.e. don't continue past a failing sequential plan)
+
 export function refreshBlockheightTransactionPlanExecutor(
   rpc: Rpc<GetLatestBlockhashApi>,
   executor: TransactionPlanExecutor

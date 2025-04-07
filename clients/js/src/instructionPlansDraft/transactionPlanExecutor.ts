@@ -1,37 +1,91 @@
 import {
-  GetLatestBlockhashApi,
-  Rpc,
-  RpcSubscriptions,
-  Signature,
-  SolanaRpcSubscriptionsApi,
+  BaseTransactionMessage,
+  getSignatureFromTransaction,
+  Transaction,
 } from '@solana/kit';
-import { SingleTransactionPlan, TransactionPlan } from './transactionPlan';
+import {
+  ParallelTransactionPlan,
+  SequentialTransactionPlan,
+  SingleTransactionPlan,
+  TransactionPlan,
+} from './transactionPlan';
 import { TransactionPlanResult } from './transactionPlanResult';
 
 export type TransactionPlanExecutor<TContext extends object | null = null> = (
   transactionPlan: TransactionPlan
 ) => Promise<TransactionPlanResult<TContext>>;
 
-export function createBaseTransactionPlanExecutor(options: {
-  rpc: Rpc<GetLatestBlockhashApi>;
-  rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi>;
-}): TransactionPlanExecutor {
-  // TODO: implement
-  // - Refetch blockhash if it's expired
-  // - Retry on failure
-  // - Chunk parallel transactions
-  // - Handle cancellation (i.e. don't continue past a failing sequential plan)
-
-  const executor: TransactionPlanExecutor = async (plan) => {
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return {
-      context: null,
-      kind: 'single',
-      message: (plan as SingleTransactionPlan).message,
-      signature: 'signature' as Signature,
-      status: { kind: 'success' },
-    };
+export function createBaseTransactionPlanExecutor(
+  sendAndConfirm: <TTransactionMessage extends BaseTransactionMessage>(
+    transactionMessage: TTransactionMessage
+  ) => Promise<Transaction>
+): TransactionPlanExecutor {
+  return async (plan): Promise<TransactionPlanResult> => {
+    const context: TraverseContext = { sendAndConfirm };
+    return await traverse(plan, context);
   };
+}
 
-  return executor;
+type TraverseContext = {
+  sendAndConfirm: <TTransactionMessage extends BaseTransactionMessage>(
+    transactionMessage: TTransactionMessage
+  ) => Promise<Transaction>;
+};
+
+async function traverse(
+  transactionPlan: TransactionPlan,
+  context: TraverseContext
+): Promise<TransactionPlanResult> {
+  switch (transactionPlan.kind) {
+    case 'sequential':
+      return await traverseSequential(transactionPlan, context);
+    case 'parallel':
+      return await traverseParallel(transactionPlan, context);
+    case 'single':
+      return await traverseSingle(transactionPlan, context);
+    default:
+      transactionPlan satisfies never;
+      throw new Error(
+        `Unknown instruction plan kind: ${(transactionPlan as { kind: string }).kind}`
+      );
+  }
+}
+
+async function traverseSequential(
+  transactionPlan: SequentialTransactionPlan,
+  context: TraverseContext
+): Promise<TransactionPlanResult> {
+  const results: TransactionPlanResult[] = [];
+  for (const subPlan of transactionPlan.plans) {
+    const result = await traverse(subPlan, context);
+    results.push(result);
+  }
+  return { kind: 'sequential', plans: results };
+}
+
+async function traverseParallel(
+  transactionPlan: ParallelTransactionPlan,
+  context: TraverseContext
+): Promise<TransactionPlanResult> {
+  const results = await Promise.all(
+    transactionPlan.plans.map((subPlan) => traverse(subPlan, context))
+  );
+  return { kind: 'parallel', plans: results };
+}
+
+async function traverseSingle(
+  transactionPlan: SingleTransactionPlan,
+  context: TraverseContext
+): Promise<TransactionPlanResult> {
+  const transaction = await context.sendAndConfirm(transactionPlan.message);
+
+  // TODO: Handle error.
+
+  return {
+    kind: 'single',
+    context: null,
+    message: transactionPlan.message,
+    signature: getSignatureFromTransaction(transaction),
+    status: { kind: 'success' },
+  };
 }
