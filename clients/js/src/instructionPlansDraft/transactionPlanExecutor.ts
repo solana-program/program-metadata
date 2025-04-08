@@ -72,6 +72,9 @@ async function traverseParallel(
   const results = await Promise.all(
     transactionPlan.plans.map((subPlan) => traverse(subPlan, context))
   );
+
+  // TODO: Handle chunking via decorators.
+
   return { kind: 'parallel', plans: results };
 }
 

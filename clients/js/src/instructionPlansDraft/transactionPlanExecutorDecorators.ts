@@ -9,7 +9,7 @@ import { TransactionPlanExecutor } from './transactionPlanExecutor';
 
 // TODO: implement
 // - Chunk parallel transactions (Needs special transformer)
-// - Add support for curstom <TContext>
+// - Add support for custom <TContext>
 
 export function refreshBlockhashForTransactionPlanExecutor(
   rpc: Rpc<GetLatestBlockhashApi>,
