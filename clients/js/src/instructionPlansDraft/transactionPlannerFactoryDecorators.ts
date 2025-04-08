@@ -18,24 +18,28 @@ import {
   TransactionSigner,
 } from '@solana/kit';
 import {
-  TransactionPlanner,
-  TransactionPlannerConfig,
-} from './transactionPlanner';
-import {
   COMPUTE_BUDGET_PROGRAM_ADDRESS,
   ComputeBudgetInstruction,
   getSetComputeUnitLimitInstruction,
   identifyComputeBudgetInstruction,
 } from '@solana-program/compute-budget';
-import { SingleTransactionPlan, TransactionPlan } from './transactionPlan';
+import {
+  getAllSingleTransactionPlans,
+  SingleTransactionPlan,
+  TransactionPlan,
+} from './transactionPlan';
 import { getTimedCacheFunction, Mutable } from './internal';
+import {
+  TransactionPlannerFactory,
+  TransactionPlannerFactoryConfig,
+} from './transactionPlannerFactory';
 
-export function transformNewTransactionPlannerMessage(
-  transformer: Required<TransactionPlannerConfig>['newTransactionTransformer'],
-  planner: TransactionPlanner
-): TransactionPlanner {
-  return async (instructionPlan, config) => {
-    return await planner(instructionPlan, {
+function transformTransactionPlannerNewMessage(
+  transformer: Required<TransactionPlannerFactoryConfig>['newTransactionTransformer'],
+  plannerFactory: TransactionPlannerFactory
+): TransactionPlannerFactory {
+  return (config) => {
+    return plannerFactory({
       ...config,
       newTransactionTransformer: async (tx) => {
         const transformedTx = await transformer(tx);
@@ -47,42 +51,44 @@ export function transformNewTransactionPlannerMessage(
   };
 }
 
-export function transformTransactionPlan(
+function transformTransactionPlan(
   transformer: (transactionPlan: TransactionPlan) => Promise<TransactionPlan>,
-  planner: TransactionPlanner
-): TransactionPlanner {
-  return async (instructionPlan, config) => {
-    return await transformer(await planner(instructionPlan, config));
+  plannerFactory: TransactionPlannerFactory
+): TransactionPlannerFactory {
+  return (config) => {
+    const planner = plannerFactory(config);
+    return async (instructionPlan) =>
+      await transformer(await planner(instructionPlan));
   };
 }
 
 export function prependTransactionPlannerInstructions(
   instructions: IInstruction[],
-  planner: TransactionPlanner
-): TransactionPlanner {
-  return transformNewTransactionPlannerMessage(
+  plannerFactory: TransactionPlannerFactory
+): TransactionPlannerFactory {
+  return transformTransactionPlannerNewMessage(
     (tx) =>
       Promise.resolve(prependTransactionMessageInstructions(instructions, tx)),
-    planner
+    plannerFactory
   );
 }
 
 export function appendTransactionPlannerInstructions(
   instructions: IInstruction[],
-  planner: TransactionPlanner
-): TransactionPlanner {
-  return transformNewTransactionPlannerMessage(
+  plannerFactory: TransactionPlannerFactory
+): TransactionPlannerFactory {
+  return transformTransactionPlannerNewMessage(
     (tx) =>
       Promise.resolve(appendTransactionMessageInstructions(instructions, tx)),
-    planner
+    plannerFactory
   );
 }
 
 export function setTransactionPlannerFeePayer(
   feePayer: Address,
-  planner: TransactionPlanner
-): TransactionPlanner {
-  return transformNewTransactionPlannerMessage(
+  plannerFactory: TransactionPlannerFactory
+): TransactionPlannerFactory {
+  return transformTransactionPlannerNewMessage(
     <TTransactionMessage extends BaseTransactionMessage>(
       tx: TTransactionMessage
     ) =>
@@ -90,15 +96,15 @@ export function setTransactionPlannerFeePayer(
         setTransactionMessageFeePayer(feePayer, tx) as TTransactionMessage &
           ITransactionMessageWithFeePayer
       ),
-    planner
+    plannerFactory
   );
 }
 
 export function setTransactionPlannerFeePayerSigner(
   feePayerSigner: TransactionSigner,
-  planner: TransactionPlanner
-): TransactionPlanner {
-  return transformNewTransactionPlannerMessage(
+  plannerFactory: TransactionPlannerFactory
+): TransactionPlannerFactory {
+  return transformTransactionPlannerNewMessage(
     <TTransactionMessage extends BaseTransactionMessage>(
       tx: TTransactionMessage
     ) =>
@@ -108,24 +114,24 @@ export function setTransactionPlannerFeePayerSigner(
           tx
         ) as TTransactionMessage & ITransactionMessageWithFeePayerSigner
       ),
-    planner
+    plannerFactory
   );
 }
 
 export function setTransactionPlannerLifetimeUsingLatestBlockhash(
   rpc: Rpc<GetLatestBlockhashApi>,
-  planner: TransactionPlanner
-): TransactionPlanner {
+  plannerFactory: TransactionPlannerFactory
+): TransactionPlannerFactory {
   // Cache the latest blockhash for 60 seconds.
   const getBlockhash = getTimedCacheFunction(async () => {
     const { value } = await rpc.getLatestBlockhash().send();
     return value;
   }, 60_000);
 
-  return transformNewTransactionPlannerMessage(
+  return transformTransactionPlannerNewMessage(
     async (tx) =>
       setTransactionMessageLifetimeUsingBlockhash(await getBlockhash(), tx),
-    planner
+    plannerFactory
   );
 }
 
@@ -137,15 +143,15 @@ const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
 // move in a granular package so `instruction-plans` can use it.
 export function estimateAndSetComputeUnitLimitForTransactionPlanner(
   rpc: Rpc<SimulateTransactionApi>,
-  planner: TransactionPlanner,
+  plannerFactory: TransactionPlannerFactory,
   chunkSize: number | null = 10
-): TransactionPlanner {
+): TransactionPlannerFactory {
   // Create a function to estimate the compute unit limit for a transaction.
   const estimateComputeUnitLimit =
     getComputeUnitEstimateForTransactionMessageFactory({ rpc });
 
   // Add a compute unit limit instruction to the transaction if it doesn't exist.
-  const plannerWithComputeBudgetLimits = transformNewTransactionPlannerMessage(
+  const plannerWithComputeBudgetLimits = transformTransactionPlannerNewMessage(
     (tx) => {
       if (getComputeUnitLimitInstructionIndex(tx) >= 0) {
         return Promise.resolve(tx);
@@ -158,7 +164,7 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
         )
       );
     },
-    planner
+    plannerFactory
   );
 
   // Transform the final transaction plan to set the correct compute unit limit.
@@ -223,13 +229,4 @@ function getComputeUnitLimitInstructionIndex(
         ComputeBudgetInstruction.SetComputeUnitLimit
     );
   });
-}
-
-function getAllSingleTransactionPlans(
-  transactionPlan: TransactionPlan
-): SingleTransactionPlan[] {
-  if (transactionPlan.kind === 'single') {
-    return [transactionPlan];
-  }
-  return transactionPlan.plans.flatMap(getAllSingleTransactionPlans);
 }

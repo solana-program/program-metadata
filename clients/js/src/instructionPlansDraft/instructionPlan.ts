@@ -6,7 +6,7 @@ import {
 import {
   getTransactionSize,
   TRANSACTION_SIZE_LIMIT,
-} from './transactionPlanner';
+} from './transactionHelpers';
 
 export type InstructionPlan =
   | SequentialInstructionPlan

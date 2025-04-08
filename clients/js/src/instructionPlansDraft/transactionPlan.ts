@@ -22,3 +22,12 @@ export type SingleTransactionPlan<
   kind: 'single';
   message: TTransactionMessage;
 }>;
+
+export function getAllSingleTransactionPlans(
+  transactionPlan: TransactionPlan
+): SingleTransactionPlan[] {
+  if (transactionPlan.kind === 'single') {
+    return [transactionPlan];
+  }
+  return transactionPlan.plans.flatMap(getAllSingleTransactionPlans);
+}
