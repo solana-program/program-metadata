@@ -7,7 +7,7 @@ import {
 import { TransactionPlanner } from './transactionPlanner';
 import { createBaseTransactionPlannerFactory } from './transactionPlannerFactory';
 import { setTransactionMessageLifetimeUsingProvisoryBlockhash } from './transactionHelpers';
-import { updateOrPrependProvisorySetComputeUnitLimitInstruction } from './computeBudgetHelpers';
+import { fillProvisorySetComputeUnitLimitInstruction } from './computeBudgetHelpers';
 
 export function createDefaultTransactionPlanner(
   feePayer: TransactionSigner
@@ -17,7 +17,7 @@ export function createDefaultTransactionPlanner(
       pipe(
         kitCreateTransactionMessage({ version: 0 }),
         setTransactionMessageLifetimeUsingProvisoryBlockhash,
-        updateOrPrependProvisorySetComputeUnitLimitInstruction,
+        fillProvisorySetComputeUnitLimitInstruction,
         (tx) => setTransactionMessageFeePayerSigner(feePayer, tx)
       ),
   });
