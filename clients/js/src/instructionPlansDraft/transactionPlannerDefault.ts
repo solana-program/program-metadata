@@ -1,5 +1,5 @@
 import {
-  createTransactionMessage as kitCreateTransactionMessage,
+  createTransactionMessage,
   pipe,
   setTransactionMessageFeePayerSigner,
   TransactionSigner,
@@ -15,7 +15,7 @@ export function createDefaultTransactionPlanner(
   return createBaseTransactionPlanner({
     createTransactionMessage: () =>
       pipe(
-        kitCreateTransactionMessage({ version: 0 }),
+        createTransactionMessage({ version: 0 }),
         setTransactionMessageLifetimeUsingProvisoryBlockhash,
         fillProvisorySetComputeUnitLimitInstruction,
         (tx) => setTransactionMessageFeePayerSigner(feePayer, tx)
