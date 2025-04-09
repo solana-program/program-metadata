@@ -45,6 +45,3 @@ export function setTransactionMessageLifetimeUsingProvisoryBlockhash<
     transactionMessage
   );
 }
-
-// Setting it to zero ensures the transaction fails unless it is properly estimated.
-export const PROVISORY_COMPUTE_UNIT_LIMIT = 0n;

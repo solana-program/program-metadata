@@ -1,3 +1,4 @@
+export * from './computeBudgetHelpers';
 export * from './instructionPlan';
 export * from './transactionHelpers';
 export * from './transactionPlan';

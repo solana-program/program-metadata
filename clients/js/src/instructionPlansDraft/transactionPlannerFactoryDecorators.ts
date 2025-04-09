@@ -1,9 +1,4 @@
-import {
-  COMPUTE_BUDGET_PROGRAM_ADDRESS,
-  ComputeBudgetInstruction,
-  getSetComputeUnitLimitInstruction,
-  identifyComputeBudgetInstruction,
-} from '@solana-program/compute-budget';
+import { getSetComputeUnitLimitInstruction } from '@solana-program/compute-budget';
 import {
   Address,
   appendTransactionMessageInstructions,
@@ -22,6 +17,10 @@ import {
   SimulateTransactionApi,
   TransactionSigner,
 } from '@solana/kit';
+import {
+  getComputeUnitLimitInstructionIndex,
+  updateOrPrependSetComputeUnitLimitInstruction,
+} from './computeBudgetHelpers';
 import { getTimedCacheFunction, Mutable } from './internal';
 import {
   getAllSingleTransactionPlans,
@@ -160,32 +159,13 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
     const promises = getAllSingleTransactionPlans(plan).map(
       async (singlePlan) => {
         const computeUnitsEstimate = await estimateComputeUnitLimit(
-          singlePlan.message as CompilableTransactionMessage
-        );
-        const instructionIndex = getComputeUnitLimitInstructionIndex(
           singlePlan.message
         );
-        const newMessage: CompilableTransactionMessage =
-          instructionIndex === -1
-            ? prependTransactionMessageInstruction(
-                getSetComputeUnitLimitInstruction({
-                  units: computeUnitsEstimate,
-                }),
-                singlePlan.message
-              )
-            : ({
-                ...singlePlan.message,
-                instructions: [
-                  ...singlePlan.message.instructions.slice(0, instructionIndex),
-                  getSetComputeUnitLimitInstruction({
-                    units: computeUnitsEstimate,
-                  }),
-                  ...singlePlan.message.instructions.slice(
-                    instructionIndex + 1
-                  ),
-                ],
-              } as CompilableTransactionMessage);
-        (singlePlan as Mutable<SingleTransactionPlan>).message = newMessage;
+        (singlePlan as Mutable<SingleTransactionPlan>).message =
+          updateOrPrependSetComputeUnitLimitInstruction(
+            computeUnitsEstimate,
+            singlePlan.message
+          );
       }
     );
 
@@ -205,16 +185,4 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
 
     return plan;
   }, plannerWithComputeBudgetLimits);
-}
-
-function getComputeUnitLimitInstructionIndex(
-  transactionMessage: CompilableTransactionMessage
-) {
-  return transactionMessage.instructions.findIndex((ix) => {
-    return (
-      ix.programAddress === COMPUTE_BUDGET_PROGRAM_ADDRESS &&
-      identifyComputeBudgetInstruction(ix.data as Uint8Array) ===
-        ComputeBudgetInstruction.SetComputeUnitLimit
-    );
-  });
 }
