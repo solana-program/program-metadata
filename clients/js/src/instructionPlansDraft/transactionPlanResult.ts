@@ -1,26 +1,24 @@
 import { BaseTransactionMessage, Signature, SolanaError } from '@solana/kit';
 
-export type TransactionPlanResult<TContext extends object | null = null> =
+export type TransactionPlanResult<TContext extends object = object> =
   | SequentialTransactionPlanResult<TContext>
   | ParallelTransactionPlanResult<TContext>
   | SingleTransactionPlanResult<TContext>;
 
-export type SequentialTransactionPlanResult<
-  TContext extends object | null = null,
-> = Readonly<{
-  kind: 'sequential';
-  plans: TransactionPlanResult<TContext>[];
-}>;
+export type SequentialTransactionPlanResult<TContext extends object = object> =
+  Readonly<{
+    kind: 'sequential';
+    plans: TransactionPlanResult<TContext>[];
+  }>;
 
-export type ParallelTransactionPlanResult<
-  TContext extends object | null = null,
-> = Readonly<{
-  kind: 'parallel';
-  plans: TransactionPlanResult<TContext>[];
-}>;
+export type ParallelTransactionPlanResult<TContext extends object = object> =
+  Readonly<{
+    kind: 'parallel';
+    plans: TransactionPlanResult<TContext>[];
+  }>;
 
 export type SingleTransactionPlanResult<
-  TContext extends object | null = null,
+  TContext extends object = object,
   TTransactionMessage extends BaseTransactionMessage = BaseTransactionMessage,
 > = Readonly<{
   context: TContext;

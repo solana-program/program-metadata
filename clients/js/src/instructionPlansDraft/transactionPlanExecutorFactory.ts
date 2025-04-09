@@ -21,9 +21,7 @@ export type TransactionPlanExecutorFactoryConfig = {
   transformer?: TransactionPlanExecutorFactoryTransformer;
 };
 
-export type TransactionPlanExecutorFactory<
-  TContext extends object | null = null,
-> = (
+export type TransactionPlanExecutorFactory<TContext extends object = object> = (
   config?: TransactionPlanExecutorFactoryConfig
 ) => TransactionPlanExecutor<TContext>;
 
@@ -119,7 +117,7 @@ async function traverseSingle(
 
   return {
     kind: 'single',
-    context: null,
+    context: {},
     message: transactionPlan.message,
     signature: getSignatureFromTransaction(transaction),
     status: { kind: 'success' },
