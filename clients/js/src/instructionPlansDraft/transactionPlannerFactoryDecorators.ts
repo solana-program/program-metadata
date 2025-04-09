@@ -1,32 +1,19 @@
-import { getSetComputeUnitLimitInstruction } from '@solana-program/compute-budget';
 import {
   Address,
   appendTransactionMessageInstructions,
   CompilableTransactionMessage,
-  getComputeUnitEstimateForTransactionMessageFactory,
   GetLatestBlockhashApi,
   IInstruction,
   ITransactionMessageWithFeePayer,
   ITransactionMessageWithFeePayerSigner,
-  prependTransactionMessageInstruction,
   prependTransactionMessageInstructions,
   Rpc,
   setTransactionMessageFeePayer,
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
-  SimulateTransactionApi,
   TransactionSigner,
 } from '@solana/kit';
-import {
-  getComputeUnitLimitInstructionIndex,
-  updateOrPrependSetComputeUnitLimitInstruction,
-} from './computeBudgetHelpers';
-import { getTimedCacheFunction, Mutable } from './internal';
-import {
-  getAllSingleTransactionPlans,
-  SingleTransactionPlan,
-  TransactionPlan,
-} from './transactionPlan';
+import { getTimedCacheFunction } from './internal';
 import { TransactionPlannerFactory } from './transactionPlannerFactory';
 
 function transformTransactionPlannerNewMessage(
@@ -43,17 +30,6 @@ function transformTransactionPlannerNewMessage(
         return await Promise.resolve(transformer(tx));
       },
     });
-  };
-}
-
-function transformTransactionPlan(
-  transformer: (transactionPlan: TransactionPlan) => Promise<TransactionPlan>,
-  plannerFactory: TransactionPlannerFactory
-): TransactionPlannerFactory {
-  return (config) => {
-    const planner = plannerFactory(config);
-    return async (instructionPlan) =>
-      await transformer(await planner(instructionPlan));
   };
 }
 
@@ -122,67 +98,4 @@ export function setTransactionPlannerLifetimeUsingLatestBlockhash(
       setTransactionMessageLifetimeUsingBlockhash(await getBlockhash(), tx),
     plannerFactory
   );
-}
-
-const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
-
-// TODO: This will need decoupling from `@solana-program/compute-budget`
-// when added to `@solana/instruction-plans`. Also, the function
-// `getComputeUnitEstimateForTransactionMessageFactory` will need to
-// move in a granular package so `instruction-plans` can use it.
-export function estimateAndSetComputeUnitLimitForTransactionPlanner(
-  rpc: Rpc<SimulateTransactionApi>,
-  plannerFactory: TransactionPlannerFactory,
-  chunkSize: number | null = 10
-): TransactionPlannerFactory {
-  // Create a function to estimate the compute unit limit for a transaction.
-  const estimateComputeUnitLimit =
-    getComputeUnitEstimateForTransactionMessageFactory({ rpc });
-
-  // Add a compute unit limit instruction to the transaction if it doesn't exist.
-  const plannerWithComputeBudgetLimits = transformTransactionPlannerNewMessage(
-    (tx) => {
-      if (getComputeUnitLimitInstructionIndex(tx) >= 0) {
-        return tx;
-      }
-
-      return prependTransactionMessageInstruction(
-        getSetComputeUnitLimitInstruction({ units: MAX_COMPUTE_UNIT_LIMIT }),
-        tx
-      );
-    },
-    plannerFactory
-  );
-
-  // Transform the final transaction plan to set the correct compute unit limit.
-  return transformTransactionPlan(async (plan) => {
-    const promises = getAllSingleTransactionPlans(plan).map(
-      async (singlePlan) => {
-        const computeUnitsEstimate = await estimateComputeUnitLimit(
-          singlePlan.message
-        );
-        (singlePlan as Mutable<SingleTransactionPlan>).message =
-          updateOrPrependSetComputeUnitLimitInstruction(
-            computeUnitsEstimate,
-            singlePlan.message
-          );
-      }
-    );
-
-    // Chunk promises to avoid rate limiting.
-    const chunkedPromises = [];
-    if (!chunkSize) {
-      chunkedPromises.push(promises);
-    } else {
-      for (let i = 0; i < promises.length; i += chunkSize) {
-        const chunk = promises.slice(i, i + chunkSize);
-        chunkedPromises.push(chunk);
-      }
-    }
-    for (const chunk of chunkedPromises) {
-      await Promise.all(chunk);
-    }
-
-    return plan;
-  }, plannerWithComputeBudgetLimits);
 }
