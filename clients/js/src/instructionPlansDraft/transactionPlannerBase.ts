@@ -24,7 +24,6 @@ import {
 import { TransactionPlanner } from './transactionPlanner';
 
 export type TransactionPlannerConfig = {
-  abortSignal?: AbortSignal; // TODO
   createTransactionMessage: () =>
     | Promise<CompilableTransactionMessage>
     | CompilableTransactionMessage;

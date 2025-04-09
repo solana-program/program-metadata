@@ -61,19 +61,25 @@ async function traverse(
   transactionPlan: TransactionPlan,
   context: TraverseContext
 ): Promise<TransactionPlanResult> {
-  switch (transactionPlan.kind) {
-    case 'sequential':
-      return await traverseSequential(transactionPlan, context);
-    case 'parallel':
-      return await traverseParallel(transactionPlan, context);
-    case 'single':
-      return await traverseSingle(transactionPlan, context);
-    default:
-      transactionPlan satisfies never;
-      throw new Error(
-        `Unknown instruction plan kind: ${(transactionPlan as { kind: string }).kind}`
-      );
-  }
+  const next = async (
+    nextTransactionPlan: TransactionPlan
+  ): Promise<TransactionPlanResult> => {
+    switch (nextTransactionPlan.kind) {
+      case 'sequential':
+        return await traverseSequential(nextTransactionPlan, context);
+      case 'parallel':
+        return await traverseParallel(nextTransactionPlan, context);
+      case 'single':
+        return await traverseSingle(nextTransactionPlan, context);
+      default:
+        nextTransactionPlan satisfies never;
+        throw new Error(
+          `Unknown instruction plan kind: ${(nextTransactionPlan as { kind: string }).kind}`
+        );
+    }
+  };
+
+  return await context.wrapInTransformer(transactionPlan, next);
 }
 
 async function traverseSequential(
