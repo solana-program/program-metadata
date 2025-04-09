@@ -12,9 +12,15 @@ import {
 import {
   appendTransactionMessageInstruction,
   BaseTransactionMessage,
+  CompilableTransactionMessage,
+  getComputeUnitEstimateForTransactionMessageFactory,
   getU32Decoder,
   IInstruction,
+  ITransactionMessageWithFeePayer,
   offsetDecoder,
+  Rpc,
+  SimulateTransactionApi,
+  TransactionMessage,
 } from '@solana/kit';
 
 // Setting it to zero ensures the transaction fails unless it is properly estimated.
@@ -33,25 +39,54 @@ export function fillProvisorySetComputeUnitLimitInstruction<
   );
 }
 
-export function updateOrAppendSetComputeUnitLimitInstruction<
+export async function estimateAndUpdateProvisorySetComputeUnitLimitInstruction(
+  rpc: Rpc<SimulateTransactionApi>,
+  transactionMessage:
+    | CompilableTransactionMessage
+    | (ITransactionMessageWithFeePayer & TransactionMessage)
+) {
+  const getComputeUnitEstimateForTransactionMessage =
+    getComputeUnitEstimateForTransactionMessageFactory({ rpc });
+
+  const instructionDetails =
+    getSetComputeUnitLimitInstructionIndexAndUnits(transactionMessage);
+
+  // If the transaction message already has a compute unit limit instruction
+  // which is set to a specific value — i.e. not 0 or the maximum limit —
+  // we don't need to estimate the compute unit limit.
+  if (
+    instructionDetails &&
+    instructionDetails.units !== PROVISORY_COMPUTE_UNIT_LIMIT &&
+    instructionDetails.units !== MAX_COMPUTE_UNIT_LIMIT
+  ) {
+    return transactionMessage;
+  }
+
+  const units =
+    await getComputeUnitEstimateForTransactionMessage(transactionMessage);
+  return updateOrAppendSetComputeUnitLimitInstruction(
+    () => units,
+    transactionMessage
+  );
+}
+
+function updateOrAppendSetComputeUnitLimitInstruction<
   TTransactionMessage extends BaseTransactionMessage,
 >(
   getUnits: (previousUnits: number | null) => number,
   transactionMessage: TTransactionMessage
 ): TTransactionMessage {
-  const instructionIndex =
-    getSetComputeUnitLimitInstructionIndex(transactionMessage);
+  const instructionDetails =
+    getSetComputeUnitLimitInstructionIndexAndUnits(transactionMessage);
 
-  if (instructionIndex === -1) {
+  if (!instructionDetails) {
     return appendTransactionMessageInstruction(
       getSetComputeUnitLimitInstruction({ units: getUnits(null) }),
       transactionMessage
     );
   }
 
-  const previousUnits = getUnitsFromSetComputeUnitLimitInstruction(
-    transactionMessage.instructions[instructionIndex]
-  );
+  const { index, units: previousUnits } = instructionDetails;
   const units = getUnits(previousUnits);
   if (units === previousUnits) {
     return transactionMessage;
@@ -59,11 +94,26 @@ export function updateOrAppendSetComputeUnitLimitInstruction<
 
   const nextInstruction = getSetComputeUnitLimitInstruction({ units });
   const nextInstructions = [...transactionMessage.instructions];
-  nextInstructions.splice(instructionIndex, 1, nextInstruction);
+  nextInstructions.splice(index, 1, nextInstruction);
   return { ...transactionMessage, instructions: nextInstructions };
 }
 
-export function getSetComputeUnitLimitInstructionIndex(
+function getSetComputeUnitLimitInstructionIndexAndUnits(
+  transactionMessage: BaseTransactionMessage
+): { index: number; units: number } | null {
+  const index = getSetComputeUnitLimitInstructionIndex(transactionMessage);
+  if (index < 0) {
+    return null;
+  }
+
+  const units = getSetComputeUnitLimitInstructionUnits(
+    transactionMessage.instructions[index]
+  );
+
+  return { index, units };
+}
+
+function getSetComputeUnitLimitInstructionIndex(
   transactionMessage: BaseTransactionMessage
 ) {
   return transactionMessage.instructions.findIndex((ix) => {
@@ -75,9 +125,7 @@ export function getSetComputeUnitLimitInstructionIndex(
   });
 }
 
-export function getUnitsFromSetComputeUnitLimitInstruction(
-  instruction: IInstruction
-) {
+function getSetComputeUnitLimitInstructionUnits(instruction: IInstruction) {
   const unitsDecoder = offsetDecoder(getU32Decoder(), {
     preOffset: ({ preOffset }) => preOffset + 1,
   });
