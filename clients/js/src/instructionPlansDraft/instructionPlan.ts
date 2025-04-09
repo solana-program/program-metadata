@@ -1,6 +1,6 @@
 import {
   appendTransactionMessageInstruction,
-  BaseTransactionMessage,
+  CompilableTransactionMessage,
   IInstruction,
 } from '@solana/kit';
 import {
@@ -48,7 +48,9 @@ export type InstructionIterator<
   /** Checks whether there are more instructions to retrieve. */
   hasNext: () => boolean;
   /** Get the next instruction for the given transaction message or return `null` if not possible. */
-  next: (transactionMessage: BaseTransactionMessage) => TInstruction | null;
+  next: (
+    transactionMessage: CompilableTransactionMessage
+  ) => TInstruction | null;
 }>;
 
 export function getLinearIterableInstructionPlan({
@@ -65,7 +67,7 @@ export function getLinearIterableInstructionPlan({
       let offset = 0;
       return {
         hasNext: () => offset < totalBytes,
-        next: (tx: BaseTransactionMessage) => {
+        next: (tx: CompilableTransactionMessage) => {
           const baseTransactionSize = getTransactionSize(
             appendTransactionMessageInstruction(getInstruction(offset, 0), tx)
           );
@@ -98,7 +100,7 @@ export function getIterableInstructionPlanFromInstructions<
       let instructionIndex = 0;
       return {
         hasNext: () => instructionIndex < instructions.length,
-        next: (tx: BaseTransactionMessage) => {
+        next: (tx: CompilableTransactionMessage) => {
           if (instructionIndex >= instructions.length) {
             return null;
           }

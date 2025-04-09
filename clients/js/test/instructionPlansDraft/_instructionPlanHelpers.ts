@@ -1,7 +1,7 @@
 import {
   Address,
   appendTransactionMessageInstruction,
-  BaseTransactionMessage,
+  CompilableTransactionMessage,
   fixEncoderSize,
   getAddressDecoder,
   getU64Encoder,
@@ -66,7 +66,7 @@ export function instructionIteratorFactory() {
         let offset = 0;
         return {
           hasNext: () => offset < totalBytes,
-          next: (tx: BaseTransactionMessage) => {
+          next: (tx) => {
             const baseTransactionSize = getTransactionSize(
               appendTransactionMessageInstruction(baseInstruction, tx)
             );
@@ -121,10 +121,10 @@ export function instructionFactory(baseCounter: bigint = 0n) {
 }
 
 export function transactionPercentFactory(
-  defaultMessage?: () => BaseTransactionMessage
+  createTransactionMessage?: () => CompilableTransactionMessage
 ) {
-  const minimumTransactionSize = defaultMessage
-    ? getTransactionSize(defaultMessage())
+  const minimumTransactionSize = createTransactionMessage
+    ? getTransactionSize(createTransactionMessage())
     : MINIMUM_TRANSACTION_SIZE;
   return (percent: number) => {
     return Math.floor(
