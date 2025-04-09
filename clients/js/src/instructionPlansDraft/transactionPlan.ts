@@ -1,4 +1,4 @@
-import { BaseTransactionMessage } from '@solana/kit';
+import { CompilableTransactionMessage } from '@solana/kit';
 
 export type TransactionPlan =
   | SequentialTransactionPlan
@@ -17,7 +17,8 @@ export type ParallelTransactionPlan = Readonly<{
 }>;
 
 export type SingleTransactionPlan<
-  TTransactionMessage extends BaseTransactionMessage = BaseTransactionMessage,
+  TTransactionMessage extends
+    CompilableTransactionMessage = CompilableTransactionMessage,
 > = Readonly<{
   kind: 'single';
   message: TTransactionMessage;

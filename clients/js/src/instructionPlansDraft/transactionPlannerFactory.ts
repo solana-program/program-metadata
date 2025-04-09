@@ -1,9 +1,7 @@
 import {
   appendTransactionMessageInstructions,
-  BaseTransactionMessage,
-  createTransactionMessage,
+  CompilableTransactionMessage,
   IInstruction,
-  TransactionVersion,
 } from '@solana/kit';
 import {
   InstructionIterator,
@@ -26,37 +24,27 @@ import {
 import { TransactionPlanner } from './transactionPlanner';
 
 export type TransactionPlannerFactory = (
-  configs?: TransactionPlannerFactoryConfig
+  configs: TransactionPlannerFactoryConfig
 ) => TransactionPlanner;
 
-type TransactionMessageTransformer = <
-  TTransactionMessage extends BaseTransactionMessage,
->(
-  transactionMessage: TTransactionMessage
-) => Promise<TTransactionMessage>;
-
 export type TransactionPlannerFactoryConfig = {
-  newTransactionTransformer?: TransactionMessageTransformer;
-  newInstructionsTransformer?: TransactionMessageTransformer;
+  createTransactionMessage: () => Promise<CompilableTransactionMessage>;
+  newInstructionsTransformer?: <
+    TTransactionMessage extends CompilableTransactionMessage,
+  >(
+    transactionMessage: TTransactionMessage
+  ) => Promise<TTransactionMessage>;
 };
 
-export function createBaseTransactionPlannerFactory({
-  version,
-}: {
-  version: TransactionVersion;
-}): TransactionPlannerFactory {
+export function createBaseTransactionPlannerFactory(): TransactionPlannerFactory {
   return (config) => {
     const createSingleTransactionPlan = async (
       instructions: IInstruction[] = []
     ): Promise<SingleTransactionPlan> => {
       const plan: SingleTransactionPlan = {
         kind: 'single',
-        message: createTransactionMessage({ version }),
+        message: await config.createTransactionMessage(),
       };
-      if (config?.newTransactionTransformer) {
-        (plan as Mutable<SingleTransactionPlan>).message =
-          await config.newTransactionTransformer(plan.message);
-      }
       if (instructions.length > 0) {
         await addInstructionsToSingleTransactionPlan(plan, instructions);
       }
@@ -354,6 +342,8 @@ function isValidCandidate(
   return getRemainingTransactionSize(message) >= 0;
 }
 
-export function getRemainingTransactionSize(message: BaseTransactionMessage) {
+export function getRemainingTransactionSize(
+  message: CompilableTransactionMessage
+) {
   return TRANSACTION_SIZE_LIMIT - getTransactionSize(message);
 }

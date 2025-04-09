@@ -9,19 +9,32 @@ import {
   transactionPercentFactory,
 } from './_instructionPlanHelpers';
 import {
+  getMockCreateTransactionMessage,
   nonDivisibleSequentialTransactionPlan,
   parallelTransactionPlan,
   sequentialTransactionPlan,
   singleTransactionPlanFactory,
 } from './_transactionPlanHelpers';
 import { createBaseTransactionPlannerFactory } from '../../src';
+import { CompilableTransactionMessage } from '@solana/kit';
 
-function defaultFactories() {
+function defaultFactories(
+  createTransactionMessage?: () => CompilableTransactionMessage
+) {
+  const effectiveCreateTransactionMessage =
+    createTransactionMessage ?? getMockCreateTransactionMessage;
   return {
+    createPlanner: () =>
+      createBaseTransactionPlannerFactory()({
+        createTransactionMessage: () =>
+          Promise.resolve(effectiveCreateTransactionMessage()),
+      }),
     instruction: instructionFactory(),
     iterator: instructionIteratorFactory(),
-    txPercent: transactionPercentFactory(),
-    singleTransactionPlan: singleTransactionPlanFactory(),
+    txPercent: transactionPercentFactory(effectiveCreateTransactionMessage),
+    singleTransactionPlan: singleTransactionPlanFactory(
+      effectiveCreateTransactionMessage
+    ),
   };
 }
 
@@ -29,8 +42,9 @@ function defaultFactories() {
  *  [A: 42] ───────────────────▶ [Tx: A]
  */
 test('it plans a single instruction', async (t) => {
-  const { instruction, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(42);
 
@@ -47,8 +61,9 @@ test('it plans a single instruction', async (t) => {
  *   └── [B: 50%]
  */
 test('it plans a sequential plan with instructions that all fit in a single transaction', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -72,8 +87,9 @@ test('it plans a sequential plan with instructions that all fit in a single tran
  *   └── [C: 50%]
  */
 test('it plans a sequential plan with instructions that must be split accross multiple transactions (v1)', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -102,8 +118,9 @@ test('it plans a sequential plan with instructions that must be split accross mu
  *   └── [C: 50%]
  */
 test('it plans a sequential plan with instructions that must be split accross multiple transactions (v2)', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(60)); // Tx A cannot have Ix B.
   const instructionB = instruction(txPercent(50));
@@ -133,8 +150,9 @@ test('it plans a sequential plan with instructions that must be split accross mu
  *        └── [B: 50%]
  */
 test('it simplifies sequential plans with one child or less', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -160,8 +178,9 @@ test('it simplifies sequential plans with one child or less', async (t) => {
  *        └── [C: 100%]
  */
 test('it simplifies nested sequential plans', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(100));
   const instructionB = instruction(txPercent(100));
@@ -192,8 +211,9 @@ test('it simplifies nested sequential plans', async (t) => {
  *   └── [B: 50%]
  */
 test('it plans a parallel plan with instructions that all fit in a single transaction', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -217,8 +237,9 @@ test('it plans a parallel plan with instructions that all fit in a single transa
  *   └── [C: 50%]
  */
 test('it plans a parallel plan with instructions that must be split accross multiple transactions (v1)', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -247,8 +268,9 @@ test('it plans a parallel plan with instructions that must be split accross mult
  *   └── [C: 50%]
  */
 test('it plans a parallel plan with instructions that must be split accross multiple transactions (v2)', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(60)); // Tx A cannot have Ix B.
   const instructionB = instruction(txPercent(50));
@@ -278,8 +300,9 @@ test('it plans a parallel plan with instructions that must be split accross mult
  *        └── [B: 50%]
  */
 test('it simplifies parallel plans with one child or less', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -305,8 +328,9 @@ test('it simplifies parallel plans with one child or less', async (t) => {
  *        └── [C: 100%]
  */
 test('it simplifies nested parallel plans', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(100));
   const instructionB = instruction(txPercent(100));
@@ -340,8 +364,9 @@ test('it simplifies nested parallel plans', async (t) => {
  *   └── [D: 25%]
  */
 test('it re-uses previous parallel transactions if there is space', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(25));
@@ -377,8 +402,9 @@ test('it re-uses previous parallel transactions if there is space', async (t) =>
  *        └── [D: 25%]
  */
 test('it can merge sequential plans in a parallel plan if the whole sequential plan fits', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(25));
   const instructionB = instruction(txPercent(25));
@@ -418,8 +444,9 @@ test('it can merge sequential plans in a parallel plan if the whole sequential p
  *        └── [D: 33%]
  */
 test('it does not split a sequential plan on a parallel parent', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(33));
   const instructionB = instruction(txPercent(33));
@@ -457,8 +484,9 @@ test('it does not split a sequential plan on a parallel parent', async (t) => {
  *        └── [D: 33%]
  */
 test('it can split parallel plans inside sequential plans as long as they follow the sequence', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(33));
   const instructionB = instruction(txPercent(33));
@@ -499,8 +527,9 @@ test('it can split parallel plans inside sequential plans as long as they follow
  *         └── [F: 33%]
  */
 test('it cannnot split a parallel plan in a sequential plan if that would break the sequence', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(33));
   const instructionB = instruction(txPercent(33));
@@ -541,8 +570,9 @@ test('it cannnot split a parallel plan in a sequential plan if that would break 
  *   └── [B: 50%]
  */
 test('it plans an non-divisible sequential plan with instructions that all fit in a single transaction', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -566,8 +596,9 @@ test('it plans an non-divisible sequential plan with instructions that all fit i
  *   └── [C: 50%]
  */
 test('it plans a non-divisible sequential plan with instructions that must be split accross multiple transactions (v1)', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -596,8 +627,9 @@ test('it plans a non-divisible sequential plan with instructions that must be sp
  *   └── [C: 50%]
  */
 test('it plans a non-divisible sequential plan with instructions that must be split accross multiple transactions (v2)', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(60)); // Tx A cannot have Ix B.
   const instructionB = instruction(txPercent(50));
@@ -627,8 +659,9 @@ test('it plans a non-divisible sequential plan with instructions that must be sp
  *        └── [B: 50%]
  */
 test('it simplifies non-divisible sequential plans with one child or less', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -656,8 +689,9 @@ test('it simplifies non-divisible sequential plans with one child or less', asyn
  *        └── [C: 100%]
  */
 test('it simplifies nested non-divisible sequential plans', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(100));
   const instructionB = instruction(txPercent(100));
@@ -690,8 +724,9 @@ test('it simplifies nested non-divisible sequential plans', async (t) => {
  *        └── [C: 100%]
  */
 test('it simplifies divisible sequential plans inside non-divisible sequential plans', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(100));
   const instructionB = instruction(txPercent(100));
@@ -724,8 +759,9 @@ test('it simplifies divisible sequential plans inside non-divisible sequential p
  *        └── [C: 100%]                 └── [Tx: C]
  */
 test('it does not simplify non-divisible sequential plans inside divisible sequential plans', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(100));
   const instructionB = instruction(txPercent(100));
@@ -762,8 +798,9 @@ test('it does not simplify non-divisible sequential plans inside divisible seque
  *        └── [D: 25%]
  */
 test('it can merge non-divisible sequential plans in a parallel plan if the whole sequential plan fits', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(25));
   const instructionB = instruction(txPercent(25));
@@ -803,8 +840,9 @@ test('it can merge non-divisible sequential plans in a parallel plan if the whol
  *        └── [D: 33%]
  */
 test('it does not split a non-divisible sequential plan on a parallel parent', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(33));
   const instructionB = instruction(txPercent(33));
@@ -842,8 +880,9 @@ test('it does not split a non-divisible sequential plan on a parallel parent', a
  *        └── [D: 25%]
  */
 test('it can merge non-divisible sequential plans in a sequential plan if the whole plan fits', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(25));
   const instructionB = instruction(txPercent(25));
@@ -883,8 +922,9 @@ test('it can merge non-divisible sequential plans in a sequential plan if the wh
  *        └── [D: 33%]
  */
 test('it does not split a non-divisible sequential plan on a sequential parent', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(33));
   const instructionB = instruction(txPercent(33));
@@ -922,8 +962,9 @@ test('it does not split a non-divisible sequential plan on a sequential parent',
  *        └── [D: 100%]
  */
 test('it plans non-divisible sequentials plans with parallel children', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -964,8 +1005,9 @@ test('it plans non-divisible sequentials plans with parallel children', async (t
  *        └── [D: 100%]
  */
 test('it plans non-divisible sequentials plans with divisible sequential children', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const instructionB = instruction(txPercent(50));
@@ -1001,8 +1043,9 @@ test('it plans non-divisible sequentials plans with divisible sequential childre
  *                               └── [Tx: A(3, 50%)]
  */
 test('it iterate over iterable instruction plans', async (t) => {
-  const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, txPercent, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const iteratorIx = iterator(txPercent(250));
 
@@ -1023,9 +1066,14 @@ test('it iterate over iterable instruction plans', async (t) => {
  *   └── [B(x, 50%)]
  */
 test('it combines single instruction plans with iterable instruction plans', async (t) => {
-  const { txPercent, iterator, instruction, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    txPercent,
+    iterator,
+    instruction,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
   const iteratorB = iterator(txPercent(50));
@@ -1049,8 +1097,9 @@ test('it combines single instruction plans with iterable instruction plans', asy
  *                               └── [Tx: A(3, 50%)]
  */
 test('it can handle parallel iterable instruction plans', async (t) => {
-  const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, txPercent, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const iteratorA = iterator(txPercent(250));
 
@@ -1072,8 +1121,9 @@ test('it can handle parallel iterable instruction plans', async (t) => {
  *                               └── [Tx: A(3, 50%)]
  */
 test('it can handle non-divisible sequential iterable instruction plans', async (t) => {
-  const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, txPercent, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const iteratorA = iterator(txPercent(250));
 
@@ -1091,8 +1141,9 @@ test('it can handle non-divisible sequential iterable instruction plans', async 
  *  [A(x, 100%)] ─────────────▶ [Tx: A(1, 100%)]
  */
 test('it simplifies iterable instruction plans that fit in a single transaction', async (t) => {
-  const { txPercent, iterator, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, txPercent, iterator, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const iteratorA = iterator(txPercent(100));
 
@@ -1110,9 +1161,14 @@ test('it simplifies iterable instruction plans that fit in a single transaction'
  *   └── [C(x, 125%)]             └── [Tx: C(3, 50%)]
  */
 test('it uses iterable instruction plans to fill gaps in parallel candidates', async (t) => {
-  const { txPercent, instruction, iterator, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    txPercent,
+    instruction,
+    iterator,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(75));
   const instructionB = instruction(txPercent(50));
@@ -1142,9 +1198,14 @@ test('it uses iterable instruction plans to fill gaps in parallel candidates', a
  *   └── [B: 75%]                 └── [Tx: A(3, 50%)]
  */
 test('it handles parallel iterable instruction plans last to fill gaps in previous parallel candidates', async (t) => {
-  const { txPercent, instruction, iterator, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    txPercent,
+    instruction,
+    iterator,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const iteratorA = iterator(txPercent(25) + txPercent(50) + txPercent(50)); // 125%
   const instructionB = instruction(txPercent(75));
@@ -1174,9 +1235,14 @@ test('it handles parallel iterable instruction plans last to fill gaps in previo
  *   └── [C: 50%]
  */
 test('it uses iterable instruction plans to fill gaps in sequential candidates', async (t) => {
-  const { txPercent, instruction, iterator, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    txPercent,
+    instruction,
+    iterator,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(75));
   const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
@@ -1205,9 +1271,14 @@ test('it uses iterable instruction plans to fill gaps in sequential candidates',
  *   └── [C: 50%]
  */
 test('it uses iterable instruction plans to fill gaps in non-divisible sequential candidates', async (t) => {
-  const { txPercent, instruction, iterator, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    txPercent,
+    instruction,
+    iterator,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(75));
   const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
@@ -1237,9 +1308,14 @@ test('it uses iterable instruction plans to fill gaps in non-divisible sequentia
  *        └── [C: 50%]
  */
 test('it uses parallel iterable instruction plans to fill gaps in sequential candidates', async (t) => {
-  const { txPercent, instruction, iterator, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    txPercent,
+    instruction,
+    iterator,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(75));
   const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
@@ -1271,9 +1347,14 @@ test('it uses parallel iterable instruction plans to fill gaps in sequential can
  *        └── [C: 25%]
  */
 test('it uses the whole sequential iterable instruction plan when it fits in the parent parallel candidate', async (t) => {
-  const { txPercent, instruction, iterator, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    txPercent,
+    instruction,
+    iterator,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(25));
   const iteratorB = iterator(txPercent(50));
@@ -1306,9 +1387,14 @@ test('it uses the whole sequential iterable instruction plan when it fits in the
  *        └── [C: 25%]
  */
 test('it uses the whole non-divisible sequential iterable instruction plan when it fits in the parent sequential candidate', async (t) => {
-  const { txPercent, instruction, iterator, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    txPercent,
+    instruction,
+    iterator,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(25));
   const iteratorB = iterator(txPercent(50));
@@ -1348,8 +1434,9 @@ test('it uses the whole non-divisible sequential iterable instruction plan when 
  *   └── [G: 25%]
  */
 test('complex example 1', async (t) => {
-  const { instruction, txPercent, singleTransactionPlan } = defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(40));
   const instructionB = instruction(txPercent(40));
@@ -1408,9 +1495,14 @@ test('complex example 1', async (t) => {
  *   └── [G: 50%]
  */
 test('complex example 2', async (t) => {
-  const { instruction, iterator, txPercent, singleTransactionPlan } =
-    defaultFactories();
-  const planner = createBaseTransactionPlannerFactory({ version: 0 })();
+  const {
+    createPlanner,
+    instruction,
+    iterator,
+    txPercent,
+    singleTransactionPlan,
+  } = defaultFactories();
+  const planner = createPlanner();
 
   const instructionA = instruction(txPercent(20));
   const instructionB = instruction(txPercent(20));

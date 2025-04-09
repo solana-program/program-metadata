@@ -1,14 +1,19 @@
 import {
+  Address,
   appendTransactionMessageInstructions,
-  BaseTransactionMessage,
-  createTransactionMessage,
+  Blockhash,
+  CompilableTransactionMessage,
   IInstruction,
+  createTransactionMessage as kitCreateTransactionMessage,
+  pipe,
+  setTransactionMessageFeePayer,
+  setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
 import {
-  TransactionPlan,
   ParallelTransactionPlan,
   SequentialTransactionPlan,
   SingleTransactionPlan,
+  TransactionPlan,
 } from '../../src';
 
 export function parallelTransactionPlan(
@@ -29,17 +34,30 @@ export function nonDivisibleSequentialTransactionPlan(
   return { kind: 'sequential', divisible: false, plans };
 }
 
+const MOCK_FEE_PAYER =
+  'Gm1uVH3JxiLgafByNNmnoxLncB7ytpyWNqX3kRM9tSxN' as Address;
+const MOCK_BLOCKHASH = {
+  blockhash: '11111111111111111111111111111111' as Blockhash,
+  lastValidBlockHeight: 0n,
+} as const;
+
+export const getMockCreateTransactionMessage = () => {
+  return pipe(
+    kitCreateTransactionMessage({ version: 0 }),
+    (tx) => setTransactionMessageLifetimeUsingBlockhash(MOCK_BLOCKHASH, tx),
+    (tx) => setTransactionMessageFeePayer(MOCK_FEE_PAYER, tx)
+  );
+};
+
 export function singleTransactionPlanFactory(
-  defaultMessage?: () => BaseTransactionMessage
+  createTransactionMessage?: () => CompilableTransactionMessage
 ) {
-  const defaultMessageFn =
-    defaultMessage ?? (() => createTransactionMessage({ version: 0 }));
   return (instructions: IInstruction[]): SingleTransactionPlan => {
     return {
       kind: 'single',
       message: appendTransactionMessageInstructions(
         instructions,
-        defaultMessageFn()
+        (createTransactionMessage ?? getMockCreateTransactionMessage)()
       ),
     };
   };

@@ -29,23 +29,20 @@ import {
   TransactionPlan,
 } from './transactionPlan';
 import { getTimedCacheFunction, Mutable } from './internal';
-import {
-  TransactionPlannerFactory,
-  TransactionPlannerFactoryConfig,
-} from './transactionPlannerFactory';
+import { TransactionPlannerFactory } from './transactionPlannerFactory';
 
 function transformTransactionPlannerNewMessage(
-  transformer: Required<TransactionPlannerFactoryConfig>['newTransactionTransformer'],
+  transformer: <TTransactionMessage extends CompilableTransactionMessage>(
+    transactionMessage: TTransactionMessage
+  ) => Promise<TTransactionMessage>,
   plannerFactory: TransactionPlannerFactory
 ): TransactionPlannerFactory {
   return (config) => {
     return plannerFactory({
       ...config,
-      newTransactionTransformer: async (tx) => {
-        const transformedTx = await transformer(tx);
-        return config?.newTransactionTransformer
-          ? await config.newTransactionTransformer(transformedTx)
-          : transformedTx;
+      createTransactionMessage: async () => {
+        const tx = await config.createTransactionMessage();
+        return await transformer(tx);
       },
     });
   };
@@ -177,7 +174,7 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
         const instructionIndex = getComputeUnitLimitInstructionIndex(
           singlePlan.message
         );
-        const newMessage =
+        const newMessage: CompilableTransactionMessage =
           instructionIndex === -1
             ? prependTransactionMessageInstruction(
                 getSetComputeUnitLimitInstruction({
@@ -185,7 +182,7 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
                 }),
                 singlePlan.message
               )
-            : {
+            : ({
                 ...singlePlan.message,
                 instructions: [
                   ...singlePlan.message.instructions.slice(0, instructionIndex),
@@ -196,7 +193,7 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
                     instructionIndex + 1
                   ),
                 ],
-              };
+              } as CompilableTransactionMessage);
         (singlePlan as Mutable<SingleTransactionPlan>).message = newMessage;
       }
     );
