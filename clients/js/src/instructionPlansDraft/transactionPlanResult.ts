@@ -1,4 +1,8 @@
-import { BaseTransactionMessage, Signature, SolanaError } from '@solana/kit';
+import {
+  CompilableTransactionMessage,
+  SolanaError,
+  Transaction,
+} from '@solana/kit';
 
 export type TransactionPlanResult<TContext extends object = object> =
   | SequentialTransactionPlanResult<TContext>
@@ -19,16 +23,16 @@ export type ParallelTransactionPlanResult<TContext extends object = object> =
 
 export type SingleTransactionPlanResult<
   TContext extends object = object,
-  TTransactionMessage extends BaseTransactionMessage = BaseTransactionMessage,
+  TTransactionMessage extends
+    CompilableTransactionMessage = CompilableTransactionMessage,
 > = Readonly<{
-  context: TContext;
   kind: 'single';
   message: TTransactionMessage;
-  signature: Signature;
-  status: TransactionPlanResultStatus;
+  status: TransactionPlanResultStatus<TContext>;
 }>;
 
-export type TransactionPlanResultStatus =
-  | { kind: 'success' }
+export type TransactionPlanResultStatus<TContext extends object = object> =
+  | { kind: 'aborted' }
+  | { kind: 'canceled' }
   | { kind: 'error'; error: SolanaError }
-  | { kind: 'canceled' };
+  | { kind: 'success'; context: TContext; transaction: Transaction };
