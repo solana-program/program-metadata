@@ -5,14 +5,14 @@ import {
   TransactionSigner,
 } from '@solana/kit';
 import { TransactionPlanner } from './transactionPlanner';
-import { createBaseTransactionPlannerFactory } from './transactionPlannerFactory';
+import { createBaseTransactionPlanner } from './transactionPlannerBase';
 import { setTransactionMessageLifetimeUsingProvisoryBlockhash } from './transactionHelpers';
 import { fillProvisorySetComputeUnitLimitInstruction } from './computeBudgetHelpers';
 
 export function createDefaultTransactionPlanner(
   feePayer: TransactionSigner
 ): TransactionPlanner {
-  return createBaseTransactionPlannerFactory()({
+  return createBaseTransactionPlanner({
     createTransactionMessage: () =>
       pipe(
         kitCreateTransactionMessage({ version: 0 }),

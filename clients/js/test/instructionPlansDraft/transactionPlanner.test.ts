@@ -15,7 +15,7 @@ import {
   sequentialTransactionPlan,
   singleTransactionPlanFactory,
 } from './_transactionPlanHelpers';
-import { createBaseTransactionPlannerFactory } from '../../src';
+import { createBaseTransactionPlanner } from '../../src';
 import { CompilableTransactionMessage } from '@solana/kit';
 
 function defaultFactories(
@@ -25,9 +25,8 @@ function defaultFactories(
     createTransactionMessage ?? getMockCreateTransactionMessage;
   return {
     createPlanner: () =>
-      createBaseTransactionPlannerFactory()({
-        createTransactionMessage: () =>
-          Promise.resolve(effectiveCreateTransactionMessage()),
+      createBaseTransactionPlanner({
+        createTransactionMessage: effectiveCreateTransactionMessage,
       }),
     instruction: instructionFactory(),
     iterator: instructionIteratorFactory(),

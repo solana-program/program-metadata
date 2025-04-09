@@ -23,11 +23,8 @@ import {
 } from './transactionPlan';
 import { TransactionPlanner } from './transactionPlanner';
 
-export type TransactionPlannerFactory = (
-  configs: TransactionPlannerFactoryConfig
-) => TransactionPlanner;
-
-export type TransactionPlannerFactoryConfig = {
+export type TransactionPlannerConfig = {
+  abortSignal?: AbortSignal; // TODO
   createTransactionMessage: () =>
     | Promise<CompilableTransactionMessage>
     | CompilableTransactionMessage;
@@ -38,51 +35,51 @@ export type TransactionPlannerFactoryConfig = {
   ) => Promise<TTransactionMessage> | TTransactionMessage;
 };
 
-export function createBaseTransactionPlannerFactory(): TransactionPlannerFactory {
-  return (config) => {
-    const createSingleTransactionPlan = async (
-      instructions: IInstruction[] = []
-    ): Promise<SingleTransactionPlan> => {
-      const plan: SingleTransactionPlan = {
-        kind: 'single',
-        message: await Promise.resolve(config.createTransactionMessage()),
-      };
-      if (instructions.length > 0) {
-        await addInstructionsToSingleTransactionPlan(plan, instructions);
-      }
-      return plan;
+export function createBaseTransactionPlanner(
+  config: TransactionPlannerConfig
+): TransactionPlanner {
+  const createSingleTransactionPlan = async (
+    instructions: IInstruction[] = []
+  ): Promise<SingleTransactionPlan> => {
+    const plan: SingleTransactionPlan = {
+      kind: 'single',
+      message: await Promise.resolve(config.createTransactionMessage()),
     };
+    if (instructions.length > 0) {
+      await addInstructionsToSingleTransactionPlan(plan, instructions);
+    }
+    return plan;
+  };
 
-    const addInstructionsToSingleTransactionPlan = async (
-      plan: SingleTransactionPlan,
-      instructions: IInstruction[]
-    ): Promise<void> => {
-      let message = appendTransactionMessageInstructions(
-        instructions,
-        plan.message
+  const addInstructionsToSingleTransactionPlan = async (
+    plan: SingleTransactionPlan,
+    instructions: IInstruction[]
+  ): Promise<void> => {
+    let message = appendTransactionMessageInstructions(
+      instructions,
+      plan.message
+    );
+    if (config?.newInstructionsTransformer) {
+      message = await Promise.resolve(
+        config.newInstructionsTransformer(plan.message)
       );
-      if (config?.newInstructionsTransformer) {
-        message = await Promise.resolve(
-          config.newInstructionsTransformer(plan.message)
-        );
-      }
-      (plan as Mutable<SingleTransactionPlan>).message = message;
-    };
+    }
+    (plan as Mutable<SingleTransactionPlan>).message = message;
+  };
 
-    return async (originalInstructionPlan): Promise<TransactionPlan> => {
-      const plan = await traverse(originalInstructionPlan, {
-        parent: null,
-        parentCandidates: [],
-        createSingleTransactionPlan,
-        addInstructionsToSingleTransactionPlan,
-      });
+  return async (originalInstructionPlan): Promise<TransactionPlan> => {
+    const plan = await traverse(originalInstructionPlan, {
+      parent: null,
+      parentCandidates: [],
+      createSingleTransactionPlan,
+      addInstructionsToSingleTransactionPlan,
+    });
 
-      if (!plan) {
-        throw new Error('No instructions were found in the instruction plan.');
-      }
+    if (!plan) {
+      throw new Error('No instructions were found in the instruction plan.');
+    }
 
-      return plan;
-    };
+    return plan;
   };
 }
 
