@@ -28,12 +28,14 @@ export type TransactionPlannerFactory = (
 ) => TransactionPlanner;
 
 export type TransactionPlannerFactoryConfig = {
-  createTransactionMessage: () => Promise<CompilableTransactionMessage>;
+  createTransactionMessage: () =>
+    | Promise<CompilableTransactionMessage>
+    | CompilableTransactionMessage;
   newInstructionsTransformer?: <
     TTransactionMessage extends CompilableTransactionMessage,
   >(
     transactionMessage: TTransactionMessage
-  ) => Promise<TTransactionMessage>;
+  ) => Promise<TTransactionMessage> | TTransactionMessage;
 };
 
 export function createBaseTransactionPlannerFactory(): TransactionPlannerFactory {
@@ -43,7 +45,7 @@ export function createBaseTransactionPlannerFactory(): TransactionPlannerFactory
     ): Promise<SingleTransactionPlan> => {
       const plan: SingleTransactionPlan = {
         kind: 'single',
-        message: await config.createTransactionMessage(),
+        message: await Promise.resolve(config.createTransactionMessage()),
       };
       if (instructions.length > 0) {
         await addInstructionsToSingleTransactionPlan(plan, instructions);
@@ -60,7 +62,9 @@ export function createBaseTransactionPlannerFactory(): TransactionPlannerFactory
         plan.message
       );
       if (config?.newInstructionsTransformer) {
-        message = await config.newInstructionsTransformer(plan.message);
+        message = await Promise.resolve(
+          config.newInstructionsTransformer(plan.message)
+        );
       }
       (plan as Mutable<SingleTransactionPlan>).message = message;
     };

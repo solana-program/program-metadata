@@ -1,7 +1,12 @@
 import {
+  COMPUTE_BUDGET_PROGRAM_ADDRESS,
+  ComputeBudgetInstruction,
+  getSetComputeUnitLimitInstruction,
+  identifyComputeBudgetInstruction,
+} from '@solana-program/compute-budget';
+import {
   Address,
   appendTransactionMessageInstructions,
-  BaseTransactionMessage,
   CompilableTransactionMessage,
   getComputeUnitEstimateForTransactionMessageFactory,
   GetLatestBlockhashApi,
@@ -17,32 +22,26 @@ import {
   SimulateTransactionApi,
   TransactionSigner,
 } from '@solana/kit';
-import {
-  COMPUTE_BUDGET_PROGRAM_ADDRESS,
-  ComputeBudgetInstruction,
-  getSetComputeUnitLimitInstruction,
-  identifyComputeBudgetInstruction,
-} from '@solana-program/compute-budget';
+import { getTimedCacheFunction, Mutable } from './internal';
 import {
   getAllSingleTransactionPlans,
   SingleTransactionPlan,
   TransactionPlan,
 } from './transactionPlan';
-import { getTimedCacheFunction, Mutable } from './internal';
 import { TransactionPlannerFactory } from './transactionPlannerFactory';
 
 function transformTransactionPlannerNewMessage(
   transformer: <TTransactionMessage extends CompilableTransactionMessage>(
     transactionMessage: TTransactionMessage
-  ) => Promise<TTransactionMessage>,
+  ) => Promise<TTransactionMessage> | TTransactionMessage,
   plannerFactory: TransactionPlannerFactory
 ): TransactionPlannerFactory {
   return (config) => {
     return plannerFactory({
       ...config,
       createTransactionMessage: async () => {
-        const tx = await config.createTransactionMessage();
-        return await transformer(tx);
+        const tx = await Promise.resolve(config.createTransactionMessage());
+        return await Promise.resolve(transformer(tx));
       },
     });
   };
@@ -64,8 +63,7 @@ export function prependTransactionPlannerInstructions(
   plannerFactory: TransactionPlannerFactory
 ): TransactionPlannerFactory {
   return transformTransactionPlannerNewMessage(
-    (tx) =>
-      Promise.resolve(prependTransactionMessageInstructions(instructions, tx)),
+    (tx) => prependTransactionMessageInstructions(instructions, tx),
     plannerFactory
   );
 }
@@ -75,8 +73,7 @@ export function appendTransactionPlannerInstructions(
   plannerFactory: TransactionPlannerFactory
 ): TransactionPlannerFactory {
   return transformTransactionPlannerNewMessage(
-    (tx) =>
-      Promise.resolve(appendTransactionMessageInstructions(instructions, tx)),
+    (tx) => appendTransactionMessageInstructions(instructions, tx),
     plannerFactory
   );
 }
@@ -86,13 +83,11 @@ export function setTransactionPlannerFeePayer(
   plannerFactory: TransactionPlannerFactory
 ): TransactionPlannerFactory {
   return transformTransactionPlannerNewMessage(
-    <TTransactionMessage extends BaseTransactionMessage>(
+    <TTransactionMessage extends CompilableTransactionMessage>(
       tx: TTransactionMessage
     ) =>
-      Promise.resolve(
-        setTransactionMessageFeePayer(feePayer, tx) as TTransactionMessage &
-          ITransactionMessageWithFeePayer
-      ),
+      setTransactionMessageFeePayer(feePayer, tx) as TTransactionMessage &
+        ITransactionMessageWithFeePayer,
     plannerFactory
   );
 }
@@ -102,15 +97,13 @@ export function setTransactionPlannerFeePayerSigner(
   plannerFactory: TransactionPlannerFactory
 ): TransactionPlannerFactory {
   return transformTransactionPlannerNewMessage(
-    <TTransactionMessage extends BaseTransactionMessage>(
+    <TTransactionMessage extends CompilableTransactionMessage>(
       tx: TTransactionMessage
     ) =>
-      Promise.resolve(
-        setTransactionMessageFeePayerSigner(
-          feePayerSigner,
-          tx
-        ) as TTransactionMessage & ITransactionMessageWithFeePayerSigner
-      ),
+      setTransactionMessageFeePayerSigner(
+        feePayerSigner,
+        tx
+      ) as TTransactionMessage & ITransactionMessageWithFeePayerSigner,
     plannerFactory
   );
 }
@@ -151,14 +144,12 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
   const plannerWithComputeBudgetLimits = transformTransactionPlannerNewMessage(
     (tx) => {
       if (getComputeUnitLimitInstructionIndex(tx) >= 0) {
-        return Promise.resolve(tx);
+        return tx;
       }
 
-      return Promise.resolve(
-        prependTransactionMessageInstruction(
-          getSetComputeUnitLimitInstruction({ units: MAX_COMPUTE_UNIT_LIMIT }),
-          tx
-        )
+      return prependTransactionMessageInstruction(
+        getSetComputeUnitLimitInstruction({ units: MAX_COMPUTE_UNIT_LIMIT }),
+        tx
       );
     },
     plannerFactory
@@ -217,7 +208,7 @@ export function estimateAndSetComputeUnitLimitForTransactionPlanner(
 }
 
 function getComputeUnitLimitInstructionIndex(
-  transactionMessage: BaseTransactionMessage
+  transactionMessage: CompilableTransactionMessage
 ) {
   return transactionMessage.instructions.findIndex((ix) => {
     return (
