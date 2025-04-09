@@ -3,8 +3,7 @@ import {
   Rpc,
   setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
-import { getTimedCacheFunction, Mutable } from './internal';
-import { SingleTransactionPlan } from './transactionPlan';
+import { getTimedCacheFunction } from './internal';
 import {
   TransactionPlanExecutorFactory,
   TransactionPlanExecutorFactoryConfig,
@@ -47,12 +46,13 @@ export function refreshBlockhashForTransactionPlanExecutor(
         return await next(transactionPlan);
       }
 
-      (transactionPlan as Mutable<SingleTransactionPlan>).message =
-        setTransactionMessageLifetimeUsingBlockhash(
+      return await next({
+        ...transactionPlan,
+        message: setTransactionMessageLifetimeUsingBlockhash(
           await getBlockhash(),
           transactionPlan.message
-        );
-      return await next(transactionPlan);
+        ),
+      });
     },
     executorFactory
   );
