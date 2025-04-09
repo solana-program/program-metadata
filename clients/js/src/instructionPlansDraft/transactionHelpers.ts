@@ -3,9 +3,13 @@
  */
 
 import {
+  BaseTransactionMessage,
+  Blockhash,
   CompilableTransactionMessage,
   compileTransaction,
   getTransactionEncoder,
+  setTransactionMessageLifetimeUsingBlockhash,
+  TransactionMessageWithBlockhashLifetime,
 } from '@solana/kit';
 
 export const TRANSACTION_PACKET_SIZE = 1280;
@@ -26,3 +30,21 @@ export function getTransactionSize(
   const transaction = compileTransaction(message);
   return getTransactionEncoder().getSizeFromValue(transaction);
 }
+
+const PROVISORY_BLOCKHASH_LIFETIME_CONSTRAINT: TransactionMessageWithBlockhashLifetime['lifetimeConstraint'] =
+  {
+    blockhash: '11111111111111111111111111111111' as Blockhash,
+    lastValidBlockHeight: 0n,
+  };
+
+export function setTransactionMessageLifetimeUsingProvisoryBlockhash<
+  TTransactionMessage extends BaseTransactionMessage,
+>(transactionMessage: TTransactionMessage) {
+  return setTransactionMessageLifetimeUsingBlockhash(
+    PROVISORY_BLOCKHASH_LIFETIME_CONSTRAINT,
+    transactionMessage
+  );
+}
+
+// Setting it to zero ensures the transaction fails unless it is properly estimated.
+export const PROVISORY_COMPUTE_UNIT_LIMIT = 0n;

@@ -1,17 +1,16 @@
 import {
   Address,
   appendTransactionMessageInstructions,
-  Blockhash,
   CompilableTransactionMessage,
   IInstruction,
   createTransactionMessage as kitCreateTransactionMessage,
   pipe,
   setTransactionMessageFeePayer,
-  setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
 import {
   ParallelTransactionPlan,
   SequentialTransactionPlan,
+  setTransactionMessageLifetimeUsingProvisoryBlockhash,
   SingleTransactionPlan,
   TransactionPlan,
 } from '../../src';
@@ -36,15 +35,11 @@ export function nonDivisibleSequentialTransactionPlan(
 
 const MOCK_FEE_PAYER =
   'Gm1uVH3JxiLgafByNNmnoxLncB7ytpyWNqX3kRM9tSxN' as Address;
-const MOCK_BLOCKHASH = {
-  blockhash: '11111111111111111111111111111111' as Blockhash,
-  lastValidBlockHeight: 0n,
-} as const;
 
 export const getMockCreateTransactionMessage = () => {
   return pipe(
     kitCreateTransactionMessage({ version: 0 }),
-    (tx) => setTransactionMessageLifetimeUsingBlockhash(MOCK_BLOCKHASH, tx),
+    setTransactionMessageLifetimeUsingProvisoryBlockhash,
     (tx) => setTransactionMessageFeePayer(MOCK_FEE_PAYER, tx)
   );
 };
