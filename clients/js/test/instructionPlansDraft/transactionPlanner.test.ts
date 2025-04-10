@@ -9,6 +9,7 @@ import {
   sequentialInstructionPlan,
   sequentialTransactionPlan,
   singleInstructionPlan,
+  TransactionPlan,
 } from '../../src';
 import {
   instructionFactory,
@@ -53,6 +54,23 @@ test('it plans a single instruction', async (t) => {
     await planner(singleInstructionPlan(instructionA)),
     singleTransactionPlan([instructionA])
   );
+});
+
+/**
+ *  [A: 200%] ───────────────────▶ Error
+ */
+test('it fail if a single instruction is too large', async (t) => {
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
+
+  const instructionA = instruction(txPercent(200));
+  const promise = planner(singleInstructionPlan(instructionA));
+
+  const error = (await t.throwsAsync(promise)) as Error & {
+    plan: TransactionPlan;
+  };
+  t.deepEqual(error.plan, singleTransactionPlan([instructionA]));
 });
 
 /**

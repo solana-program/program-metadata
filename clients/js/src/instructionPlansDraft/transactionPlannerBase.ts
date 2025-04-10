@@ -78,6 +78,15 @@ export function createBaseTransactionPlanner(
       throw new Error('No instructions were found in the instruction plan.');
     }
 
+    if (!isValidTransactionPlan(plan)) {
+      // TODO: Coded error.
+      const error = new Error(
+        'Instruction plan results in invalid transaction plan'
+      ) as Error & { plan: TransactionPlan };
+      error.plan = plan;
+      throw error;
+    }
+
     return plan;
   };
 }
@@ -346,4 +355,12 @@ export function getRemainingTransactionSize(
   message: CompilableTransactionMessage
 ) {
   return TRANSACTION_SIZE_LIMIT - getTransactionSize(message);
+}
+
+function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
+  if (transactionPlan.kind === 'single') {
+    const transactionSize = getTransactionSize(transactionPlan.message);
+    return transactionSize <= TRANSACTION_SIZE_LIMIT;
+  }
+  return transactionPlan.plans.every(isValidTransactionPlan);
 }
