@@ -37,12 +37,14 @@ import {
   MessageInstructionPlan,
 } from './instructionPlans';
 import { getProgramAuthority, MetadataInput, MetadataResponse } from './utils';
+import {
+  getLinearIterableInstructionPlan,
+  getReallocIterableInstructionPlan,
+  IterableInstructionPlan,
+  TRANSACTION_SIZE_LIMIT,
+} from './instructionPlansDraft';
 
 export const REALLOC_LIMIT = 10_240;
-const TRANSACTION_SIZE_LIMIT =
-  1_280 -
-  40 /* 40 bytes is the size of the IPv6 header. */ -
-  8; /* 8 bytes is the size of the fragment header. */
 
 export type ExtendedMetadataInput = MetadataInput &
   PdaDetails & {
@@ -247,6 +249,26 @@ export function getExtendInstructionPlan(input: {
   return { kind: 'parallel', plans };
 }
 
+export function getExtendInstructionPlan__NEW(input: {
+  account: Address;
+  authority: TransactionSigner;
+  extraLength: number;
+  program?: Address;
+  programData?: Address;
+}): IterableInstructionPlan {
+  return getReallocIterableInstructionPlan({
+    totalSize: input.extraLength,
+    getInstruction: (size) =>
+      getExtendInstruction({
+        account: input.account,
+        authority: input.authority,
+        length: size,
+        program: input.program,
+        programData: input.programData,
+      }),
+  });
+}
+
 export function getWriteInstructionPlan(input: {
   buffer: Address;
   authority: TransactionSigner;
@@ -264,6 +286,23 @@ export function getWriteInstructionPlan(input: {
       getWriteInstruction({ ...input }),
     ],
   };
+}
+
+export function getWriteInstructionPlan__NEW(input: {
+  buffer: Address;
+  authority: TransactionSigner;
+  data: ReadonlyUint8Array;
+}): IterableInstructionPlan {
+  return getLinearIterableInstructionPlan({
+    totalLength: input.data.length,
+    getInstruction: (offset, length) =>
+      getWriteInstruction({
+        buffer: input.buffer,
+        authority: input.authority,
+        offset,
+        data: input.data.slice(offset, offset + length),
+      }),
+  });
 }
 
 export function getMetadataInstructionPlanExecutor(

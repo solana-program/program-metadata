@@ -20,14 +20,17 @@ import {
   getSetDataInstruction,
   getTrimInstruction,
   PROGRAM_METADATA_PROGRAM_ADDRESS,
+  SetDataInput,
 } from './generated';
 import {
   calculateMaxChunkSize,
   getComputeUnitInstructions,
   getExtendedMetadataInput,
   getExtendInstructionPlan,
+  getExtendInstructionPlan__NEW,
   getMetadataInstructionPlanExecutor,
   getWriteInstructionPlan,
+  getWriteInstructionPlan__NEW,
   messageFitsInOneTransaction,
   PdaDetails,
   REALLOC_LIMIT,
@@ -38,6 +41,10 @@ import {
   InstructionPlan,
   MessageInstructionPlan,
 } from './instructionPlans';
+import {
+  parallelInstructionPlan,
+  sequentialInstructionPlan,
+} from './instructionPlansDraft';
 
 export async function updateMetadata(
   input: MetadataInput
@@ -286,4 +293,121 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
   mainPlan.plans.push(finalizeMessage);
 
   return mainPlan;
+}
+
+export function getUpdateMetadataInstructionPlanUsingInstructionData__NEW(
+  input: SetDataInput & {
+    extraRent: Lamports;
+    payer: TransactionSigner;
+    sizeDifference: bigint;
+  }
+) {
+  return sequentialInstructionPlan([
+    ...(input.sizeDifference > 0
+      ? [
+          getTransferSolInstruction({
+            source: input.payer,
+            destination: input.metadata,
+            amount: input.extraRent,
+          }),
+        ]
+      : []),
+    getSetDataInstruction({ ...input, buffer: undefined }),
+    ...(input.sizeDifference < 0
+      ? [
+          getTrimInstruction({
+            account: input.metadata,
+            authority: input.authority,
+            destination: input.payer.address,
+            program: input.program,
+            programData: input.program,
+          }),
+        ]
+      : []),
+  ]);
+}
+
+export function getUpdateMetadataInstructionPlanUsingBuffer__NEW(
+  input: SetDataInput & {
+    buffer: TransactionSigner;
+    bufferRent: Lamports;
+    closeBuffer?: boolean;
+    data: Uint8Array;
+    extraRent: Lamports;
+    payer: TransactionSigner;
+    sizeDifference: number;
+  }
+) {
+  return sequentialInstructionPlan([
+    ...(input.sizeDifference > 0
+      ? [
+          getTransferSolInstruction({
+            source: input.payer,
+            destination: input.metadata,
+            amount: input.extraRent,
+          }),
+        ]
+      : []),
+    getCreateAccountInstruction({
+      payer: input.payer,
+      newAccount: input.buffer,
+      lamports: input.bufferRent,
+      space: getAccountSize(input.data.length),
+      programAddress: PROGRAM_METADATA_PROGRAM_ADDRESS,
+    }),
+    getAllocateInstruction({
+      buffer: input.buffer.address,
+      authority: input.buffer,
+    }),
+    getSetAuthorityInstruction({
+      account: input.buffer.address,
+      authority: input.buffer,
+      newAuthority: input.authority.address,
+    }),
+    ...(input.sizeDifference > REALLOC_LIMIT
+      ? [
+          getExtendInstructionPlan__NEW({
+            account: input.metadata,
+            authority: input.authority,
+            extraLength: input.sizeDifference,
+            program: input.program,
+            programData: input.programData,
+          }),
+        ]
+      : []),
+    parallelInstructionPlan([
+      getWriteInstructionPlan__NEW({
+        buffer: input.buffer.address,
+        authority: input.authority,
+        data: input.data,
+      }),
+    ]),
+    getSetDataInstruction({
+      ...input,
+      buffer: input.buffer.address,
+      data: undefined,
+    }),
+    ...(input.closeBuffer
+      ? [
+          getCloseInstruction({
+            account: input.buffer.address,
+            authority: input.authority,
+            destination: input.payer.address,
+            program: input.program,
+            programData: input.programData,
+          }),
+        ]
+      : []),
+    ...(input.sizeDifference < 0
+      ? [
+          getTrimInstruction({
+            account: input.metadata,
+            authority: input.authority,
+            destination: input.payer.address,
+            program: input.program,
+            programData: input.programData,
+          }),
+        ]
+      : []),
+  ]);
 }

@@ -95,10 +95,10 @@ function parseSingleInstructionPlans(
 
 export function getLinearIterableInstructionPlan({
   getInstruction,
-  totalBytes,
+  totalLength: totalBytes,
 }: {
   getInstruction: (offset: number, length: number) => IInstruction;
-  totalBytes: number;
+  totalLength: number;
 }): IterableInstructionPlan {
   return {
     kind: 'iterable',
