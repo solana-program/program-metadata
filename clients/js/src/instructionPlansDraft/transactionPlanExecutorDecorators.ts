@@ -2,9 +2,25 @@ import {
   GetLatestBlockhashApi,
   Rpc,
   setTransactionMessageLifetimeUsingBlockhash,
+  SimulateTransactionApi,
 } from '@solana/kit';
+import { estimateAndUpdateProvisorySetComputeUnitLimitInstruction } from './computeBudgetHelpers';
 import { getTimedCacheFunction } from './internal';
 import { TransactionPlanExecutorSendAndConfirm } from './transactionPlanExecutorBase';
+
+export function estimateAndUpdateComputeUnitLimitForTransactionPlanExecutor(
+  rpc: Rpc<SimulateTransactionApi>,
+  sendAndConfirm: TransactionPlanExecutorSendAndConfirm
+): TransactionPlanExecutorSendAndConfirm {
+  return async (transactionMessage) => {
+    return await sendAndConfirm(
+      await estimateAndUpdateProvisorySetComputeUnitLimitInstruction(
+        rpc,
+        transactionMessage
+      )
+    );
+  };
+}
 
 export function refreshBlockhashForTransactionPlanExecutor(
   rpc: Rpc<GetLatestBlockhashApi>,

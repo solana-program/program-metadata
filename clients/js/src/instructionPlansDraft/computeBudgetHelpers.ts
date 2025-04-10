@@ -39,12 +39,14 @@ export function fillProvisorySetComputeUnitLimitInstruction<
   );
 }
 
-export async function estimateAndUpdateProvisorySetComputeUnitLimitInstruction(
-  rpc: Rpc<SimulateTransactionApi>,
-  transactionMessage:
+export async function estimateAndUpdateProvisorySetComputeUnitLimitInstruction<
+  TTransactionMessage extends
     | CompilableTransactionMessage
-    | (ITransactionMessageWithFeePayer & TransactionMessage)
-) {
+    | (ITransactionMessageWithFeePayer & TransactionMessage),
+>(
+  rpc: Rpc<SimulateTransactionApi>,
+  transactionMessage: TTransactionMessage
+): Promise<TTransactionMessage> {
   const getComputeUnitEstimateForTransactionMessage =
     getComputeUnitEstimateForTransactionMessageFactory({ rpc });
 

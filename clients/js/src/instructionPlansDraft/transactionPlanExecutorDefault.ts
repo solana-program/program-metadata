@@ -17,6 +17,7 @@ import {
   signAndSendTransactionMessageWithSigners,
   SignatureNotificationsApi,
   signTransactionMessageWithSigners,
+  SimulateTransactionApi,
   SlotNotificationsApi,
   TransactionWithBlockhashLifetime,
   TransactionWithDurableNonceLifetime,
@@ -28,13 +29,14 @@ import {
   TransactionPlanExecutorSendAndConfirm,
 } from './transactionPlanExecutorBase';
 import {
+  estimateAndUpdateComputeUnitLimitForTransactionPlanExecutor,
   refreshBlockhashForTransactionPlanExecutor,
   retryTransactionPlanExecutor,
 } from './transactionPlanExecutorDecorators';
 
 export function createDefaultTransactionPlanExecutor(
   config: SendAndConfirmTransactionFactoryConfig & {
-    rpc: Rpc<GetLatestBlockhashApi>;
+    rpc: Rpc<GetLatestBlockhashApi & SimulateTransactionApi>;
     commitment?: Commitment;
     parallelChunkSize?: number;
   }
@@ -46,6 +48,11 @@ export function createDefaultTransactionPlanExecutor(
         ...config,
         commitment: config.commitment ?? 'confirmed',
       }),
+      (fn) =>
+        estimateAndUpdateComputeUnitLimitForTransactionPlanExecutor(
+          config.rpc,
+          fn
+        ),
       (fn) => refreshBlockhashForTransactionPlanExecutor(config.rpc, fn),
       (fn) => retryTransactionPlanExecutor(3, fn)
     ),
