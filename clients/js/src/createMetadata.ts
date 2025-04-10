@@ -222,12 +222,10 @@ export async function createMetadata__NEW(
     rent,
   };
 
-  const planWithInstructionData =
-    getCreateMetadataInstructionPlanUsingInstructionData__NEW(extendedInput);
-  const planWithBuffer =
-    getCreateMetadataInstructionPlanUsingBuffer__NEW(extendedInput);
-  const transactionPlan = await planner(planWithInstructionData).catch(() =>
-    planner(planWithBuffer)
+  const transactionPlan = await planner(
+    getCreateMetadataInstructionPlanUsingInstructionData__NEW(extendedInput)
+  ).catch(() =>
+    planner(getCreateMetadataInstructionPlanUsingBuffer__NEW(extendedInput))
   );
 
   const result = await executor(transactionPlan);
@@ -249,7 +247,7 @@ export function getCreateMetadataInstructionPlanUsingInstructionData__NEW(
 }
 
 export function getCreateMetadataInstructionPlanUsingBuffer__NEW(
-  input: InitializeInput & {
+  input: Omit<InitializeInput, 'data'> & {
     data: ReadonlyUint8Array;
     payer: TransactionSigner;
     rent: Lamports;

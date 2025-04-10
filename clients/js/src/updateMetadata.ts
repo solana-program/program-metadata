@@ -5,10 +5,12 @@ import {
 import {
   CompilableTransactionMessage,
   generateKeyPairSigner,
+  GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
   isTransactionSigner,
   lamports,
   Lamports,
+  ReadonlyUint8Array,
   Rpc,
   TransactionSigner,
 } from '@solana/kit';
@@ -23,28 +25,37 @@ import {
   SetDataInput,
 } from './generated';
 import {
+  getTransactionMessageFromPlan,
+  InstructionPlan,
+  MessageInstructionPlan,
+} from './instructionPlans';
+import {
+  createDefaultTransactionPlanExecutor,
+  createDefaultTransactionPlanner,
+  parallelInstructionPlan,
+  sequentialInstructionPlan,
+} from './instructionPlansDraft';
+import {
   calculateMaxChunkSize,
   getComputeUnitInstructions,
   getExtendedMetadataInput,
   getExtendInstructionPlan,
   getExtendInstructionPlan__NEW,
   getMetadataInstructionPlanExecutor,
+  getPdaDetails,
   getWriteInstructionPlan,
   getWriteInstructionPlan__NEW,
   messageFitsInOneTransaction,
   PdaDetails,
   REALLOC_LIMIT,
 } from './internals';
-import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 import {
-  getTransactionMessageFromPlan,
-  InstructionPlan,
-  MessageInstructionPlan,
-} from './instructionPlans';
-import {
-  parallelInstructionPlan,
-  sequentialInstructionPlan,
-} from './instructionPlansDraft';
+  getAccountSize,
+  MetadataInput,
+  MetadataInput__NEW,
+  MetadataResponse,
+  MetadataResponse__NEW,
+} from './utils';
 
 export async function updateMetadata(
   input: MetadataInput
@@ -295,11 +306,74 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
   return mainPlan;
 }
 
+export async function updateMetadata__NEW(
+  input: MetadataInput__NEW & {
+    rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi> &
+      Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
+    rpcSubscriptions: Parameters<
+      typeof createDefaultTransactionPlanExecutor
+    >[0]['rpcSubscriptions'];
+  }
+): Promise<MetadataResponse__NEW> {
+  const planner = createDefaultTransactionPlanner({
+    feePayer: input.payer,
+    computeUnitPrice: input.priorityFees,
+  });
+  const executor = createDefaultTransactionPlanExecutor({
+    rpc: input.rpc,
+    rpcSubscriptions: input.rpcSubscriptions,
+    parallelChunkSize: 5,
+  });
+
+  const [{ programData, isCanonical, metadata }, bufferRent] =
+    await Promise.all([
+      getPdaDetails(input),
+      input.rpc
+        .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
+        .send(),
+    ]);
+
+  const metadataAccount = await fetchMetadata(input.rpc, metadata);
+  if (!metadataAccount.data.mutable) {
+    throw new Error('Metadata account is immutable');
+  }
+
+  const sizeDifference = BigInt(input.data.length) - metadataAccount.space;
+  const extraRentPromise =
+    sizeDifference > 0
+      ? input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
+      : Promise.resolve(lamports(0n));
+  const [extraRent, buffer] = await Promise.all([
+    extraRentPromise,
+    generateKeyPairSigner(),
+  ]);
+
+  const extendedInput = {
+    ...input,
+    programData: isCanonical ? programData : undefined,
+    metadata,
+    buffer,
+    bufferRent,
+    extraRent,
+    sizeDifference,
+  };
+
+  const transactionPlan = await planner(
+    getUpdateMetadataInstructionPlanUsingInstructionData__NEW(extendedInput)
+  ).catch(() =>
+    planner(getUpdateMetadataInstructionPlanUsingBuffer__NEW(extendedInput))
+  );
+
+  const result = await executor(transactionPlan);
+
+  return { metadata, result };
+}
+
 export function getUpdateMetadataInstructionPlanUsingInstructionData__NEW(
-  input: SetDataInput & {
+  input: Omit<SetDataInput, 'buffer'> & {
     extraRent: Lamports;
     payer: TransactionSigner;
-    sizeDifference: bigint;
+    sizeDifference: bigint | number;
   }
 ) {
   return sequentialInstructionPlan([
@@ -328,14 +402,14 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData__NEW(
 }
 
 export function getUpdateMetadataInstructionPlanUsingBuffer__NEW(
-  input: SetDataInput & {
+  input: Omit<SetDataInput, 'buffer' | 'data'> & {
     buffer: TransactionSigner;
     bufferRent: Lamports;
     closeBuffer?: boolean;
-    data: Uint8Array;
+    data: ReadonlyUint8Array;
     extraRent: Lamports;
     payer: TransactionSigner;
-    sizeDifference: number;
+    sizeDifference: number | bigint;
   }
 ) {
   return sequentialInstructionPlan([
@@ -369,7 +443,7 @@ export function getUpdateMetadataInstructionPlanUsingBuffer__NEW(
           getExtendInstructionPlan__NEW({
             account: input.metadata,
             authority: input.authority,
-            extraLength: input.sizeDifference,
+            extraLength: Number(input.sizeDifference),
             program: input.program,
             programData: input.programData,
           }),

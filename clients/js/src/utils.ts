@@ -111,12 +111,6 @@ export type MetadataInput__NEW = {
    */
   priorityFees?: MicroLamports;
   /**
-   * Whether to use a buffer for creating or updating a metadata account.
-   * If a `TransactionSigner` is provided, the provided buffer will be used for updating only.
-   * Defaults to `true` unless the entire operation can be done in a single transaction.
-   */
-  buffer?: TransactionSigner | boolean;
-  /**
    * When using a buffer, whether to close the buffer account after the operation.
    * This is only relevant when updating a metadata account since, when creating
    * them, buffer accounts are transformed into metadata accounts.
