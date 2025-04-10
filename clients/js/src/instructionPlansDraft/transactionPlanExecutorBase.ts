@@ -32,10 +32,12 @@ export function createBaseTransactionPlanExecutor(
     const context: TraverseContext = {
       ...executorConfig,
       abortSignal: config?.abortSignal,
-      canceled: false,
+      canceled: config?.abortSignal?.aborted ?? false,
     };
 
-    const cancelHandler = () => (context.canceled = true);
+    const cancelHandler = () => {
+      context.canceled = true;
+    };
     config?.abortSignal?.addEventListener('abort', cancelHandler);
     const result = await traverse(plan, context);
     config?.abortSignal?.removeEventListener('abort', cancelHandler);

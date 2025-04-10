@@ -7,3 +7,4 @@ export * from './transactionPlanExecutorBase';
 export * from './transactionPlanner';
 export * from './transactionPlannerBase';
 export * from './transactionPlannerDefault';
+export * from './transactionPlanResult';

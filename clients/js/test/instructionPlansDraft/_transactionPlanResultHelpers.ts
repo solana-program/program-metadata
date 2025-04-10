@@ -1,11 +1,11 @@
 import { compileTransaction, SolanaError, Transaction } from '@solana/kit';
-import { SingleTransactionPlan } from '../../src';
 import {
   ParallelTransactionPlanResult,
   SequentialTransactionPlanResult,
+  SingleTransactionPlan,
   SingleTransactionPlanResult,
   TransactionPlanResult,
-} from '../../src/instructionPlansDraft/transactionPlanResult';
+} from '../../src';
 
 export function parallelTransactionPlanResult(
   plans: TransactionPlanResult[]
