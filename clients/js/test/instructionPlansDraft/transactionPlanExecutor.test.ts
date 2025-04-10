@@ -5,12 +5,14 @@ import {
   TransactionPlanResult,
 } from '../../src';
 import {
+  parallelTransactionPlan,
   sequentialTransactionPlan,
   singleTransactionPlanFactory,
 } from './_transactionPlanHelpers';
 import {
   canceledSingleTransactionPlan,
   failedSingleTransactionPlan,
+  parallelTransactionPlanResult,
   sequentialTransactionPlanResult,
   successfulSingleTransactionPlan,
 } from './_transactionPlanResultHelpers';
@@ -97,6 +99,39 @@ test('it cancels transactions after a failed one in a sequential plan', async (t
       successfulSingleTransactionPlan(planA),
       failedSingleTransactionPlan(planB, planBError),
       canceledSingleTransactionPlan(planC),
+    ])
+  );
+});
+
+test('it cancels transactions after a failed chunk in a chunked parallel plans', async (t) => {
+  const singleTransactionPlan = singleTransactionPlanFactory();
+
+  const planA = singleTransactionPlan();
+  const planB = singleTransactionPlan();
+  const planC = singleTransactionPlan();
+  const planD = singleTransactionPlan();
+
+  const planAError = getMockSolanaError();
+  const executor = createBaseTransactionPlanExecutor({
+    parallelChunkSize: 2,
+    sendAndConfirm: (tx) =>
+      tx === planA.message
+        ? Promise.reject(planAError)
+        : Promise.resolve({ transaction: compileTransaction(tx) }),
+  });
+
+  const promise = executor(
+    parallelTransactionPlan([planA, planB, planC, planD])
+  );
+  const result = await assertFailedResult(t, promise);
+
+  t.deepEqual(
+    result,
+    parallelTransactionPlanResult([
+      failedSingleTransactionPlan(planA, planAError),
+      successfulSingleTransactionPlan(planB),
+      canceledSingleTransactionPlan(planC),
+      canceledSingleTransactionPlan(planD),
     ])
   );
 });
