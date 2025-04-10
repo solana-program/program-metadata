@@ -12,6 +12,7 @@ export type TransactionPlanResult<TContext extends object = object> =
 export type SequentialTransactionPlanResult<TContext extends object = object> =
   Readonly<{
     kind: 'sequential';
+    divisible: boolean;
     plans: TransactionPlanResult<TContext>[];
   }>;
 
@@ -33,5 +34,5 @@ export type SingleTransactionPlanResult<
 
 export type TransactionPlanResultStatus<TContext extends object = object> =
   | { kind: 'canceled' }
-  | { kind: 'error'; error: SolanaError }
-  | { kind: 'success'; context: TContext; transaction: Transaction };
+  | { kind: 'failed'; error: SolanaError }
+  | { kind: 'successful'; context: TContext; transaction: Transaction };

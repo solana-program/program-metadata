@@ -86,7 +86,11 @@ async function traverseSequential(
     const result = await traverse(subPlan, context);
     results.push(result);
   }
-  return { kind: 'sequential', plans: results };
+  return {
+    kind: 'sequential',
+    divisible: transactionPlan.divisible,
+    plans: results,
+  };
 }
 
 async function traverseParallel(
@@ -149,7 +153,7 @@ async function traverseSingle(
       kind: 'single',
       message: transactionPlan.message,
       status: {
-        kind: 'success',
+        kind: 'successful',
         transaction: result.transaction,
         context: result.context ?? {},
       },
@@ -159,7 +163,7 @@ async function traverseSingle(
     return {
       kind: 'single',
       message: transactionPlan.message,
-      status: { kind: 'error', error: error as SolanaError },
+      status: { kind: 'failed', error: error as SolanaError },
     };
   }
 }

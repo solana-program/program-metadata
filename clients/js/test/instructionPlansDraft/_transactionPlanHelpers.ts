@@ -47,7 +47,7 @@ export const getMockCreateTransactionMessage = () => {
 export function singleTransactionPlanFactory(
   createTransactionMessage?: () => CompilableTransactionMessage
 ) {
-  return (instructions: IInstruction[]): SingleTransactionPlan => {
+  return (instructions: IInstruction[] = []): SingleTransactionPlan => {
     return {
       kind: 'single',
       message: appendTransactionMessageInstructions(
