@@ -24,6 +24,24 @@ export type SingleTransactionPlan<
   message: TTransactionMessage;
 }>;
 
+export function parallelTransactionPlan(
+  plans: TransactionPlan[]
+): ParallelTransactionPlan {
+  return { kind: 'parallel', plans };
+}
+
+export function sequentialTransactionPlan(
+  plans: TransactionPlan[]
+): SequentialTransactionPlan {
+  return { kind: 'sequential', divisible: true, plans };
+}
+
+export function nonDivisibleSequentialTransactionPlan(
+  plans: TransactionPlan[]
+): SequentialTransactionPlan {
+  return { kind: 'sequential', divisible: false, plans };
+}
+
 export function getAllSingleTransactionPlans(
   transactionPlan: TransactionPlan
 ): SingleTransactionPlan[] {

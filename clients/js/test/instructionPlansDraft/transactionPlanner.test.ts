@@ -1,22 +1,24 @@
+import { CompilableTransactionMessage } from '@solana/kit';
 import test from 'ava';
+import {
+  createBaseTransactionPlanner,
+  nonDivisibleSequentialInstructionPlan,
+  nonDivisibleSequentialTransactionPlan,
+  parallelInstructionPlan,
+  parallelTransactionPlan,
+  sequentialInstructionPlan,
+  sequentialTransactionPlan,
+  singleInstructionPlan,
+} from '../../src';
 import {
   instructionFactory,
   instructionIteratorFactory,
-  nonDivisibleSequentialInstructionPlan,
-  parallelInstructionPlan,
-  sequentialInstructionPlan,
-  singleInstructionPlan,
   transactionPercentFactory,
 } from './_instructionPlanHelpers';
 import {
   getMockCreateTransactionMessage,
-  nonDivisibleSequentialTransactionPlan,
-  parallelTransactionPlan,
-  sequentialTransactionPlan,
   singleTransactionPlanFactory,
 } from './_transactionPlanHelpers';
-import { createBaseTransactionPlanner } from '../../src';
-import { CompilableTransactionMessage } from '@solana/kit';
 
 function defaultFactories(
   createTransactionMessage?: () => CompilableTransactionMessage

@@ -9,41 +9,13 @@ import {
 } from '@solana/kit';
 import {
   getTransactionSize,
-  InstructionPlan,
   IterableInstructionPlan,
-  ParallelInstructionPlan,
-  SequentialInstructionPlan,
-  SingleInstructionPlan,
   TRANSACTION_SIZE_LIMIT,
 } from '../../src';
 
 const MINIMUM_INSTRUCTION_SIZE = 35;
 const MINIMUM_TRANSACTION_SIZE = 136;
 const MAXIMUM_TRANSACTION_SIZE = TRANSACTION_SIZE_LIMIT - 1; // (for shortU16)
-
-export function parallelInstructionPlan(
-  plans: InstructionPlan[]
-): ParallelInstructionPlan {
-  return { kind: 'parallel', plans };
-}
-
-export function sequentialInstructionPlan(
-  plans: InstructionPlan[]
-): SequentialInstructionPlan {
-  return { kind: 'sequential', divisible: true, plans };
-}
-
-export function nonDivisibleSequentialInstructionPlan(
-  plans: InstructionPlan[]
-): SequentialInstructionPlan {
-  return { kind: 'sequential', divisible: false, plans };
-}
-
-export function singleInstructionPlan(
-  instruction: IInstruction
-): SingleInstructionPlan {
-  return { kind: 'single', instruction };
-}
 
 export function instructionIteratorFactory() {
   const baseCounter = 1_000_000_000n;

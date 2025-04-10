@@ -53,6 +53,46 @@ export type InstructionIterator<
   ) => TInstruction | null;
 }>;
 
+export function parallelInstructionPlan(
+  plans: (InstructionPlan | IInstruction)[]
+): ParallelInstructionPlan {
+  return { kind: 'parallel', plans: parseSingleInstructionPlans(plans) };
+}
+
+export function sequentialInstructionPlan(
+  plans: (InstructionPlan | IInstruction)[]
+): SequentialInstructionPlan {
+  return {
+    kind: 'sequential',
+    divisible: true,
+    plans: parseSingleInstructionPlans(plans),
+  };
+}
+
+export function nonDivisibleSequentialInstructionPlan(
+  plans: (InstructionPlan | IInstruction)[]
+): SequentialInstructionPlan {
+  return {
+    kind: 'sequential',
+    divisible: false,
+    plans: parseSingleInstructionPlans(plans),
+  };
+}
+
+export function singleInstructionPlan(
+  instruction: IInstruction
+): SingleInstructionPlan {
+  return { kind: 'single', instruction };
+}
+
+function parseSingleInstructionPlans(
+  plans: (InstructionPlan | IInstruction)[]
+): InstructionPlan[] {
+  return plans.map((plan) =>
+    'kind' in plan ? plan : singleInstructionPlan(plan)
+  );
+}
+
 export function getLinearIterableInstructionPlan({
   getInstruction,
   totalBytes,
