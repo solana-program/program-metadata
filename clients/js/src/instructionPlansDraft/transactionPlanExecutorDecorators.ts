@@ -6,10 +6,6 @@ import {
 import { getTimedCacheFunction } from './internal';
 import { TransactionPlanExecutorSendAndConfirm } from './transactionPlanExecutorBase';
 
-// TODO: implement
-// - Chunk parallel transactions (Needs special transformer)
-// - Add support for custom <TContext>
-
 export function refreshBlockhashForTransactionPlanExecutor(
   rpc: Rpc<GetLatestBlockhashApi>,
   sendAndConfirm: TransactionPlanExecutorSendAndConfirm

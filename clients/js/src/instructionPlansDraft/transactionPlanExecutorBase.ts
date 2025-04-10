@@ -20,14 +20,19 @@ export type TransactionPlanExecutorSendAndConfirm = <
   config?: { abortSignal?: AbortSignal }
 ) => Promise<{ context?: TContext; transaction: Transaction }>;
 
+type TransactionPlanExecutorConfig = {
+  parallelChunkSize?: number;
+  sendAndConfirm: TransactionPlanExecutorSendAndConfirm;
+};
+
 export function createBaseTransactionPlanExecutor(
-  sendAndConfirm: TransactionPlanExecutorSendAndConfirm
+  executorConfig: TransactionPlanExecutorConfig
 ): TransactionPlanExecutor {
   return async (plan, config): Promise<TransactionPlanResult> => {
     const context: TraverseContext = {
+      ...executorConfig,
       abortSignal: config?.abortSignal,
       canceled: false,
-      sendAndConfirm,
     };
 
     const cancelHandler = () => (context.canceled = true);
@@ -48,10 +53,9 @@ export function createBaseTransactionPlanExecutor(
   };
 }
 
-type TraverseContext = {
+type TraverseContext = TransactionPlanExecutorConfig & {
   abortSignal?: AbortSignal;
   canceled: boolean;
-  sendAndConfirm: TransactionPlanExecutorSendAndConfirm;
 };
 
 async function traverse(
@@ -81,8 +85,6 @@ async function traverseSequential(
   for (const subPlan of transactionPlan.plans) {
     const result = await traverse(subPlan, context);
     results.push(result);
-
-    // TODO: Handle cancellations.
   }
   return { kind: 'sequential', plans: results };
 }
@@ -91,13 +93,39 @@ async function traverseParallel(
   transactionPlan: ParallelTransactionPlan,
   context: TraverseContext
 ): Promise<TransactionPlanResult> {
-  const results = await Promise.all(
-    transactionPlan.plans.map((subPlan) => traverse(subPlan, context))
-  );
+  const chunks = chunkPlans(transactionPlan.plans, context.parallelChunkSize);
+  const results: TransactionPlanResult[] = [];
 
-  // TODO: Handle chunking.
+  for (const chunk of chunks) {
+    const chunkResults = await Promise.all(
+      chunk.map((plan) => traverse(plan, context))
+    );
+    results.push(...chunkResults);
+  }
 
   return { kind: 'parallel', plans: results };
+}
+
+function chunkPlans(
+  plans: TransactionPlan[],
+  chunkSize?: number
+): TransactionPlan[][] {
+  if (!chunkSize) {
+    return [plans];
+  }
+
+  return plans.reduce(
+    (chunks, subPlan) => {
+      const lastChunk = chunks[chunks.length - 1];
+      if (lastChunk && lastChunk.length < chunkSize) {
+        lastChunk.push(subPlan);
+      } else {
+        chunks.push([subPlan]);
+      }
+      return chunks;
+    },
+    [[]] as TransactionPlan[][]
+  );
 }
 
 async function traverseSingle(
