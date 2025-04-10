@@ -4,6 +4,8 @@ export * from './transactionHelpers';
 export * from './transactionPlan';
 export * from './transactionPlanExecutor';
 export * from './transactionPlanExecutorBase';
+export * from './transactionPlanExecutorDecorators';
+export * from './transactionPlanExecutorDefault';
 export * from './transactionPlanner';
 export * from './transactionPlannerBase';
 export * from './transactionPlannerDefault';

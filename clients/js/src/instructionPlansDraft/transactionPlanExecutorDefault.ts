@@ -5,8 +5,10 @@ import {
   FullySignedTransaction,
   GetAccountInfoApi,
   GetEpochInfoApi,
+  GetLatestBlockhashApi,
   GetSignatureStatusesApi,
   isTransactionMessageWithSingleSendingSigner,
+  pipe,
   Rpc,
   RpcSubscriptions,
   sendAndConfirmDurableNonceTransactionFactory,
@@ -25,19 +27,28 @@ import {
   createBaseTransactionPlanExecutor,
   TransactionPlanExecutorSendAndConfirm,
 } from './transactionPlanExecutorBase';
+import {
+  refreshBlockhashForTransactionPlanExecutor,
+  retryTransactionPlanExecutor,
+} from './transactionPlanExecutorDecorators';
 
 export function createDefaultTransactionPlanExecutor(
   config: SendAndConfirmTransactionFactoryConfig & {
+    rpc: Rpc<GetLatestBlockhashApi>;
     commitment?: Commitment;
     parallelChunkSize?: number;
   }
 ): TransactionPlanExecutor {
   return createBaseTransactionPlanExecutor({
     parallelChunkSize: config.parallelChunkSize,
-    sendAndConfirm: getDefaultTransactionPlanExecutorSendAndConfirm({
-      ...config,
-      commitment: config.commitment ?? 'confirmed',
-    }),
+    sendAndConfirm: pipe(
+      getDefaultTransactionPlanExecutorSendAndConfirm({
+        ...config,
+        commitment: config.commitment ?? 'confirmed',
+      }),
+      (fn) => refreshBlockhashForTransactionPlanExecutor(config.rpc, fn),
+      (fn) => retryTransactionPlanExecutor(3, fn)
+    ),
   });
 }
 
