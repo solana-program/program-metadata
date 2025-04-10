@@ -3,6 +3,7 @@ import {
   CompilableTransactionMessage,
   GetMinimumBalanceForRentExemptionApi,
   Lamports,
+  ReadonlyUint8Array,
   Rpc,
   TransactionSigner,
 } from '@solana/kit';
@@ -18,6 +19,8 @@ import {
   MessageInstructionPlan,
 } from './instructionPlans';
 import {
+  createDefaultTransactionPlanExecutor,
+  createDefaultTransactionPlanner,
   parallelInstructionPlan,
   sequentialInstructionPlan,
 } from './instructionPlansDraft';
@@ -28,13 +31,20 @@ import {
   getExtendInstructionPlan,
   getExtendInstructionPlan__NEW,
   getMetadataInstructionPlanExecutor,
+  getPdaDetails,
   getWriteInstructionPlan,
   getWriteInstructionPlan__NEW,
   messageFitsInOneTransaction,
   PdaDetails,
   REALLOC_LIMIT,
 } from './internals';
-import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
+import {
+  getAccountSize,
+  MetadataInput,
+  MetadataInput__NEW,
+  MetadataResponse,
+  MetadataResponse__NEW,
+} from './utils';
 
 export async function createMetadata(
   input: MetadataInput
@@ -180,6 +190,51 @@ export function getCreateMetadataInstructionPlanUsingBuffer(
   return mainPlan;
 }
 
+export async function createMetadata__NEW(
+  input: MetadataInput__NEW & {
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi> &
+      Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
+    rpcSubscriptions: Parameters<
+      typeof createDefaultTransactionPlanExecutor
+    >[0]['rpcSubscriptions'];
+  }
+): Promise<MetadataResponse__NEW> {
+  const planner = createDefaultTransactionPlanner({
+    feePayer: input.payer,
+    computeUnitPrice: input.priorityFees,
+  });
+  const executor = createDefaultTransactionPlanExecutor({
+    rpc: input.rpc,
+    rpcSubscriptions: input.rpcSubscriptions,
+    parallelChunkSize: 5,
+  });
+
+  const [{ programData, isCanonical, metadata }, rent] = await Promise.all([
+    getPdaDetails(input),
+    input.rpc
+      .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
+      .send(),
+  ]);
+  const extendedInput = {
+    ...input,
+    programData: isCanonical ? programData : undefined,
+    metadata,
+    rent,
+  };
+
+  const planWithInstructionData =
+    getCreateMetadataInstructionPlanUsingInstructionData__NEW(extendedInput);
+  const planWithBuffer =
+    getCreateMetadataInstructionPlanUsingBuffer__NEW(extendedInput);
+  const transactionPlan = await planner(planWithInstructionData).catch(() =>
+    planner(planWithBuffer)
+  );
+
+  const result = await executor(transactionPlan);
+
+  return { metadata, result };
+}
+
 export function getCreateMetadataInstructionPlanUsingInstructionData__NEW(
   input: InitializeInput & { payer: TransactionSigner; rent: Lamports }
 ) {
@@ -195,7 +250,7 @@ export function getCreateMetadataInstructionPlanUsingInstructionData__NEW(
 
 export function getCreateMetadataInstructionPlanUsingBuffer__NEW(
   input: InitializeInput & {
-    data: Uint8Array;
+    data: ReadonlyUint8Array;
     payer: TransactionSigner;
     rent: Lamports;
   }

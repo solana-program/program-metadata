@@ -4,6 +4,7 @@ import {
   AccountDiscriminator,
   Compression,
   createMetadata,
+  createMetadata__NEW,
   DataSource,
   Encoding,
   fetchMetadata,
@@ -24,7 +25,7 @@ test('it creates a canonical metadata account', async (t) => {
 
   // When we create a canonical metadata account for the program.
   const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
-  const { metadata } = await createMetadata({
+  const { metadata } = await createMetadata__NEW({
     ...client,
     payer: authority,
     authority,
