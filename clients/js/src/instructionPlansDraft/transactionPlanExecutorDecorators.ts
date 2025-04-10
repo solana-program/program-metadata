@@ -50,7 +50,5 @@ export function retryTransactionPlanExecutor(
     }
 
     throw lastError;
-    // TODO: Catch and return failed results instead of failing.
-    // TODO: Fail whilst returning the result in the context at the very end.
   };
 }

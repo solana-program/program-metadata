@@ -16,19 +16,41 @@ export type TransactionPlanExecutorSendAndConfirm = <
   TTransactionMessage extends CompilableTransactionMessage,
   TContext extends object = object,
 >(
-  transactionMessage: TTransactionMessage
+  transactionMessage: TTransactionMessage,
+  config?: { abortSignal?: AbortSignal }
 ) => Promise<{ context?: TContext; transaction: Transaction }>;
 
 export function createBaseTransactionPlanExecutor(
   sendAndConfirm: TransactionPlanExecutorSendAndConfirm
 ): TransactionPlanExecutor {
-  return async (plan): Promise<TransactionPlanResult> => {
-    const context: TraverseContext = { sendAndConfirm };
-    return await traverse(plan, context); // TODO: Throw error unless everything is successful.
+  return async (plan, config): Promise<TransactionPlanResult> => {
+    const context: TraverseContext = {
+      abortSignal: config?.abortSignal,
+      canceled: false,
+      sendAndConfirm,
+    };
+
+    const cancelHandler = () => (context.canceled = true);
+    config?.abortSignal?.addEventListener('abort', cancelHandler);
+    const result = await traverse(plan, context);
+    config?.abortSignal?.removeEventListener('abort', cancelHandler);
+
+    if (context.canceled) {
+      // TODO: Coded error.
+      const error = new Error('Transaction plan execution failed') as Error & {
+        result: TransactionPlanResult;
+      };
+      error.result = result;
+      throw error;
+    }
+
+    return result;
   };
 }
 
 type TraverseContext = {
+  abortSignal?: AbortSignal;
+  canceled: boolean;
   sendAndConfirm: TransactionPlanExecutorSendAndConfirm;
 };
 
@@ -80,14 +102,20 @@ async function traverseParallel(
 
 async function traverseSingle(
   transactionPlan: SingleTransactionPlan,
-  traverseContext: TraverseContext
+  context: TraverseContext
 ): Promise<TransactionPlanResult> {
-  try {
-    const result = await traverseContext.sendAndConfirm(
-      transactionPlan.message
-    );
+  if (context.canceled) {
+    return {
+      kind: 'single',
+      message: transactionPlan.message,
+      status: { kind: 'canceled' },
+    };
+  }
 
-    // TODO: Handle error.
+  try {
+    const result = await context.sendAndConfirm(transactionPlan.message, {
+      abortSignal: context.abortSignal,
+    });
 
     return {
       kind: 'single',
@@ -99,6 +127,7 @@ async function traverseSingle(
       },
     };
   } catch (error) {
+    context.canceled = true;
     return {
       kind: 'single',
       message: transactionPlan.message,

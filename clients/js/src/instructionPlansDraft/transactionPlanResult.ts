@@ -32,7 +32,6 @@ export type SingleTransactionPlanResult<
 }>;
 
 export type TransactionPlanResultStatus<TContext extends object = object> =
-  | { kind: 'aborted' }
   | { kind: 'canceled' }
   | { kind: 'error'; error: SolanaError }
   | { kind: 'success'; context: TContext; transaction: Transaction };
