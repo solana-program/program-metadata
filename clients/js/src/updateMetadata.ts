@@ -338,7 +338,8 @@ export async function updateMetadata__NEW(
     throw new Error('Metadata account is immutable');
   }
 
-  const sizeDifference = BigInt(input.data.length) - metadataAccount.space;
+  const sizeDifference =
+    BigInt(input.data.length) - BigInt(metadataAccount.data.data.length);
   const extraRentPromise =
     sizeDifference > 0
       ? input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()

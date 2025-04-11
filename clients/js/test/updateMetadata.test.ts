@@ -4,12 +4,14 @@ import {
   AccountDiscriminator,
   Compression,
   createMetadata,
+  createMetadata__NEW,
   DataSource,
   Encoding,
   fetchMetadata,
   Format,
   Metadata,
   updateMetadata,
+  updateMetadata__NEW,
 } from '../src';
 import {
   createDefaultSolanaClient,
@@ -24,7 +26,7 @@ test('it updates a canonical metadata account', async (t) => {
   const [program] = await createDeployedProgram(client, authority);
 
   // And the following existing canonical metadata account.
-  await createMetadata({
+  await createMetadata__NEW({
     ...client,
     payer: authority,
     authority,
@@ -39,7 +41,7 @@ test('it updates a canonical metadata account', async (t) => {
 
   // When we update the metadata account with new data.
   const newData = getUtf8Encoder().encode('NEW DATA WITH MORE BYTES');
-  const { metadata } = await updateMetadata({
+  const { metadata } = await updateMetadata__NEW({
     ...client,
     payer: authority,
     authority,
