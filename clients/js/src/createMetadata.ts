@@ -17,7 +17,7 @@ import {
   createDefaultTransactionPlanner,
   parallelInstructionPlan,
   sequentialInstructionPlan,
-} from './instructionPlansDraft';
+} from './instructionPlans';
 import {
   getExtendInstructionPlan__NEW,
   getPdaDetails,

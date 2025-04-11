@@ -13,7 +13,7 @@ import { fetchMaybeMetadata } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
-} from './instructionPlansDraft';
+} from './instructionPlans';
 import { getPdaDetails } from './internals';
 import {
   getUpdateMetadataInstructionPlanUsingBuffer__NEW,

@@ -24,7 +24,7 @@ import {
   FormatArgs,
   SeedArgs,
 } from './generated';
-import { TransactionPlanResult } from './instructionPlansDraft';
+import { TransactionPlanResult } from './instructionPlans';
 
 export const ACCOUNT_HEADER_LENGTH = 96;
 

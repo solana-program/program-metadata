@@ -43,7 +43,7 @@ import {
   TransactionPlanExecutor,
   TransactionPlanner,
   TransactionPlanResult,
-} from './instructionPlansDraft';
+} from './instructionPlans';
 import { getPdaDetails } from './internals';
 import {
   packDirectData,

@@ -15,7 +15,7 @@ import {
   getLinearIterableInstructionPlan,
   getReallocIterableInstructionPlan,
   IterableInstructionPlan,
-} from './instructionPlansDraft';
+} from './instructionPlans';
 import { getProgramAuthority } from './utils';
 
 export const REALLOC_LIMIT = 10_240;
