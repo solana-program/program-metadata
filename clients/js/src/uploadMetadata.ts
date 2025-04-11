@@ -6,7 +6,6 @@ import {
   Rpc,
 } from '@solana/kit';
 import {
-  getCreateMetadataInstructionPlan,
   getCreateMetadataInstructionPlanUsingBuffer__NEW,
   getCreateMetadataInstructionPlanUsingInstructionData__NEW,
 } from './createMetadata';
@@ -15,47 +14,16 @@ import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
 } from './instructionPlansDraft';
+import { getPdaDetails } from './internals';
 import {
-  getExtendedMetadataInput,
-  getMetadataInstructionPlanExecutor,
-  getPdaDetails,
-} from './internals';
-import {
-  getUpdateMetadataInstructionPlan,
   getUpdateMetadataInstructionPlanUsingBuffer__NEW,
   getUpdateMetadataInstructionPlanUsingInstructionData__NEW,
 } from './updateMetadata';
 import {
   getAccountSize,
-  MetadataInput,
   MetadataInput__NEW,
   MetadataResponse__NEW,
 } from './utils';
-
-export async function uploadMetadata(input: MetadataInput) {
-  const extendedInput = await getExtendedMetadataInput(input);
-  const executor = getMetadataInstructionPlanExecutor(extendedInput);
-  const metadataAccount = await fetchMaybeMetadata(
-    input.rpc,
-    extendedInput.metadata
-  );
-
-  // Create metadata if it doesn't exist.
-  if (!metadataAccount.exists) {
-    const plan = await getCreateMetadataInstructionPlan(extendedInput);
-    return await executor(plan);
-  }
-
-  // Update metadata if it exists.
-  if (!metadataAccount.data.mutable) {
-    throw new Error('Metadata account is immutable');
-  }
-  const plan = await getUpdateMetadataInstructionPlan({
-    ...extendedInput,
-    currentDataLength: BigInt(metadataAccount.data.data.length),
-  });
-  return await executor(plan);
-}
 
 export async function uploadMetadata__NEW(
   input: MetadataInput__NEW & {

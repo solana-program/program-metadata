@@ -4,7 +4,7 @@ import {
   downloadAndParseMetadata,
   Format,
   packDirectData,
-  uploadMetadata,
+  uploadMetadata__NEW,
 } from '../src';
 import {
   createDefaultSolanaClient,
@@ -20,7 +20,7 @@ test('it fetches and parses direct IDLs from canonical metadata accounts', async
 
   // And given the following IDL exists for the program.
   const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
-  await uploadMetadata({
+  await uploadMetadata__NEW({
     ...client,
     ...packDirectData({ content: idl }),
     payer: authority,
@@ -49,7 +49,7 @@ test('it fetches and parses direct IDLs from non-canonical metadata accounts', a
 
   // And given the following IDL exists for the program.
   const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
-  await uploadMetadata({
+  await uploadMetadata__NEW({
     ...client,
     ...packDirectData({ content: idl }),
     payer: authority,
