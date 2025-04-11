@@ -3,14 +3,12 @@ import test from 'ava';
 import {
   AccountDiscriminator,
   Compression,
-  createMetadata,
   createMetadata__NEW,
   DataSource,
   Encoding,
   fetchMetadata,
   Format,
   Metadata,
-  updateMetadata,
   updateMetadata__NEW,
 } from '../src';
 import {
@@ -79,7 +77,7 @@ test('it updates a canonical metadata account with data larger than a transactio
   const [program] = await createDeployedProgram(client, authority);
 
   // And the following existing canonical metadata account.
-  await createMetadata({
+  await createMetadata__NEW({
     ...client,
     payer: authority,
     authority,
@@ -94,7 +92,7 @@ test('it updates a canonical metadata account with data larger than a transactio
 
   // When we update the metadata account with new data with a lot of data.
   const newData = getUtf8Encoder().encode('x'.repeat(3_000));
-  const { metadata } = await updateMetadata({
+  const { metadata } = await updateMetadata__NEW({
     ...client,
     payer: authority,
     authority,
@@ -132,7 +130,7 @@ test('it updates a non-canonical metadata account', async (t) => {
   const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
   // And the following existing non-canonical metadata account.
-  await createMetadata({
+  await createMetadata__NEW({
     ...client,
     payer: authority,
     authority,
@@ -147,7 +145,7 @@ test('it updates a non-canonical metadata account', async (t) => {
 
   // When we update the metadata account with new data.
   const newData = getUtf8Encoder().encode('NEW DATA WITH MORE BYTES');
-  const { metadata } = await updateMetadata({
+  const { metadata } = await updateMetadata__NEW({
     ...client,
     payer: authority,
     authority,
@@ -185,7 +183,7 @@ test('it updates a non-canonical metadata account with data larger than a transa
   const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
   // And the following existing non-canonical metadata account.
-  await createMetadata({
+  await createMetadata__NEW({
     ...client,
     payer: authority,
     authority,
@@ -200,7 +198,7 @@ test('it updates a non-canonical metadata account with data larger than a transa
 
   // When we update the metadata account with new data.
   const newData = getUtf8Encoder().encode('x'.repeat(3_000));
-  const { metadata } = await updateMetadata({
+  const { metadata } = await updateMetadata__NEW({
     ...client,
     payer: authority,
     authority,
