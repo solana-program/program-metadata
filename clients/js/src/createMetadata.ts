@@ -229,7 +229,6 @@ export async function createMetadata__NEW(
   );
 
   const result = await executor(transactionPlan);
-
   return { metadata, result };
 }
 
