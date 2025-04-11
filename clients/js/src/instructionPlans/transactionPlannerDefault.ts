@@ -1,16 +1,17 @@
 import {
-  appendTransactionMessageInstruction,
   createTransactionMessage,
   MicroLamports,
   pipe,
   setTransactionMessageFeePayerSigner,
   TransactionSigner,
 } from '@solana/kit';
+import {
+  fillProvisorySetComputeUnitLimitInstruction,
+  setTransactionMessageComputeUnitPrice,
+} from './computeBudgetHelpers';
+import { setTransactionMessageLifetimeUsingProvisoryBlockhash } from './transactionHelpers';
 import { TransactionPlanner } from './transactionPlanner';
 import { createBaseTransactionPlanner } from './transactionPlannerBase';
-import { setTransactionMessageLifetimeUsingProvisoryBlockhash } from './transactionHelpers';
-import { fillProvisorySetComputeUnitLimitInstruction } from './computeBudgetHelpers';
-import { getSetComputeUnitPriceInstruction } from '@solana-program/compute-budget';
 
 export function createDefaultTransactionPlanner(config: {
   feePayer: TransactionSigner;
@@ -25,12 +26,7 @@ export function createDefaultTransactionPlanner(config: {
         (tx) => setTransactionMessageFeePayerSigner(config.feePayer, tx),
         (tx) =>
           config.computeUnitPrice
-            ? appendTransactionMessageInstruction(
-                getSetComputeUnitPriceInstruction({
-                  microLamports: config.computeUnitPrice,
-                }),
-                tx
-              )
+            ? setTransactionMessageComputeUnitPrice(config.computeUnitPrice, tx)
             : tx
       ),
   });

@@ -7,6 +7,7 @@ import {
   COMPUTE_BUDGET_PROGRAM_ADDRESS,
   ComputeBudgetInstruction,
   getSetComputeUnitLimitInstruction,
+  getSetComputeUnitPriceInstruction,
   identifyComputeBudgetInstruction,
 } from '@solana-program/compute-budget';
 import {
@@ -28,6 +29,15 @@ export const PROVISORY_COMPUTE_UNIT_LIMIT = 0;
 
 // This is the maximum compute unit limit that can be set for a transaction.
 export const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
+
+export function setTransactionMessageComputeUnitPrice<
+  TTransactionMessage extends BaseTransactionMessage,
+>(microLamports: number | bigint, transactionMessage: TTransactionMessage) {
+  return appendTransactionMessageInstruction(
+    getSetComputeUnitPriceInstruction({ microLamports }),
+    transactionMessage
+  );
+}
 
 export function fillProvisorySetComputeUnitLimitInstruction<
   TTransactionMessage extends BaseTransactionMessage,
