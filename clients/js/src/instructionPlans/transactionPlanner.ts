@@ -3,5 +3,5 @@ import { TransactionPlan } from './transactionPlan';
 
 export type TransactionPlanner = (
   instructionPlan: InstructionPlan,
-  config?: { abortSignal?: AbortSignal } // TODO: Use
+  config?: { abortSignal?: AbortSignal }
 ) => Promise<TransactionPlan>;
