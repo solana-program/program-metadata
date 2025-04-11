@@ -29,26 +29,22 @@ import {
   sequentialInstructionPlan,
 } from './instructionPlans';
 import {
-  getExtendInstructionPlan__NEW,
+  getExtendInstructionPlan,
   getPdaDetails,
-  getWriteInstructionPlan__NEW,
+  getWriteInstructionPlan,
   REALLOC_LIMIT,
 } from './internals';
-import {
-  getAccountSize,
-  MetadataInput__NEW,
-  MetadataResponse__NEW,
-} from './utils';
+import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
-export async function updateMetadata__NEW(
-  input: MetadataInput__NEW & {
+export async function updateMetadata(
+  input: MetadataInput & {
     rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi> &
       Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
     rpcSubscriptions: Parameters<
       typeof createDefaultTransactionPlanExecutor
     >[0]['rpcSubscriptions'];
   }
-): Promise<MetadataResponse__NEW> {
+): Promise<MetadataResponse> {
   const planner = createDefaultTransactionPlanner({
     feePayer: input.payer,
     computeUnitPrice: input.priorityFees,
@@ -94,16 +90,16 @@ export async function updateMetadata__NEW(
   };
 
   const transactionPlan = await planner(
-    getUpdateMetadataInstructionPlanUsingInstructionData__NEW(extendedInput)
+    getUpdateMetadataInstructionPlanUsingInstructionData(extendedInput)
   ).catch(() =>
-    planner(getUpdateMetadataInstructionPlanUsingBuffer__NEW(extendedInput))
+    planner(getUpdateMetadataInstructionPlanUsingBuffer(extendedInput))
   );
 
   const result = await executor(transactionPlan);
   return { metadata, result };
 }
 
-export function getUpdateMetadataInstructionPlanUsingInstructionData__NEW(
+export function getUpdateMetadataInstructionPlanUsingInstructionData(
   input: Omit<SetDataInput, 'buffer'> & {
     extraRent: Lamports;
     payer: TransactionSigner;
@@ -135,7 +131,7 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData__NEW(
   ]);
 }
 
-export function getUpdateMetadataInstructionPlanUsingBuffer__NEW(
+export function getUpdateMetadataInstructionPlanUsingBuffer(
   input: Omit<SetDataInput, 'buffer' | 'data'> & {
     buffer: TransactionSigner;
     bufferRent: Lamports;
@@ -174,7 +170,7 @@ export function getUpdateMetadataInstructionPlanUsingBuffer__NEW(
     }),
     ...(input.sizeDifference > REALLOC_LIMIT
       ? [
-          getExtendInstructionPlan__NEW({
+          getExtendInstructionPlan({
             account: input.metadata,
             authority: input.authority,
             extraLength: Number(input.sizeDifference),
@@ -184,7 +180,7 @@ export function getUpdateMetadataInstructionPlanUsingBuffer__NEW(
         ]
       : []),
     parallelInstructionPlan([
-      getWriteInstructionPlan__NEW({
+      getWriteInstructionPlan({
         buffer: input.buffer.address,
         authority: input.authority,
         data: input.data,

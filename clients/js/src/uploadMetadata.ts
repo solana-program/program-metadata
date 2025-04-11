@@ -6,8 +6,8 @@ import {
   Rpc,
 } from '@solana/kit';
 import {
-  getCreateMetadataInstructionPlanUsingBuffer__NEW,
-  getCreateMetadataInstructionPlanUsingInstructionData__NEW,
+  getCreateMetadataInstructionPlanUsingBuffer,
+  getCreateMetadataInstructionPlanUsingInstructionData,
 } from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
 import {
@@ -16,24 +16,20 @@ import {
 } from './instructionPlans';
 import { getPdaDetails } from './internals';
 import {
-  getUpdateMetadataInstructionPlanUsingBuffer__NEW,
-  getUpdateMetadataInstructionPlanUsingInstructionData__NEW,
+  getUpdateMetadataInstructionPlanUsingBuffer,
+  getUpdateMetadataInstructionPlanUsingInstructionData,
 } from './updateMetadata';
-import {
-  getAccountSize,
-  MetadataInput__NEW,
-  MetadataResponse__NEW,
-} from './utils';
+import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
-export async function uploadMetadata__NEW(
-  input: MetadataInput__NEW & {
+export async function uploadMetadata(
+  input: MetadataInput & {
     rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi> &
       Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
     rpcSubscriptions: Parameters<
       typeof createDefaultTransactionPlanExecutor
     >[0]['rpcSubscriptions'];
   }
-): Promise<MetadataResponse__NEW> {
+): Promise<MetadataResponse> {
   const planner = createDefaultTransactionPlanner({
     feePayer: input.payer,
     computeUnitPrice: input.priorityFees,
@@ -62,9 +58,9 @@ export async function uploadMetadata__NEW(
     };
 
     const transactionPlan = await planner(
-      getCreateMetadataInstructionPlanUsingInstructionData__NEW(extendedInput)
+      getCreateMetadataInstructionPlanUsingInstructionData(extendedInput)
     ).catch(() =>
-      planner(getCreateMetadataInstructionPlanUsingBuffer__NEW(extendedInput))
+      planner(getCreateMetadataInstructionPlanUsingBuffer(extendedInput))
     );
 
     const result = await executor(transactionPlan);
@@ -97,9 +93,9 @@ export async function uploadMetadata__NEW(
   };
 
   const transactionPlan = await planner(
-    getUpdateMetadataInstructionPlanUsingInstructionData__NEW(extendedInput)
+    getUpdateMetadataInstructionPlanUsingInstructionData(extendedInput)
   ).catch(() =>
-    planner(getUpdateMetadataInstructionPlanUsingBuffer__NEW(extendedInput))
+    planner(getUpdateMetadataInstructionPlanUsingBuffer(extendedInput))
   );
 
   const result = await executor(transactionPlan);

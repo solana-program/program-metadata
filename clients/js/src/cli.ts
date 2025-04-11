@@ -51,7 +51,7 @@ import {
   packExternalData,
   packUrlData,
 } from './packData';
-import { uploadMetadata__NEW } from './uploadMetadata';
+import { uploadMetadata } from './uploadMetadata';
 import { getProgramAuthority } from './utils';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
@@ -182,7 +182,7 @@ program
           'You must be the program authority to upload a canonical metadata account. Use `--non-canonical` option to upload as a third party.'
         );
       }
-      await uploadMetadata__NEW({
+      await uploadMetadata({
         ...client,
         ...getPackedData(content, options),
         payer: client.payer,

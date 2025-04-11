@@ -49,7 +49,7 @@ export async function getPdaDetails(input: {
   return { metadata, isCanonical, programData };
 }
 
-export function getExtendInstructionPlan__NEW(input: {
+export function getExtendInstructionPlan(input: {
   account: Address;
   authority: TransactionSigner;
   extraLength: number;
@@ -69,7 +69,7 @@ export function getExtendInstructionPlan__NEW(input: {
   });
 }
 
-export function getWriteInstructionPlan__NEW(input: {
+export function getWriteInstructionPlan(input: {
   buffer: Address;
   authority: TransactionSigner;
   data: ReadonlyUint8Array;

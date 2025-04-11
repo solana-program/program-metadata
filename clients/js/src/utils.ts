@@ -37,7 +37,7 @@ export const LOADER_V3_PROGRAM_ADDRESS =
 export const LOADER_V4_PROGRAM_ADDRESS =
   'CoreBPFLoaderV41111111111111111111111111111' as Address<'CoreBPFLoaderV41111111111111111111111111111'>;
 
-export type MetadataInput__NEW = {
+export type MetadataInput = {
   payer: TransactionSigner;
   authority: TransactionSigner;
   program: Address;
@@ -61,7 +61,7 @@ export type MetadataInput__NEW = {
   closeBuffer?: boolean;
 };
 
-export type MetadataResponse__NEW = {
+export type MetadataResponse = {
   metadata: Address;
   result: TransactionPlanResult;
 };

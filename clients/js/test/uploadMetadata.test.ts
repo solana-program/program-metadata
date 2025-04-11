@@ -3,14 +3,14 @@ import test from 'ava';
 import {
   AccountDiscriminator,
   Compression,
-  createMetadata__NEW,
+  createMetadata,
   DataSource,
   Encoding,
   fetchMetadata,
   findCanonicalPda,
   Format,
   Metadata,
-  uploadMetadata__NEW,
+  uploadMetadata,
 } from '../src';
 import {
   createDefaultSolanaClient,
@@ -30,7 +30,7 @@ test('it creates a new metadata account if it does not exist', async (t) => {
 
   // When we upload this canonical metadata account.
   const data = getUtf8Encoder().encode('Some data');
-  await uploadMetadata__NEW({
+  await uploadMetadata({
     ...client,
     payer: authority,
     authority,
@@ -68,7 +68,7 @@ test('it updates a metadata account if it exists', async (t) => {
   const [program] = await createDeployedProgram(client, authority);
 
   // And given the following canonical metadata account exists.
-  await createMetadata__NEW({
+  await createMetadata({
     ...client,
     payer: authority,
     authority,
@@ -83,7 +83,7 @@ test('it updates a metadata account if it exists', async (t) => {
 
   // When we upload this canonical metadata account with different data.
   const newData = getUtf8Encoder().encode('NEW DATA WITH MORE BYTES');
-  const { metadata } = await uploadMetadata__NEW({
+  const { metadata } = await uploadMetadata({
     ...client,
     payer: authority,
     authority,
