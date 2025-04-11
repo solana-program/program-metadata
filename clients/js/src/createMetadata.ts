@@ -27,10 +27,8 @@ import {
 import {
   calculateMaxChunkSize,
   getComputeUnitInstructions,
-  getExtendedMetadataInput,
   getExtendInstructionPlan,
   getExtendInstructionPlan__NEW,
-  getMetadataInstructionPlanExecutor,
   getPdaDetails,
   getWriteInstructionPlan,
   getWriteInstructionPlan__NEW,
@@ -42,18 +40,8 @@ import {
   getAccountSize,
   MetadataInput,
   MetadataInput__NEW,
-  MetadataResponse,
   MetadataResponse__NEW,
 } from './utils';
-
-export async function createMetadata(
-  input: MetadataInput
-): Promise<MetadataResponse> {
-  const extendedInput = await getExtendedMetadataInput(input);
-  const executor = getMetadataInstructionPlanExecutor(extendedInput);
-  const plan = await getCreateMetadataInstructionPlan(extendedInput);
-  return await executor(plan);
-}
 
 export async function getCreateMetadataInstructionPlan(
   input: Omit<MetadataInput, 'rpc' | 'rpcSubscriptions'> &

@@ -21,6 +21,7 @@ import {
   RpcSubscriptions,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
+  Transaction,
 } from '@solana/kit';
 import chalk from 'chalk';
 import { Command, Option } from 'commander';
@@ -46,7 +47,7 @@ import {
   packExternalData,
   packUrlData,
 } from './packData';
-import { uploadMetadata } from './uploadMetadata';
+import { uploadMetadata__NEW } from './uploadMetadata';
 import { getProgramAuthority } from './utils';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
@@ -175,7 +176,7 @@ program
           'You must be the program authority to upload a canonical metadata account. Use `--non-canonical` option to upload as a third party.'
         );
       }
-      const { lastTransaction } = await uploadMetadata({
+      await uploadMetadata__NEW({
         ...client,
         ...getPackedData(content, options),
         payer,
@@ -183,14 +184,14 @@ program
         program,
         seed,
         format: getFormat(options),
-        buffer: options.bufferOnly ? true : undefined,
-        extractLastTransaction: options.bufferOnly,
         closeBuffer: true,
         priorityFees: options.priorityFees,
       });
-      if (lastTransaction) {
-        const transactionBytes =
-          getTransactionEncoder().encode(lastTransaction);
+      const exportTransaction = false; // TODO: Option
+      if (exportTransaction) {
+        const transactionBytes = getTransactionEncoder().encode(
+          {} as Transaction
+        );
         const base64EncodedTransaction =
           getBase64Decoder().decode(transactionBytes);
         const base58EncodedTransaction =
