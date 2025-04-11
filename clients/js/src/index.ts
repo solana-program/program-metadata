@@ -1,4 +1,5 @@
 export * from './generated';
+export * from './instructionPlans';
 
 export * from './createMetadata';
 export * from './downloadMetadata';

@@ -21,6 +21,7 @@ import {
   RpcSubscriptions,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
+  Transaction,
 } from '@solana/kit';
 import chalk from 'chalk';
 import { Command, Option } from 'commander';
@@ -35,11 +36,15 @@ import {
   getSetImmutableInstruction,
 } from './generated';
 import {
-  getComputeUnitInstructions,
-  getDefaultMessageFactory,
-  getMetadataInstructionPlanExecutor,
-  getPdaDetails,
-} from './internals';
+  createDefaultTransactionPlanExecutor,
+  createDefaultTransactionPlanner,
+  InstructionPlan,
+  sequentialInstructionPlan,
+  TransactionPlanExecutor,
+  TransactionPlanner,
+  TransactionPlanResult,
+} from './instructionPlans';
+import { getPdaDetails } from './internals';
 import {
   packDirectData,
   PackedData,
@@ -164,33 +169,35 @@ program
       cmd: Command
     ) => {
       const options = cmd.optsWithGlobals() as UploadOptions;
-      const client = getClient(options);
-      const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+      const client = await getClient(options);
       const { authority: programAuthority } = await getProgramAuthority(
         client.rpc,
         program
       );
-      if (!options.nonCanonical && keypair.address !== programAuthority) {
+      if (
+        !options.nonCanonical &&
+        client.authority.address !== programAuthority
+      ) {
         logErrorAndExit(
           'You must be the program authority to upload a canonical metadata account. Use `--non-canonical` option to upload as a third party.'
         );
       }
-      const { lastTransaction } = await uploadMetadata({
+      await uploadMetadata({
         ...client,
         ...getPackedData(content, options),
-        payer,
-        authority: keypair,
+        payer: client.payer,
+        authority: client.authority,
         program,
         seed,
         format: getFormat(options),
-        buffer: options.bufferOnly ? true : undefined,
-        extractLastTransaction: options.bufferOnly,
         closeBuffer: true,
         priorityFees: options.priorityFees,
       });
-      if (lastTransaction) {
-        const transactionBytes =
-          getTransactionEncoder().encode(lastTransaction);
+      const exportTransaction = false; // TODO: Option
+      if (exportTransaction) {
+        const transactionBytes = getTransactionEncoder().encode(
+          {} as Transaction
+        );
         const base64EncodedTransaction =
           getBase64Decoder().decode(transactionBytes);
         const base58EncodedTransaction =
@@ -230,7 +237,7 @@ program
   )
   .action(async (seed: string, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as DownloadOptions;
-    const client = getClient(options);
+    const client = getReadonlyClient(options);
     const authority =
       options.nonCanonical === true
         ? (await getKeyPairSigners(options, client.configs))[0].address
@@ -278,31 +285,24 @@ program
       cmd: Command
     ) => {
       const options = cmd.optsWithGlobals() as GlobalOptions;
-      const client = getClient(options);
-      const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+      const client = await getClient(options);
       const { metadata, programData } = await getPdaDetails({
         rpc: client.rpc,
         program,
-        authority: keypair,
+        authority: client.authority,
         seed,
       });
-      const planExecutor = await getCliPlanExecutor(client, payer, metadata);
-      await planExecutor({
-        kind: 'message',
-        instructions: [
-          ...getComputeUnitInstructions({
-            computeUnitPrice: options.priorityFees,
-            computeUnitLimit: 'simulated',
-          }),
+      await client.planAndExecute(
+        sequentialInstructionPlan([
           getSetAuthorityInstruction({
             account: metadata,
-            authority: keypair,
+            authority: client.authority,
             newAuthority: address(newAuthority),
             program,
             programData,
           }),
-        ],
-      });
+        ])
+      );
       logSuccess(
         `Additional authority successfully set to ${chalk.bold(newAuthority)}`
       );
@@ -320,31 +320,24 @@ program
   .description('Remove the additional authority on canonical metadata accounts')
   .action(async (seed: string, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as GlobalOptions;
-    const client = getClient(options);
-    const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+    const client = await getClient(options);
     const { metadata, programData } = await getPdaDetails({
       rpc: client.rpc,
       program,
-      authority: keypair,
+      authority: client.authority,
       seed,
     });
-    const planExecutor = await getCliPlanExecutor(client, payer, metadata);
-    await planExecutor({
-      kind: 'message',
-      instructions: [
-        ...getComputeUnitInstructions({
-          computeUnitPrice: options.priorityFees,
-          computeUnitLimit: 'simulated',
-        }),
+    await client.planAndExecute(
+      sequentialInstructionPlan([
         getSetAuthorityInstruction({
           account: metadata,
-          authority: keypair,
+          authority: client.authority,
           newAuthority: null,
           program,
           programData,
         }),
-      ],
-    });
+      ])
+    );
     logSuccess('Additional authority successfully removed');
   });
 
@@ -369,13 +362,15 @@ program
   )
   .action(async (seed: string, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as SetImmutableOptions;
-    const client = getClient(options);
-    const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+    const client = await getClient(options);
     const { authority: programAuthority } = await getProgramAuthority(
       client.rpc,
       program
     );
-    if (!options.nonCanonical && keypair.address !== programAuthority) {
+    if (
+      !options.nonCanonical &&
+      client.authority.address !== programAuthority
+    ) {
       logErrorAndExit(
         'You must be the program authority to update a canonical metadata account. Use `--non-canonical` option to update as a third party.'
       );
@@ -383,25 +378,19 @@ program
     const { metadata, programData } = await getPdaDetails({
       rpc: client.rpc,
       program,
-      authority: keypair,
+      authority: client.authority,
       seed,
     });
-    const planExecutor = await getCliPlanExecutor(client, payer, metadata);
-    await planExecutor({
-      kind: 'message',
-      instructions: [
-        ...getComputeUnitInstructions({
-          computeUnitPrice: options.priorityFees,
-          computeUnitLimit: 'simulated',
-        }),
+    await client.planAndExecute(
+      sequentialInstructionPlan([
         getSetImmutableInstruction({
           metadata,
-          authority: keypair,
+          authority: client.authority,
           program,
           programData,
         }),
-      ],
-    });
+      ])
+    );
     logSuccess('Metadata account successfully set as immutable');
   });
 
@@ -424,13 +413,15 @@ program
   )
   .action(async (seed: string, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as CloseOptions;
-    const client = getClient(options);
-    const [keypair, payer] = await getKeyPairSigners(options, client.configs);
+    const client = await getClient(options);
     const { authority: programAuthority } = await getProgramAuthority(
       client.rpc,
       program
     );
-    if (!options.nonCanonical && keypair.address !== programAuthority) {
+    if (
+      !options.nonCanonical &&
+      client.authority.address !== programAuthority
+    ) {
       logErrorAndExit(
         'You must be the program authority to close a canonical metadata account. Use `--non-canonical` option to close as a third party.'
       );
@@ -438,26 +429,20 @@ program
     const { metadata, programData } = await getPdaDetails({
       rpc: client.rpc,
       program,
-      authority: keypair,
+      authority: client.authority,
       seed,
     });
-    const planExecutor = await getCliPlanExecutor(client, payer, metadata);
-    await planExecutor({
-      kind: 'message',
-      instructions: [
-        ...getComputeUnitInstructions({
-          computeUnitPrice: options.priorityFees,
-          computeUnitLimit: 'simulated',
-        }),
+    await client.planAndExecute(
+      sequentialInstructionPlan([
         getCloseInstruction({
           account: metadata,
-          authority: keypair,
+          authority: client.authority,
           program,
           programData,
-          destination: payer.address,
+          destination: client.payer.address,
         }),
-      ],
-    });
+      ])
+    );
     logSuccess('Account successfully closed and rent recovered');
   });
 
@@ -475,71 +460,66 @@ program
     // TODO
   });
 
-async function getKeyPairSigners(
-  options: { keypair?: string; payer?: string },
-  configs: SolanaConfigs
-): Promise<[KeyPairSigner, KeyPairSigner]> {
-  const keypairPath = getKeyPairPath(options, configs);
-  const keypairPromise = getKeyPairSignerFromPath(keypairPath);
-  const payerPromise = options.payer
-    ? getKeyPairSignerFromPath(options.payer)
-    : keypairPromise;
-  return await Promise.all([keypairPromise, payerPromise]);
-}
-
-function getKeyPairPath(
-  options: { keypair?: string },
-  configs: SolanaConfigs
-): string {
-  if (options.keypair) return options.keypair;
-  if (configs.keypair_path) return configs.keypair_path;
-  return path.join(os.homedir(), '.config', 'solana', 'id.json');
-}
-
-async function getKeyPairSignerFromPath(
-  keypairPath: string
-): Promise<KeyPairSigner> {
-  if (!fs.existsSync(keypairPath)) {
-    logErrorAndExit(`Keypair file not found at: ${keypairPath}`);
-  }
-  const keypairString = fs.readFileSync(keypairPath, 'utf-8');
-  const keypairData = new Uint8Array(JSON.parse(keypairString));
-  return await createKeyPairSignerFromBytes(keypairData);
-}
-
-async function getCliPlanExecutor(
-  client: Client,
-  payer: KeyPairSigner,
-  metadata: Address
-) {
-  const getDefaultMessage = getDefaultMessageFactory({
-    rpc: client.rpc,
-    payer,
-  });
-  const [defaultMessage] = await Promise.all([getDefaultMessage()]);
-  return getMetadataInstructionPlanExecutor({
-    ...client,
-    getDefaultMessage,
-    payer,
-    metadata,
-    defaultMessage,
-  });
-}
-
-type Client = {
-  rpc: Rpc<SolanaRpcApi>;
-  rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi>;
-  configs: SolanaConfigs;
+type Client = ReadonlyClient & {
+  authority: KeyPairSigner;
+  executor: TransactionPlanExecutor;
+  payer: KeyPairSigner;
+  planAndExecute: (
+    instructionPlan: InstructionPlan
+  ) => Promise<TransactionPlanResult>;
+  planner: TransactionPlanner;
 };
 
-function getClient(options: { rpc?: string }): Client {
+async function getClient(options: {
+  keypair?: string;
+  payer?: string;
+  priorityFees?: MicroLamports;
+  rpc?: string;
+}): Promise<Client> {
+  const readonlyClient = getReadonlyClient(options);
+  const [authority, payer] = await getKeyPairSigners(
+    options,
+    readonlyClient.configs
+  );
+  const planner = createDefaultTransactionPlanner({
+    feePayer: payer,
+    computeUnitPrice: options.priorityFees,
+  });
+  const executor = createDefaultTransactionPlanExecutor({
+    rpc: readonlyClient.rpc,
+    rpcSubscriptions: readonlyClient.rpcSubscriptions,
+    parallelChunkSize: 5,
+  });
+  const planAndExecute = async (
+    instructionPlan: InstructionPlan
+  ): Promise<TransactionPlanResult> => {
+    const transactionPlan = await planner(instructionPlan);
+    return await executor(transactionPlan);
+  };
+  return {
+    ...readonlyClient,
+    authority,
+    executor,
+    payer,
+    planAndExecute,
+    planner,
+  };
+}
+
+type ReadonlyClient = {
+  configs: SolanaConfigs;
+  rpc: Rpc<SolanaRpcApi>;
+  rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi>;
+};
+
+function getReadonlyClient(options: { rpc?: string }): ReadonlyClient {
   const configs = getSolanaConfigs();
   const rpcUrl = getRpcUrl(options, configs);
   const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
   return {
+    configs,
     rpc: createSolanaRpc(rpcUrl),
     rpcSubscriptions: createSolanaRpcSubscriptions(rpcSubscriptionsUrl),
-    configs,
   };
 }
 
@@ -576,6 +556,38 @@ function getSolanaConfigs(): SolanaConfigs {
 
 function getSolanaConfigPath(): string {
   return path.join(os.homedir(), '.config', 'solana', 'cli', 'config.yml');
+}
+
+async function getKeyPairSigners(
+  options: { keypair?: string; payer?: string },
+  configs: SolanaConfigs
+): Promise<[KeyPairSigner, KeyPairSigner]> {
+  const keypairPath = getKeyPairPath(options, configs);
+  const keypairPromise = getKeyPairSignerFromPath(keypairPath);
+  const payerPromise = options.payer
+    ? getKeyPairSignerFromPath(options.payer)
+    : keypairPromise;
+  return await Promise.all([keypairPromise, payerPromise]);
+}
+
+function getKeyPairPath(
+  options: { keypair?: string },
+  configs: SolanaConfigs
+): string {
+  if (options.keypair) return options.keypair;
+  if (configs.keypair_path) return configs.keypair_path;
+  return path.join(os.homedir(), '.config', 'solana', 'id.json');
+}
+
+async function getKeyPairSignerFromPath(
+  keypairPath: string
+): Promise<KeyPairSigner> {
+  if (!fs.existsSync(keypairPath)) {
+    logErrorAndExit(`Keypair file not found at: ${keypairPath}`);
+  }
+  const keypairString = fs.readFileSync(keypairPath, 'utf-8');
+  const keypairData = new Uint8Array(JSON.parse(keypairString));
+  return await createKeyPairSignerFromBytes(keypairData);
 }
 
 function getCompression(options: { compression?: string }): Compression {

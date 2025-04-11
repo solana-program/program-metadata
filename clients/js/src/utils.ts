@@ -6,24 +6,14 @@ import {
   GetAccountInfoApi,
   getAddressDecoder,
   getAddressEncoder,
-  GetEpochInfoApi,
-  GetLatestBlockhashApi,
-  GetMinimumBalanceForRentExemptionApi,
   getOptionDecoder,
   getProgramDerivedAddress,
-  GetSignatureStatusesApi,
   getStructDecoder,
   getU32Decoder,
   getU64Decoder,
   MicroLamports,
   ReadonlyUint8Array,
   Rpc,
-  RpcSubscriptions,
-  SendTransactionApi,
-  SignatureNotificationsApi,
-  SimulateTransactionApi,
-  SlotNotificationsApi,
-  Transaction,
   TransactionSigner,
   unwrapOption,
 } from '@solana/kit';
@@ -34,6 +24,7 @@ import {
   FormatArgs,
   SeedArgs,
 } from './generated';
+import { TransactionPlanResult } from './instructionPlans';
 
 export const ACCOUNT_HEADER_LENGTH = 96;
 
@@ -47,18 +38,6 @@ export const LOADER_V4_PROGRAM_ADDRESS =
   'CoreBPFLoaderV41111111111111111111111111111' as Address<'CoreBPFLoaderV41111111111111111111111111111'>;
 
 export type MetadataInput = {
-  rpc: Rpc<
-    GetLatestBlockhashApi &
-      GetEpochInfoApi &
-      GetSignatureStatusesApi &
-      SendTransactionApi &
-      SimulateTransactionApi &
-      GetAccountInfoApi &
-      GetMinimumBalanceForRentExemptionApi
-  >;
-  rpcSubscriptions: RpcSubscriptions<
-    SignatureNotificationsApi & SlotNotificationsApi
-  >;
   payer: TransactionSigner;
   authority: TransactionSigner;
   program: Address;
@@ -74,29 +53,17 @@ export type MetadataInput = {
    */
   priorityFees?: MicroLamports;
   /**
-   * Whether to use a buffer for creating or updating a metadata account.
-   * If a `TransactionSigner` is provided, the provided buffer will be used for updating only.
-   * Defaults to `true` unless the entire operation can be done in a single transaction.
-   */
-  buffer?: TransactionSigner | boolean;
-  /**
    * When using a buffer, whether to close the buffer account after the operation.
    * This is only relevant when updating a metadata account since, when creating
    * them, buffer accounts are transformed into metadata accounts.
    * Defaults to `true`.
    */
   closeBuffer?: boolean;
-  /**
-   * When using a buffer, whether to extract the last transaction from the buffer
-   * and return it as serialized bytes instead of sending it.
-   * Defaults to `false`.
-   */
-  extractLastTransaction?: boolean;
 };
 
 export type MetadataResponse = {
   metadata: Address;
-  lastTransaction?: Transaction;
+  result: TransactionPlanResult;
 };
 
 export function getAccountSize(dataLength: bigint | number) {

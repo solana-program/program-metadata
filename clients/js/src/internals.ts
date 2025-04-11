@@ -1,68 +1,24 @@
 import {
-  getSetComputeUnitLimitInstruction,
-  getSetComputeUnitPriceInstruction,
-} from '@solana-program/compute-budget';
-import {
   Address,
-  Commitment,
-  CompilableTransactionMessage,
-  compileTransaction,
-  createTransactionMessage,
   GetAccountInfoApi,
-  GetLatestBlockhashApi,
-  getTransactionEncoder,
-  IInstruction,
-  MicroLamports,
-  pipe,
   ReadonlyUint8Array,
   Rpc,
-  setTransactionMessageFeePayerSigner,
-  setTransactionMessageLifetimeUsingBlockhash,
-  Transaction,
-  TransactionMessageWithBlockhashLifetime,
   TransactionSigner,
 } from '@solana/kit';
 import {
-  ExtendInstruction,
   findMetadataPda,
   getExtendInstruction,
   getWriteInstruction,
   SeedArgs,
 } from './generated';
 import {
-  getDefaultInstructionPlanExecutor,
-  getTransactionMessageFromPlan,
-  InstructionPlan,
-  InstructionPlanExecutor,
-  MessageInstructionPlan,
+  getLinearIterableInstructionPlan,
+  getReallocIterableInstructionPlan,
+  IterableInstructionPlan,
 } from './instructionPlans';
-import { getProgramAuthority, MetadataInput, MetadataResponse } from './utils';
+import { getProgramAuthority } from './utils';
 
 export const REALLOC_LIMIT = 10_240;
-const TRANSACTION_SIZE_LIMIT =
-  1_280 -
-  40 /* 40 bytes is the size of the IPv6 header. */ -
-  8; /* 8 bytes is the size of the fragment header. */
-
-export type ExtendedMetadataInput = MetadataInput &
-  PdaDetails & {
-    getDefaultMessage: () => Promise<
-      CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
-    >;
-    defaultMessage: CompilableTransactionMessage &
-      TransactionMessageWithBlockhashLifetime;
-  };
-
-export async function getExtendedMetadataInput(
-  input: MetadataInput
-): Promise<ExtendedMetadataInput> {
-  const getDefaultMessage = getDefaultMessageFactory(input);
-  const [pdaDetails, defaultMessage] = await Promise.all([
-    getPdaDetails(input),
-    getDefaultMessage(),
-  ]);
-  return { ...input, ...pdaDetails, defaultMessage, getDefaultMessage };
-}
 
 export type PdaDetails = {
   metadata: Address;
@@ -93,272 +49,39 @@ export async function getPdaDetails(input: {
   return { metadata, isCanonical, programData };
 }
 
-export function getDefaultMessageFactory(input: {
-  rpc: Rpc<GetLatestBlockhashApi>;
-  payer: TransactionSigner;
-}): () => Promise<
-  CompilableTransactionMessage & TransactionMessageWithBlockhashLifetime
-> {
-  const getBlockhash = getTimedCacheFunction(async () => {
-    const { value } = await input.rpc.getLatestBlockhash().send();
-    return value;
-  }, 60_000);
-  return async () => {
-    const latestBlockhash = await getBlockhash();
-    return pipe(
-      createTransactionMessage({ version: 0 }),
-      (tx) => setTransactionMessageFeePayerSigner(input.payer, tx),
-      (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx)
-    );
-  };
-}
-
-function getTimedCacheFunction<T>(
-  fn: () => Promise<T>,
-  timeoutInMilliseconds: number
-): () => Promise<T> {
-  let cache: T | null = null;
-  let lastFetchTime = 0;
-  return async () => {
-    const currentTime = Date.now();
-
-    // Cache hit.
-    if (cache && currentTime - lastFetchTime < timeoutInMilliseconds) {
-      return cache;
-    }
-
-    // Cache miss.
-    cache = await fn();
-    lastFetchTime = currentTime;
-    return cache;
-  };
-}
-
-const MAX_COMPUTE_UNIT_LIMIT = 1_400_000;
-
-export function getComputeUnitInstructions(input: {
-  computeUnitPrice?: MicroLamports;
-  computeUnitLimit?: number | 'simulated';
-}) {
-  const instructions: IInstruction[] = [];
-  if (input.computeUnitPrice !== undefined) {
-    instructions.push(
-      getSetComputeUnitPriceInstruction({
-        microLamports: input.computeUnitPrice,
-      })
-    );
-  }
-  if (input.computeUnitLimit !== undefined) {
-    instructions.push(
-      getSetComputeUnitLimitInstruction({
-        units:
-          input.computeUnitLimit === 'simulated'
-            ? MAX_COMPUTE_UNIT_LIMIT
-            : input.computeUnitLimit,
-      })
-    );
-  }
-  return instructions;
-}
-
-export function calculateMaxChunkSize(
-  defaultMessage: CompilableTransactionMessage,
-  input: {
-    buffer: Address;
-    authority: TransactionSigner;
-    priorityFees?: MicroLamports;
-  }
-) {
-  const plan = getWriteInstructionPlan({
-    ...input,
-    offset: 0,
-    data: new Uint8Array(0),
-  });
-  const message = getTransactionMessageFromPlan(defaultMessage, plan);
-  return getRemainingTransactionSpaceFromMessage(message);
-}
-
-export function messageFitsInOneTransaction(
-  message: CompilableTransactionMessage
-): boolean {
-  return getRemainingTransactionSpaceFromMessage(message) >= 0;
-}
-
-function getRemainingTransactionSpaceFromMessage(
-  message: CompilableTransactionMessage
-) {
-  return (
-    TRANSACTION_SIZE_LIMIT -
-    getTransactionSizeFromMessage(message) -
-    1 /* Subtract 1 byte buffer to account for shortvec encoding. */
-  );
-}
-
-function getTransactionSizeFromMessage(
-  message: CompilableTransactionMessage
-): number {
-  const transaction = compileTransaction(message);
-  return getTransactionEncoder().encode(transaction).length;
-}
-
 export function getExtendInstructionPlan(input: {
   account: Address;
   authority: TransactionSigner;
   extraLength: number;
-  priorityFees?: MicroLamports;
   program?: Address;
   programData?: Address;
-}): InstructionPlan {
-  const plans: MessageInstructionPlan[] = [];
-  const extendsPerTransaction = 50;
-  let chunkOffset = 0;
-
-  while (chunkOffset < input.extraLength) {
-    const extendInstructions: ExtendInstruction[] = [];
-    let offset = chunkOffset;
-
-    while (offset < input.extraLength) {
-      const length = Math.min(input.extraLength - offset, REALLOC_LIMIT);
-      extendInstructions.push(
-        getExtendInstruction({
-          account: input.account,
-          authority: input.authority,
-          length,
-          program: input.program,
-          programData: input.programData,
-        })
-      );
-      offset += length;
-    }
-
-    plans.push({
-      kind: 'message',
-      instructions: [
-        ...getComputeUnitInstructions({
-          computeUnitPrice: input.priorityFees,
-          computeUnitLimit: 'simulated',
-        }),
-        ...extendInstructions,
-      ],
-    });
-    chunkOffset += REALLOC_LIMIT * extendsPerTransaction;
-  }
-
-  return { kind: 'parallel', plans };
+}): IterableInstructionPlan {
+  return getReallocIterableInstructionPlan({
+    totalSize: input.extraLength,
+    getInstruction: (size) =>
+      getExtendInstruction({
+        account: input.account,
+        authority: input.authority,
+        length: size,
+        program: input.program,
+        programData: input.programData,
+      }),
+  });
 }
 
 export function getWriteInstructionPlan(input: {
   buffer: Address;
   authority: TransactionSigner;
-  offset: number;
   data: ReadonlyUint8Array;
-  priorityFees?: MicroLamports;
-}): MessageInstructionPlan {
-  return {
-    kind: 'message',
-    instructions: [
-      ...getComputeUnitInstructions({
-        computeUnitPrice: input.priorityFees,
-        computeUnitLimit: 'simulated',
+}): IterableInstructionPlan {
+  return getLinearIterableInstructionPlan({
+    totalLength: input.data.length,
+    getInstruction: (offset, length) =>
+      getWriteInstruction({
+        buffer: input.buffer,
+        authority: input.authority,
+        offset,
+        data: input.data.slice(offset, offset + length),
       }),
-      getWriteInstruction({ ...input }),
-    ],
-  };
-}
-
-export function getMetadataInstructionPlanExecutor(
-  input: Pick<
-    ExtendedMetadataInput,
-    | 'rpc'
-    | 'rpcSubscriptions'
-    | 'payer'
-    | 'extractLastTransaction'
-    | 'metadata'
-    | 'defaultMessage'
-    | 'getDefaultMessage'
-  > & { commitment?: Commitment }
-): (
-  plan: InstructionPlan,
-  config?: { abortSignal?: AbortSignal }
-) => Promise<MetadataResponse> {
-  const executor = getDefaultInstructionPlanExecutor({
-    ...input,
-    simulateComputeUnitLimit: true,
-    getDefaultMessage: input.getDefaultMessage,
   });
-
-  return async (plan, config) => {
-    const [planToSend, lastTransaction] = extractLastTransactionIfRequired(
-      plan,
-      input
-    );
-    await executor(planToSend, config);
-    return { metadata: input.metadata, lastTransaction };
-  };
-}
-
-export async function executeInstructionPlanAndGetMetadataResponse(
-  plan: InstructionPlan,
-  executor: InstructionPlanExecutor,
-  input: {
-    metadata: Address;
-    defaultMessage: CompilableTransactionMessage;
-    extractLastTransaction?: boolean;
-  }
-): Promise<MetadataResponse> {
-  const [planToSend, lastTransaction] = extractLastTransactionIfRequired(
-    plan,
-    input
-  );
-  await executor(planToSend);
-  return { metadata: input.metadata, lastTransaction };
-}
-
-function extractLastTransactionIfRequired(
-  plan: InstructionPlan,
-  input: {
-    defaultMessage: CompilableTransactionMessage;
-    extractLastTransaction?: boolean;
-  }
-): [InstructionPlan, Transaction | undefined] {
-  if (!input.extractLastTransaction) {
-    return [plan, undefined];
-  }
-  const result = extractLastMessageFromPlan(plan);
-  const lastMessage = getTransactionMessageFromPlan(
-    input.defaultMessage,
-    result.lastMessage
-  );
-  return [result.plan, compileTransaction(lastMessage)];
-}
-
-function extractLastMessageFromPlan(plan: InstructionPlan): {
-  plan: InstructionPlan;
-  lastMessage: MessageInstructionPlan;
-} {
-  switch (plan.kind) {
-    case 'sequential':
-      // eslint-disable-next-line no-case-declarations
-      const lastMessage = plan.plans[plan.plans.length - 1];
-      if (lastMessage.kind !== 'message') {
-        throw Error(
-          `Expected last plan to be a message plan, got: ${lastMessage.kind}`
-        );
-      }
-      return {
-        plan: { kind: 'sequential', plans: plan.plans.slice(0, -1) },
-        lastMessage,
-      };
-    case 'message':
-      throw new Error(
-        'This operation can be executed without a buffer. ' +
-          'Therefore, the `extractLastTransaction` option is redundant. ' +
-          'Use the `buffer` option to force the use of a buffer.'
-      );
-    case 'parallel':
-    default:
-      throw Error(
-        `Cannot extract last transaction from plan kind: "${plan.kind}"`
-      );
-  }
 }
