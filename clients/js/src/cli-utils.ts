@@ -34,7 +34,6 @@ import {
 } from './packData';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
-const LOCALHOST_WEBSOCKET_URL = 'ws://127.0.0.1:8900';
 
 export type GlobalOptions = {
   keypair?: string;
@@ -130,8 +129,7 @@ function getRpcSubscriptionsUrl(
   configs: SolanaConfigs
 ): string {
   if (configs.websocket_url) return configs.websocket_url;
-  if (rpcUrl === LOCALHOST_URL) return LOCALHOST_WEBSOCKET_URL;
-  return rpcUrl.replace(/^http/, 'ws');
+  return rpcUrl.replace(/^http/, 'ws').replace(/:8899$/, ':8900');
 }
 
 type SolanaConfigs = {
