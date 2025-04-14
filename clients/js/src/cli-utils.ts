@@ -17,6 +17,7 @@ import {
 } from '@solana/kit';
 import chalk from 'chalk';
 import { parse as parseYaml } from 'yaml';
+import { UploadOptions } from './cli-options';
 import { Format } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
@@ -32,7 +33,6 @@ import {
   packExternalData,
   packUrlData,
 } from './packData';
-import { UploadOptions } from './cli-options';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 

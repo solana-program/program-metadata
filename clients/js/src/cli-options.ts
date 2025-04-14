@@ -9,10 +9,11 @@ export type GlobalOptions = KeypairOption &
   RpcOption;
 
 export function setGlobalOptions(command: Command) {
-  command.addOption(keypairOption);
-  command.addOption(payerOption);
-  command.addOption(priorityFeesOption);
-  command.addOption(rpcOption);
+  return command
+    .addOption(keypairOption)
+    .addOption(payerOption)
+    .addOption(priorityFeesOption)
+    .addOption(rpcOption);
 }
 
 export type KeypairOption = { keypair?: string };
@@ -56,7 +57,10 @@ export type UploadOptions = {
   EncodingOption;
 
 export function setUploadOptions(command: Command) {
-  command.addOption(keypairOption); // TODO
+  return command
+    .addOption(compressionOption)
+    .addOption(encodingOption)
+    .addOption(formatOption);
 }
 
 export type CompressionOption = { compression: Compression };
@@ -65,14 +69,13 @@ export const compressionOption = new Option(
   'Describes how to compress the data'
 )
   .choices(['none', 'gzip', 'zlib'])
-  .default('zlib')
-  .argParser((value: string | undefined): Compression => {
+  .default(Compression.Zlib, 'zlib')
+  .argParser((value: string): Compression => {
     switch (value) {
       case 'none':
         return Compression.None;
       case 'gzip':
         return Compression.Gzip;
-      case undefined:
       case 'zlib':
         return Compression.Zlib;
       default:
@@ -86,12 +89,11 @@ export const encodingOption = new Option(
   'Describes how to encode the data'
 )
   .choices(['none', 'utf8', 'base58', 'base64'])
-  .default('utf8')
-  .argParser((value: string | undefined): Encoding => {
+  .default(Encoding.Utf8, 'utf8')
+  .argParser((value: string): Encoding => {
     switch (value) {
       case 'none':
         return Encoding.None;
-      case undefined:
       case 'utf8':
         return Encoding.Utf8;
       case 'base58':
@@ -110,10 +112,8 @@ export const formatOption = new Option(
 )
   .choices(['none', 'json', 'yaml', 'toml'])
   .default(undefined, 'the file extension or "none"')
-  .argParser((value: string | undefined): Format | undefined => {
+  .argParser((value: string): Format => {
     switch (value) {
-      case undefined:
-        return undefined;
       case 'none':
         return Format.None;
       case 'json':
