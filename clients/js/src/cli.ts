@@ -11,8 +11,13 @@ import {
 } from '@solana/kit';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { logErrorAndExit, logSuccess } from './cli-logs';
 import {
   GlobalOptions,
+  NonCanonicalReadOption,
+  nonCanonicalReadOption,
+  NonCanonicalWriteOption,
+  nonCanonicalWriteOption,
   setGlobalOptions,
   setWriteOptions,
   WriteOptions,
@@ -23,8 +28,6 @@ import {
   getKeyPairSigners,
   getPackedData,
   getReadonlyClient,
-  logErrorAndExit,
-  logSuccess,
   writeFile,
 } from './cli-utils';
 import { downloadMetadata } from './downloadMetadata';
@@ -61,11 +64,7 @@ const uploadCommand = program
     '[file]',
     'The path to the file to upload (creates a "direct" data source). See options for other sources such as --text, --url and --account.'
   )
-  .option(
-    '--non-canonical',
-    'When provided, a non-canonical metadata account will be uploaded using the active keypair as the authority.',
-    false
-  );
+  .addOption(nonCanonicalWriteOption);
 setWriteOptions(uploadCommand);
 uploadCommand
   .option(
@@ -82,7 +81,8 @@ uploadCommand
       cmd: Command
     ) => {
       const options = cmd.optsWithGlobals() as WriteOptions &
-        GlobalOptions & { nonCanonical: boolean; bufferOnly: boolean };
+        GlobalOptions &
+        NonCanonicalWriteOption & { bufferOnly: boolean };
       const client = await getClient(options);
       const { authority: programAuthority } = await getProgramAuthority(
         client.rpc,
@@ -130,25 +130,19 @@ uploadCommand
   );
 
 // Download metadata command.
-type DownloadOptions = GlobalOptions & {
-  output?: string;
-  nonCanonical?: string | true;
-};
+type DownloadOptions = GlobalOptions &
+  NonCanonicalReadOption & { output?: string };
 program
   .command('download')
-  .description('Download IDL to file')
+  .description('Download metadata to file')
   .argument('<seed>', 'Seed for the metadata account')
   .argument(
     '<program>',
     'Program associated with the metadata account',
     address
   )
-  .option('-o, --output <path>', 'Path to save the IDL file')
-  .option(
-    '--non-canonical [address]',
-    'When provided, a non-canonical metadata account will be downloaded using the provided address or the active keypair as the authority.',
-    false
-  )
+  .option('-o, --output <path>', 'Path to save the metadata file')
+  .addOption(nonCanonicalReadOption)
   .action(async (seed: string, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as DownloadOptions;
     const client = getReadonlyClient(options);
@@ -156,7 +150,7 @@ program
       options.nonCanonical === true
         ? (await getKeyPairSigners(options, client.configs))[0].address
         : options.nonCanonical
-          ? address(options.nonCanonical)
+          ? options.nonCanonical
           : undefined;
     try {
       const content = await downloadMetadata(
@@ -254,9 +248,7 @@ program
     logSuccess('Additional authority successfully removed');
   });
 
-type SetImmutableOptions = GlobalOptions & {
-  nonCanonical: boolean;
-};
+type SetImmutableOptions = GlobalOptions & NonCanonicalWriteOption;
 program
   .command('set-immutable')
   .description(
@@ -268,11 +260,7 @@ program
     'Program associated with the metadata account',
     address
   )
-  .option(
-    '--non-canonical',
-    'When provided, a non-canonical metadata account will be updated using the active keypair as the authority.',
-    false
-  )
+  .addOption(nonCanonicalWriteOption)
   .action(async (seed: string, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as SetImmutableOptions;
     const client = await getClient(options);

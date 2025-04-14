@@ -1,7 +1,7 @@
-import type { MicroLamports } from '@solana/kit';
+import { address, type Address, type MicroLamports } from '@solana/kit';
 import { Command, Option } from 'commander';
 import { Compression, Encoding, Format } from './generated';
-import { logErrorAndExit } from './cli-utils';
+import { logErrorAndExit } from './cli-logs';
 
 export type GlobalOptions = KeypairOption &
   PayerOption &
@@ -162,3 +162,27 @@ export const formatOption = new Option(
         logErrorAndExit(`Invalid format option: ${value}`);
     }
   });
+
+export type NonCanonicalWriteOption = { nonCanonical: boolean };
+export const nonCanonicalWriteOption = new Option(
+  '--non-canonical',
+  'When provided, a non-canonical metadata account will be closed using the active keypair as the authority.'
+).default(false);
+
+export type NonCanonicalReadOption = { nonCanonical: Address | boolean };
+export const nonCanonicalReadOption = new Option(
+  '--non-canonical [address]',
+  'When provided, a non-canonical metadata account will be downloaded using the provided address or the active keypair as the authority.'
+)
+  .default(false)
+  .argParser((value: string | undefined): Address | boolean => {
+    return value === undefined ? true : addressParser(value);
+  });
+
+function addressParser(value: string): Address {
+  try {
+    return address(value);
+  } catch {
+    logErrorAndExit(`Invalid address: "${value}"`);
+  }
+}

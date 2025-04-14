@@ -15,7 +15,6 @@ import {
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
 } from '@solana/kit';
-import chalk from 'chalk';
 import { parse as parseYaml } from 'yaml';
 import { WriteOptions } from './cli-options';
 import { Format } from './generated';
@@ -33,6 +32,7 @@ import {
   packExternalData,
   packUrlData,
 } from './packData';
+import { logErrorAndExit, logWarning } from './cli-logs';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 
@@ -237,21 +237,4 @@ export function getPackedData(
 export function writeFile(filepath: string, content: string): void {
   fs.mkdirSync(path.dirname(filepath), { recursive: true });
   fs.writeFileSync(filepath, content);
-}
-
-export function logSuccess(message: string): void {
-  console.warn(chalk.green(`[Success] `) + message);
-}
-
-export function logWarning(message: string): void {
-  console.warn(chalk.yellow(`[Warning] `) + message);
-}
-
-export function logError(message: string): void {
-  console.error(chalk.red(`[Error] `) + message);
-}
-
-export function logErrorAndExit(message: string): never {
-  logError(message);
-  process.exit(1);
 }
