@@ -10,17 +10,18 @@ import {
   Transaction,
 } from '@solana/kit';
 import chalk from 'chalk';
-import { Command, Option } from 'commander';
+import { Command } from 'commander';
 import {
   compressionOption,
   encodingOption,
+  formatOption,
   GlobalOptions,
   setGlobalOptions,
   UploadOptions,
 } from './cli-options';
 import {
   getClient,
-  getFormat,
+  getFormatFromFile,
   getKeyPairSigners,
   getPackedData,
   getReadonlyClient,
@@ -84,12 +85,7 @@ program
     '--account-length <number>',
     'The length of the data on the provided account. (default: the rest of the data)'
   )
-  .addOption(
-    new Option(
-      '--format <format>',
-      'The format of the provided data. (default: the file extension or "none")'
-    ).choices(['none', 'json', 'yaml', 'toml'])
-  )
+  .addOption(formatOption)
   .addOption(encodingOption)
   .addOption(compressionOption)
   .option(
@@ -126,7 +122,7 @@ program
         authority: client.authority,
         program,
         seed,
-        format: getFormat(options),
+        format: options.format ?? getFormatFromFile(options.file),
         closeBuffer: true,
         priorityFees: options.priorityFees,
       });

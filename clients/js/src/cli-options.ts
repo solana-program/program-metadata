@@ -51,10 +51,10 @@ export type UploadOptions = {
   account?: string;
   accountOffset?: string;
   accountLength?: string;
-  format?: string;
   bufferOnly: boolean;
 } & CompressionOption &
-  EncodingOption;
+  EncodingOption &
+  FormatOption;
 
 export function setUploadOptions(command: Command) {
   return command

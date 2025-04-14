@@ -165,24 +165,7 @@ async function getKeyPairSignerFromPath(
   return await createKeyPairSignerFromBytes(keypairData);
 }
 
-export function getFormat(options: { format?: string; file?: string }): Format {
-  switch (options.format) {
-    case undefined:
-      return getFormatFromFile(options.file);
-    case 'none':
-      return Format.None;
-    case 'json':
-      return Format.Json;
-    case 'yaml':
-      return Format.Yaml;
-    case 'toml':
-      return Format.Toml;
-    default:
-      logErrorAndExit(`Invalid format option: ${options.format}`);
-  }
-}
-
-function getFormatFromFile(file: string | undefined): Format {
+export function getFormatFromFile(file: string | undefined): Format {
   if (!file) return Format.None;
   const extension = path.extname(file);
   switch (extension) {
