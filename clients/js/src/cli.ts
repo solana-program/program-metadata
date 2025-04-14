@@ -18,6 +18,8 @@ import {
   nonCanonicalReadOption,
   NonCanonicalWriteOption,
   nonCanonicalWriteOption,
+  OutputOption,
+  outputOption,
   setGlobalOptions,
   setWriteOptions,
   WriteOptions,
@@ -130,8 +132,6 @@ uploadCommand
   );
 
 // Download metadata command.
-type DownloadOptions = GlobalOptions &
-  NonCanonicalReadOption & { output?: string };
 program
   .command('download')
   .description('Download metadata to file')
@@ -141,10 +141,12 @@ program
     'Program associated with the metadata account',
     address
   )
-  .option('-o, --output <path>', 'Path to save the metadata file')
+  .addOption(outputOption)
   .addOption(nonCanonicalReadOption)
   .action(async (seed: string, program: Address, _, cmd: Command) => {
-    const options = cmd.optsWithGlobals() as DownloadOptions;
+    const options = cmd.optsWithGlobals() as GlobalOptions &
+      NonCanonicalReadOption &
+      OutputOption;
     const client = getReadonlyClient(options);
     const authority =
       options.nonCanonical === true

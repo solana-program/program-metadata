@@ -179,6 +179,12 @@ export const nonCanonicalReadOption = new Option(
     return value === undefined ? true : addressParser(value);
   });
 
+export type OutputOption = { output?: string };
+export const outputOption = new Option(
+  '-o, --output <path>',
+  'Path to save the retrieved data.'
+);
+
 function addressParser(value: string): Address {
   try {
     return address(value);
