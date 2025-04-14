@@ -44,10 +44,7 @@ export const rpcOption = new Option('--rpc <string>', 'RPC URL.').default(
   'solana config or localhost'
 );
 
-export type UploadOptions = {
-  nonCanonical: boolean;
-  bufferOnly: boolean;
-} & TextOption &
+export type WriteOptions = TextOption &
   UrlOption &
   AccountOption &
   AccountOffsetOption &
@@ -56,7 +53,7 @@ export type UploadOptions = {
   EncodingOption &
   FormatOption;
 
-export function setUploadOptions(command: Command) {
+export function setWriteOptions(command: Command) {
   return (
     command
       // Data sources.

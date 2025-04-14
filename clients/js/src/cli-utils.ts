@@ -17,7 +17,7 @@ import {
 } from '@solana/kit';
 import chalk from 'chalk';
 import { parse as parseYaml } from 'yaml';
-import { UploadOptions } from './cli-options';
+import { WriteOptions } from './cli-options';
 import { Format } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
@@ -183,7 +183,7 @@ export function getFormatFromFile(file: string | undefined): Format {
 
 export function getPackedData(
   file: string | undefined,
-  options: UploadOptions
+  options: WriteOptions
 ): PackedData {
   const { compression, encoding } = options;
   let packData: PackedData | null = null;

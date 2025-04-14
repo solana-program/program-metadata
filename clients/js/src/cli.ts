@@ -14,8 +14,8 @@ import { Command } from 'commander';
 import {
   GlobalOptions,
   setGlobalOptions,
-  setUploadOptions,
-  UploadOptions,
+  setWriteOptions,
+  WriteOptions,
 } from './cli-options';
 import {
   getClient,
@@ -66,7 +66,7 @@ const uploadCommand = program
     'When provided, a non-canonical metadata account will be uploaded using the active keypair as the authority.',
     false
   );
-setUploadOptions(uploadCommand);
+setWriteOptions(uploadCommand);
 uploadCommand
   .option(
     '--buffer-only',
@@ -81,7 +81,8 @@ uploadCommand
       _,
       cmd: Command
     ) => {
-      const options = cmd.optsWithGlobals() as UploadOptions & GlobalOptions;
+      const options = cmd.optsWithGlobals() as WriteOptions &
+        GlobalOptions & { nonCanonical: boolean; bufferOnly: boolean };
       const client = await getClient(options);
       const { authority: programAuthority } = await getProgramAuthority(
         client.rpc,
