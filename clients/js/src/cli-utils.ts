@@ -32,15 +32,9 @@ import {
   packExternalData,
   packUrlData,
 } from './packData';
+import { GlobalOptions } from './cli-options';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
-
-export type GlobalOptions = {
-  keypair?: string;
-  payer?: string;
-  rpc?: string;
-  priorityFees?: MicroLamports;
-};
 
 export type UploadOptions = GlobalOptions & {
   nonCanonical: boolean;

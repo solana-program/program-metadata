@@ -7,18 +7,17 @@ import {
   getBase64Decoder,
   getTransactionEncoder,
   isSolanaError,
-  MicroLamports,
   Transaction,
 } from '@solana/kit';
 import chalk from 'chalk';
 import { Command, Option } from 'commander';
+import { GlobalOptions, setGlobalOptions } from './cli-options';
 import {
   getClient,
   getFormat,
   getKeyPairSigners,
   getPackedData,
   getReadonlyClient,
-  GlobalOptions,
   logErrorAndExit,
   logSuccess,
   UploadOptions,
@@ -41,25 +40,8 @@ program
   .name('program-metadata')
   .description('CLI to manage Solana program metadata and IDLs')
   .version(__VERSION__)
-  .option(
-    '-k, --keypair <path>',
-    'Path to keypair file. (default: solana config)'
-  )
-  .option(
-    '-p, --payer <path>',
-    'Path to keypair file of transaction fee and storage payer. (default: keypair)'
-  )
-  .option('--rpc <string>', 'RPC URL. (default: solana config or localhost)')
-  .addOption(
-    new Option(
-      '--priority-fees <number>',
-      'Priority fees per compute unit for sending transactions'
-    )
-      .default('100000')
-      .argParser((value: string | undefined) =>
-        value !== undefined ? (BigInt(value) as MicroLamports) : undefined
-      )
-  );
+  .configureHelp({ showGlobalOptions: true });
+setGlobalOptions(program);
 
 // Upload metadata command.
 program
