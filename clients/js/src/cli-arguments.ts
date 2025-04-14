@@ -17,3 +17,8 @@ export const programArgument = new Argument(
     logErrorAndExit(`Invalid program address: "${value}"`);
   }
 });
+
+export const fileArgument = new Argument(
+  '[file]',
+  'Filepath of the data to upload (creates a "direct" data source). See options for other sources such as --text, --url and --account.'
+);

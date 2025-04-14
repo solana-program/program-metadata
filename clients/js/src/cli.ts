@@ -43,7 +43,7 @@ import { sequentialInstructionPlan } from './instructionPlans';
 import { getPdaDetails } from './internals';
 import { uploadMetadata } from './uploadMetadata';
 import { getProgramAuthority } from './utils';
-import { programArgument, seedArgument } from './cli-arguments';
+import { fileArgument, programArgument, seedArgument } from './cli-arguments';
 
 // Define the CLI program.
 const program = new Command();
@@ -60,10 +60,7 @@ const uploadCommand = program
   .description('Upload metadata.')
   .addArgument(seedArgument)
   .addArgument(programArgument)
-  .argument(
-    '[file]',
-    'The path to the file to upload (creates a "direct" data source). See options for other sources such as --text, --url and --account.'
-  )
+  .addArgument(fileArgument)
   .addOption(nonCanonicalWriteOption);
 setWriteOptions(uploadCommand);
 uploadCommand
