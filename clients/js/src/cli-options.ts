@@ -1,7 +1,7 @@
 import { address, type Address, type MicroLamports } from '@solana/kit';
 import { Command, Option } from 'commander';
-import { Compression, Encoding, Format } from './generated';
 import { logErrorAndExit } from './cli-logs';
+import { Compression, Encoding, Format } from './generated';
 
 export type GlobalOptions = KeypairOption &
   PayerOption &
@@ -176,7 +176,14 @@ export const nonCanonicalReadOption = new Option(
 )
   .default(false)
   .argParser((value: string | undefined): Address | boolean => {
-    return value === undefined ? true : addressParser(value);
+    if (value === undefined) {
+      return true;
+    }
+    try {
+      return address(value);
+    } catch {
+      logErrorAndExit(`Invalid non-canonical address: "${value}"`);
+    }
   });
 
 export type OutputOption = { output?: string };
@@ -184,11 +191,3 @@ export const outputOption = new Option(
   '-o, --output <path>',
   'Path to save the retrieved data.'
 );
-
-function addressParser(value: string): Address {
-  try {
-    return address(value);
-  } catch {
-    logErrorAndExit(`Invalid address: "${value}"`);
-  }
-}

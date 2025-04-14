@@ -37,11 +37,13 @@ import {
   getCloseInstruction,
   getSetAuthorityInstruction,
   getSetImmutableInstruction,
+  Seed,
 } from './generated';
 import { sequentialInstructionPlan } from './instructionPlans';
 import { getPdaDetails } from './internals';
 import { uploadMetadata } from './uploadMetadata';
 import { getProgramAuthority } from './utils';
+import { programArgument, seedArgument } from './cli-arguments';
 
 // Define the CLI program.
 const program = new Command();
@@ -55,13 +57,9 @@ setGlobalOptions(program);
 // Upload metadata command.
 const uploadCommand = program
   .command('upload')
-  .description('Upload metadata')
-  .argument('<seed>', 'Seed for the metadata account')
-  .argument(
-    '<program>',
-    'Program associated with the metadata account',
-    address
-  )
+  .description('Upload metadata.')
+  .addArgument(seedArgument)
+  .addArgument(programArgument)
   .argument(
     '[file]',
     'The path to the file to upload (creates a "direct" data source). See options for other sources such as --text, --url and --account.'
@@ -76,7 +74,7 @@ uploadCommand
   )
   .action(
     async (
-      seed: string,
+      seed: Seed,
       program: Address,
       file: string | undefined,
       _,
@@ -134,16 +132,12 @@ uploadCommand
 // Download metadata command.
 program
   .command('download')
-  .description('Download metadata to file')
-  .argument('<seed>', 'Seed for the metadata account')
-  .argument(
-    '<program>',
-    'Program associated with the metadata account',
-    address
-  )
+  .description('Download metadata to file.')
+  .addArgument(seedArgument)
+  .addArgument(programArgument)
   .addOption(outputOption)
   .addOption(nonCanonicalReadOption)
-  .action(async (seed: string, program: Address, _, cmd: Command) => {
+  .action(async (seed: Seed, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as GlobalOptions &
       NonCanonicalReadOption &
       OutputOption;
@@ -176,18 +170,14 @@ program
 program
   .command('set-authority')
   .description(
-    'Set or update an additional authority on canonical metadata accounts'
+    'Set or update an additional authority on canonical metadata accounts.'
   )
-  .argument('<seed>', 'Seed for the metadata account')
-  .argument(
-    '<program>',
-    'Program associated with the metadata account',
-    address
-  )
-  .argument('<new-authority>', 'The new authority to set', address)
+  .addArgument(seedArgument)
+  .addArgument(programArgument)
+  .argument('<new-authority>', 'The new authority to set', address) // TODO: Make it a mandatory option to be explicit.
   .action(
     async (
-      seed: string,
+      seed: Seed,
       program: Address,
       newAuthority: string,
       _,
@@ -220,14 +210,12 @@ program
 
 program
   .command('remove-authority')
-  .argument('<seed>', 'Seed for the metadata account')
-  .argument(
-    '<program>',
-    'Program associated with the metadata account',
-    address
+  .description(
+    'Remove the additional authority on canonical metadata accounts.'
   )
-  .description('Remove the additional authority on canonical metadata accounts')
-  .action(async (seed: string, program: Address, _, cmd: Command) => {
+  .addArgument(seedArgument)
+  .addArgument(programArgument)
+  .action(async (seed: Seed, program: Address, _, cmd: Command) => {
     const options = cmd.optsWithGlobals() as GlobalOptions;
     const client = await getClient(options);
     const { metadata, programData } = await getPdaDetails({
@@ -250,21 +238,17 @@ program
     logSuccess('Additional authority successfully removed');
   });
 
-type SetImmutableOptions = GlobalOptions & NonCanonicalWriteOption;
 program
   .command('set-immutable')
   .description(
-    'Make the metadata account immutable, preventing any further updates'
+    'Make the metadata account immutable, preventing any further updates.'
   )
-  .argument('<seed>', 'Seed for the metadata account')
-  .argument(
-    '<program>',
-    'Program associated with the metadata account',
-    address
-  )
+  .addArgument(seedArgument)
+  .addArgument(programArgument)
   .addOption(nonCanonicalWriteOption)
-  .action(async (seed: string, program: Address, _, cmd: Command) => {
-    const options = cmd.optsWithGlobals() as SetImmutableOptions;
+  .action(async (seed: Seed, program: Address, _, cmd: Command) => {
+    const options = cmd.optsWithGlobals() as GlobalOptions &
+      NonCanonicalWriteOption;
     const client = await getClient(options);
     const { authority: programAuthority } = await getProgramAuthority(
       client.rpc,
@@ -297,25 +281,15 @@ program
     logSuccess('Metadata account successfully set as immutable');
   });
 
-type CloseOptions = GlobalOptions & {
-  nonCanonical: boolean;
-};
 program
   .command('close')
-  .description('Close metadata account and recover rent')
-  .argument('<seed>', 'Seed for the metadata account')
-  .argument(
-    '<program>',
-    'Program associated with the metadata account',
-    address
-  )
-  .option(
-    '--non-canonical',
-    'When provided, a non-canonical metadata account will be closed using the active keypair as the authority.',
-    false
-  )
-  .action(async (seed: string, program: Address, _, cmd: Command) => {
-    const options = cmd.optsWithGlobals() as CloseOptions;
+  .description('Close metadata account and recover rent.')
+  .addArgument(seedArgument)
+  .addArgument(programArgument)
+  .addOption(nonCanonicalWriteOption)
+  .action(async (seed: Seed, program: Address, _, cmd: Command) => {
+    const options = cmd.optsWithGlobals() as GlobalOptions &
+      NonCanonicalWriteOption;
     const client = await getClient(options);
     const { authority: programAuthority } = await getProgramAuthority(
       client.rpc,
@@ -351,14 +325,14 @@ program
 
 program
   .command('list-buffers')
-  .description('List all buffer accounts owned by an authority')
+  .description('List all buffer accounts owned by an authority.')
   .action(async () => {
     // TODO
   });
 
 program
   .command('list')
-  .description('List all metadata accounts owned by an authority')
+  .description('List all metadata accounts owned by an authority.')
   .action(async () => {
     // TODO
   });
