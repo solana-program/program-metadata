@@ -19,19 +19,19 @@ export function setGlobalOptions(command: Command) {
 export type KeypairOption = { keypair?: string };
 export const keypairOption = new Option(
   '-k, --keypair <path>',
-  'Path to keypair file'
+  'Path to keypair file.'
 ).default(undefined, 'solana config');
 
 export type PayerOption = { payer?: string };
 export const payerOption = new Option(
   '-p, --payer <path>',
-  'Path to keypair file of transaction fee and storage payer'
+  'Path to keypair file of transaction fee and storage payer.'
 ).default(undefined, 'keypair option');
 
 export type PriorityFeesOption = { priorityFees?: MicroLamports };
 export const priorityFeesOption = new Option(
   '--priority-fees <number>',
-  'Priority fees in micro-lamports per compute unit for sending transactions'
+  'Priority fees in micro-lamports per compute unit for sending transactions.'
 )
   .default('100000')
   .argParser((value: string | undefined) =>
@@ -39,34 +39,73 @@ export const priorityFeesOption = new Option(
   );
 
 export type RpcOption = { rpc?: string };
-export const rpcOption = new Option('--rpc <string>', 'RPC URL').default(
+export const rpcOption = new Option('--rpc <string>', 'RPC URL.').default(
   undefined,
   'solana config or localhost'
 );
 
 export type UploadOptions = {
   nonCanonical: boolean;
-  text?: string;
-  url?: string;
-  account?: string;
-  accountOffset?: string;
-  accountLength?: string;
   bufferOnly: boolean;
-} & CompressionOption &
+} & TextOption &
+  UrlOption &
+  AccountOption &
+  AccountOffsetOption &
+  AccountLengthOption &
+  CompressionOption &
   EncodingOption &
   FormatOption;
 
 export function setUploadOptions(command: Command) {
-  return command
-    .addOption(compressionOption)
-    .addOption(encodingOption)
-    .addOption(formatOption);
+  return (
+    command
+      // Data sources.
+      .addOption(textOption)
+      .addOption(urlOption)
+      .addOption(accountOption)
+      .addOption(accountOffsetOption)
+      .addOption(accountLengthOption)
+      // Enums.
+      .addOption(compressionOption)
+      .addOption(encodingOption)
+      .addOption(formatOption)
+  );
 }
+
+export type TextOption = { text?: string };
+export const textOption = new Option(
+  '--text <content>',
+  'Direct content to upload (creates a "direct" data source).'
+);
+
+export type UrlOption = { url?: string };
+export const urlOption = new Option(
+  '--url <url>',
+  'The url to upload (creates a "url" data source).'
+);
+
+export type AccountOption = { account?: string };
+export const accountOption = new Option(
+  '--account <address>',
+  'The account address to upload (creates an "external" data source). See also: "--account-offset" and "--account-length".'
+);
+
+export type AccountOffsetOption = { accountOffset?: string };
+export const accountOffsetOption = new Option(
+  '--account-offset <number>',
+  'The offset in which the data start on the provided account. Requires "--account" to be set.'
+).default(undefined, '0');
+
+export type AccountLengthOption = { accountLength?: string };
+export const accountLengthOption = new Option(
+  '--account-length <number>',
+  'The length of the data on the provided account. Requires "--account" to be set.'
+).default(undefined, 'the rest of the data');
 
 export type CompressionOption = { compression: Compression };
 export const compressionOption = new Option(
   '--compression <compression>',
-  'Describes how to compress the data'
+  'Describes how to compress the data.'
 )
   .choices(['none', 'gzip', 'zlib'])
   .default(Compression.Zlib, 'zlib')
@@ -86,7 +125,7 @@ export const compressionOption = new Option(
 export type EncodingOption = { encoding: Encoding };
 export const encodingOption = new Option(
   '--encoding <encoding>',
-  'Describes how to encode the data'
+  'Describes how to encode the data.'
 )
   .choices(['none', 'utf8', 'base58', 'base64'])
   .default(Encoding.Utf8, 'utf8')
@@ -108,7 +147,7 @@ export const encodingOption = new Option(
 export type FormatOption = { format?: Format };
 export const formatOption = new Option(
   '--format <format>',
-  'The format of the provided data'
+  'The format of the provided data.'
 )
   .choices(['none', 'json', 'yaml', 'toml'])
   .default(undefined, 'the file extension or "none"')

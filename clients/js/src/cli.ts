@@ -12,11 +12,9 @@ import {
 import chalk from 'chalk';
 import { Command } from 'commander';
 import {
-  compressionOption,
-  encodingOption,
-  formatOption,
   GlobalOptions,
   setGlobalOptions,
+  setUploadOptions,
   UploadOptions,
 } from './cli-options';
 import {
@@ -50,8 +48,9 @@ program
 setGlobalOptions(program);
 
 // Upload metadata command.
-program
+const uploadCommand = program
   .command('upload')
+  .description('Upload metadata')
   .argument('<seed>', 'Seed for the metadata account')
   .argument(
     '<program>',
@@ -62,32 +61,13 @@ program
     '[file]',
     'The path to the file to upload (creates a "direct" data source). See options for other sources such as --text, --url and --account.'
   )
-  .description('Upload metadata')
   .option(
     '--non-canonical',
     'When provided, a non-canonical metadata account will be uploaded using the active keypair as the authority.',
     false
-  )
-  .option(
-    '--text <string>',
-    'Direct content to upload (creates a "direct" data source).'
-  )
-  .option('--url <string>', 'The url to upload (creates a "url" data source).')
-  .option(
-    '--account <address>',
-    'The account address to upload (creates an "external" data source).'
-  )
-  .option(
-    '--account-offset <number>',
-    'The offset in which the data start on the provided account. (default: 0)'
-  )
-  .option(
-    '--account-length <number>',
-    'The length of the data on the provided account. (default: the rest of the data)'
-  )
-  .addOption(formatOption)
-  .addOption(encodingOption)
-  .addOption(compressionOption)
+  );
+setUploadOptions(uploadCommand);
+uploadCommand
   .option(
     '--buffer-only',
     'Only create the buffer and export the transaction that sets the buffer.',
