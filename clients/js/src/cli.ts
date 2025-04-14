@@ -11,7 +11,13 @@ import {
 } from '@solana/kit';
 import chalk from 'chalk';
 import { Command, Option } from 'commander';
-import { GlobalOptions, setGlobalOptions } from './cli-options';
+import {
+  compressionOption,
+  encodingOption,
+  GlobalOptions,
+  setGlobalOptions,
+  UploadOptions,
+} from './cli-options';
 import {
   getClient,
   getFormat,
@@ -20,7 +26,6 @@ import {
   getReadonlyClient,
   logErrorAndExit,
   logSuccess,
-  UploadOptions,
   writeFile,
 } from './cli-utils';
 import { downloadMetadata } from './downloadMetadata';
@@ -85,18 +90,8 @@ program
       'The format of the provided data. (default: the file extension or "none")'
     ).choices(['none', 'json', 'yaml', 'toml'])
   )
-  .addOption(
-    new Option(
-      '--encoding <encoding>',
-      'Describes how to encode the data. (default: "utf8")'
-    ).choices(['none', 'utf8', 'base58', 'base64'])
-  )
-  .addOption(
-    new Option(
-      '--compression <compression>',
-      'Describes how to compress the data. (default: "zlib")'
-    ).choices(['none', 'gzip', 'zlib'])
-  )
+  .addOption(encodingOption)
+  .addOption(compressionOption)
   .option(
     '--buffer-only',
     'Only create the buffer and export the transaction that sets the buffer.',
@@ -110,7 +105,7 @@ program
       _,
       cmd: Command
     ) => {
-      const options = cmd.optsWithGlobals() as UploadOptions;
+      const options = cmd.optsWithGlobals() as UploadOptions & GlobalOptions;
       const client = await getClient(options);
       const { authority: programAuthority } = await getProgramAuthority(
         client.rpc,

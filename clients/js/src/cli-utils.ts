@@ -17,7 +17,7 @@ import {
 } from '@solana/kit';
 import chalk from 'chalk';
 import { parse as parseYaml } from 'yaml';
-import { Compression, Encoding, Format } from './generated';
+import { Format } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
@@ -32,22 +32,9 @@ import {
   packExternalData,
   packUrlData,
 } from './packData';
-import { GlobalOptions } from './cli-options';
+import { UploadOptions } from './cli-options';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
-
-export type UploadOptions = GlobalOptions & {
-  nonCanonical: boolean;
-  file?: string;
-  url?: string;
-  account?: string;
-  accountOffset?: string;
-  accountLength?: string;
-  format?: string;
-  encoding?: string;
-  compression?: string;
-  bufferOnly: boolean;
-};
 
 export type Client = ReadonlyClient & {
   authority: KeyPairSigner;
@@ -178,36 +165,6 @@ async function getKeyPairSignerFromPath(
   return await createKeyPairSignerFromBytes(keypairData);
 }
 
-function getCompression(options: { compression?: string }): Compression {
-  switch (options.compression) {
-    case 'none':
-      return Compression.None;
-    case 'gzip':
-      return Compression.Gzip;
-    case undefined:
-    case 'zlib':
-      return Compression.Zlib;
-    default:
-      logErrorAndExit(`Invalid compression option: ${options.compression}`);
-  }
-}
-
-function getEncoding(options: { encoding?: string }): Encoding {
-  switch (options.encoding) {
-    case 'none':
-      return Encoding.None;
-    case undefined:
-    case 'utf8':
-      return Encoding.Utf8;
-    case 'base58':
-      return Encoding.Base58;
-    case 'base64':
-      return Encoding.Base64;
-    default:
-      logErrorAndExit(`Invalid encoding option: ${options.encoding}`);
-  }
-}
-
 export function getFormat(options: { format?: string; file?: string }): Format {
   switch (options.format) {
     case undefined:
@@ -245,8 +202,7 @@ export function getPackedData(
   content: string | undefined,
   options: UploadOptions
 ): PackedData {
-  const compression = getCompression(options);
-  const encoding = getEncoding(options);
+  const { compression, encoding } = options;
   let packData: PackedData | null = null;
   const assertSingleUse = () => {
     if (packData) {
