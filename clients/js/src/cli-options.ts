@@ -46,7 +46,7 @@ export const rpcOption = new Option('--rpc <string>', 'RPC URL').default(
 
 export type UploadOptions = {
   nonCanonical: boolean;
-  file?: string;
+  text?: string;
   url?: string;
   account?: string;
   accountOffset?: string;

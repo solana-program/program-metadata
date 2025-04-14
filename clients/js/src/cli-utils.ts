@@ -182,7 +182,7 @@ export function getFormatFromFile(file: string | undefined): Format {
 }
 
 export function getPackedData(
-  content: string | undefined,
+  file: string | undefined,
   options: UploadOptions
 ): PackedData {
   const { compression, encoding } = options;
@@ -190,21 +190,21 @@ export function getPackedData(
   const assertSingleUse = () => {
     if (packData) {
       logErrorAndExit(
-        'Multiple data sources provided. Use only one of: `[content]`, `--file <filepath>`, `--url <url>` or `--account <address>` to provide data.'
+        'Multiple data sources provided. Use only one of: `[file]`, `--text <content>`, `--url <url>` or `--account <address>` to provide data.'
       );
     }
   };
 
-  if (content) {
-    packData = packDirectData({ content, compression, encoding });
-  }
-  if (options.file) {
-    assertSingleUse();
-    if (!fs.existsSync(options.file)) {
-      logErrorAndExit(`File not found: ${options.file}`);
+  if (file) {
+    if (!fs.existsSync(file)) {
+      logErrorAndExit(`File not found: ${file}`);
     }
-    const fileContent = fs.readFileSync(options.file, 'utf-8');
+    const fileContent = fs.readFileSync(file, 'utf-8');
     packData = packDirectData({ content: fileContent, compression, encoding });
+  }
+  if (options.text) {
+    assertSingleUse();
+    packData = packDirectData({ content: options.text, compression, encoding });
   }
   if (options.url) {
     assertSingleUse();
@@ -227,7 +227,7 @@ export function getPackedData(
 
   if (!packData) {
     logErrorAndExit(
-      'No data provided. Use `[content]`, `--file <filepath>`, `--url <url>` or `--account <address>` to provide data.'
+      'No data provided. Use `[file]`, `--text <content>`, `--url <url>` or `--account <address>` to provide data.'
     );
   }
 

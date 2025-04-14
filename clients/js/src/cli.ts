@@ -59,8 +59,8 @@ program
     address
   )
   .argument(
-    '[content]',
-    'Direct content to upload. See options for other sources such as --file, --url and --account.'
+    '[file]',
+    'The path to the file to upload (creates a "direct" data source). See options for other sources such as --text, --url and --account.'
   )
   .description('Upload metadata')
   .option(
@@ -69,8 +69,8 @@ program
     false
   )
   .option(
-    '--file <string>',
-    'The path to the file to upload (creates a "direct" data source).'
+    '--text <string>',
+    'Direct content to upload (creates a "direct" data source).'
   )
   .option('--url <string>', 'The url to upload (creates a "url" data source).')
   .option(
@@ -97,7 +97,7 @@ program
     async (
       seed: string,
       program: Address,
-      content: string | undefined,
+      file: string | undefined,
       _,
       cmd: Command
     ) => {
@@ -117,12 +117,12 @@ program
       }
       await uploadMetadata({
         ...client,
-        ...getPackedData(content, options),
+        ...getPackedData(file, options),
         payer: client.payer,
         authority: client.authority,
         program,
         seed,
-        format: options.format ?? getFormatFromFile(options.file),
+        format: options.format ?? getFormatFromFile(file),
         closeBuffer: true,
         priorityFees: options.priorityFees,
       });
