@@ -26,14 +26,17 @@ import {
 } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
-  createDefaultTransactionPlanner,
   InstructionPlan,
   isValidInstructionPlan,
   parallelInstructionPlan,
   sequentialInstructionPlan,
   TransactionPlanner,
 } from './instructionPlans';
-import { getPdaDetails, REALLOC_LIMIT } from './internals';
+import {
+  getDefaultTransactionPlannerAndExecutor,
+  getPdaDetails,
+  REALLOC_LIMIT,
+} from './internals';
 import {
   getAccountSize,
   getExtendInstructionPlan,
@@ -51,16 +54,7 @@ export async function updateMetadata(
     >[0]['rpcSubscriptions'];
   }
 ): Promise<MetadataResponse> {
-  const planner = createDefaultTransactionPlanner({
-    feePayer: input.payer,
-    computeUnitPrice: input.priorityFees,
-  });
-  const executor = createDefaultTransactionPlanExecutor({
-    rpc: input.rpc,
-    rpcSubscriptions: input.rpcSubscriptions,
-    parallelChunkSize: 5,
-  });
-
+  const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
   const { programData, isCanonical, metadata } = await getPdaDetails(input);
   const metadataAccount = await fetchMetadata(input.rpc, metadata);
 

@@ -5,11 +5,11 @@ import {
 } from '@solana/kit';
 import { getCreateMetadataInstructionPlan } from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
+import { createDefaultTransactionPlanExecutor } from './instructionPlans';
 import {
-  createDefaultTransactionPlanExecutor,
-  createDefaultTransactionPlanner,
-} from './instructionPlans';
-import { getPdaDetails } from './internals';
+  getDefaultTransactionPlannerAndExecutor,
+  getPdaDetails,
+} from './internals';
 import { getUpdateMetadataInstructionPlan } from './updateMetadata';
 import { MetadataInput, MetadataResponse } from './utils';
 
@@ -22,16 +22,7 @@ export async function writeMetadata(
     >[0]['rpcSubscriptions'];
   }
 ): Promise<MetadataResponse> {
-  const planner = createDefaultTransactionPlanner({
-    feePayer: input.payer,
-    computeUnitPrice: input.priorityFees,
-  });
-  const executor = createDefaultTransactionPlanExecutor({
-    rpc: input.rpc,
-    rpcSubscriptions: input.rpcSubscriptions,
-    parallelChunkSize: 5,
-  });
-
+  const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
   const { programData, isCanonical, metadata } = await getPdaDetails(input);
   const metadataAccount = await fetchMaybeMetadata(input.rpc, metadata);
   const extendedInput = {

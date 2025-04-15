@@ -1,11 +1,16 @@
 import {
   Address,
   GetAccountInfoApi,
+  MicroLamports,
   Rpc,
   TransactionSigner,
 } from '@solana/kit';
 import { findMetadataPda, SeedArgs } from './generated';
 import { getProgramAuthority } from './utils';
+import {
+  createDefaultTransactionPlanExecutor,
+  createDefaultTransactionPlanner,
+} from './instructionPlans';
 
 export const REALLOC_LIMIT = 10_240;
 
@@ -36,4 +41,24 @@ export async function getPdaDetails(input: {
     seed: input.seed,
   });
   return { metadata, isCanonical, programData };
+}
+
+export function getDefaultTransactionPlannerAndExecutor(input: {
+  payer: TransactionSigner;
+  priorityFees?: MicroLamports;
+  rpc: Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
+  rpcSubscriptions: Parameters<
+    typeof createDefaultTransactionPlanExecutor
+  >[0]['rpcSubscriptions'];
+}) {
+  const planner = createDefaultTransactionPlanner({
+    feePayer: input.payer,
+    computeUnitPrice: input.priorityFees,
+  });
+  const executor = createDefaultTransactionPlanExecutor({
+    rpc: input.rpc,
+    rpcSubscriptions: input.rpcSubscriptions,
+    parallelChunkSize: 5,
+  });
+  return { planner, executor };
 }
