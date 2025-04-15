@@ -6,6 +6,7 @@ import {
   createMetadata,
   DataSource,
   Encoding,
+  fetchMaybeBuffer,
   fetchMetadata,
   Format,
   Metadata,
@@ -15,6 +16,7 @@ import {
   createDeployedProgram,
   createKeypairBuffer,
   generateKeyPairSignerWithSol,
+  setAuthority,
 } from './_setup';
 
 test('it creates a canonical metadata account', async (t) => {
@@ -283,6 +285,39 @@ test('it cannot create a metadata account if no data or buffer is provided', asy
   });
 });
 
-test.todo(
-  'it can close an existing buffer after using it to create a new metadata account'
-);
+test('it can close an existing buffer after using it to create a new metadata account', async (t) => {
+  // Given the following authority and deployed program.
+  const client = createDefaultSolanaClient();
+  const authority = await generateKeyPairSignerWithSol(client);
+  const [program] = await createDeployedProgram(client, authority);
+
+  // And an existing buffer with the same authority.
+  const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
+  const buffer = await createKeypairBuffer(client, { payer: authority, data });
+  await setAuthority(client, {
+    payer: authority,
+    authority: buffer,
+    account: buffer.address,
+    newAuthority: authority.address,
+  });
+
+  // When we create a canonical metadata account
+  // using the existing buffer and the `closeBuffer` option.
+  await createMetadata({
+    ...client,
+    payer: authority,
+    authority,
+    program,
+    seed: 'idl',
+    encoding: Encoding.Utf8,
+    compression: Compression.None,
+    dataSource: DataSource.Direct,
+    format: Format.Json,
+    buffer: buffer.address,
+    closeBuffer: true,
+  });
+
+  // Then we expect the buffer account to no longer exist.
+  const bufferAccount = await fetchMaybeBuffer(client.rpc, buffer.address);
+  t.false(bufferAccount.exists);
+});
