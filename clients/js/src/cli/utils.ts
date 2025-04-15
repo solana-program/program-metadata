@@ -67,7 +67,6 @@ export type Client = ReadonlyClient & {
   executor: TransactionPlanExecutor;
   payer: TransactionSigner & MessageSigner;
   planAndExecute: (
-    description: string,
     instructionPlan: InstructionPlan
   ) => Promise<TransactionPlanResult>;
   planner: TransactionPlanner;
@@ -89,10 +88,8 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
     parallelChunkSize: 5,
   });
   const planAndExecute = async (
-    description: string,
     instructionPlan: InstructionPlan
   ): Promise<TransactionPlanResult> => {
-    console.log(description);
     const transactionPlan = await planner(instructionPlan);
     const result = await executor(transactionPlan);
     logSuccess('Operation executed successfully');

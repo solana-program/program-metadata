@@ -1,8 +1,8 @@
 import { Address } from '@solana/kit';
-import picocolors from 'picocolors';
 import { fetchMaybeMetadata, Seed } from '../../generated';
 import { getWriteMetadataInstructionPlan } from '../../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
+import { logCommand } from '../logs';
 import {
   GlobalOptions,
   nonCanonicalWriteOption,
@@ -39,31 +39,36 @@ export async function doWrite(
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
-  const { metadata, programData } = await getPdaDetailsForWriting(
+  const { metadata, programData, isCanonical } = await getPdaDetailsForWriting(
     client,
     options,
     program,
     seed
   );
+
+  logCommand(`Writing metadata account...`, {
+    metadata,
+    program,
+    seed,
+    authority: isCanonical ? undefined : client.authority.address,
+  });
+
   const [metadataAccount, writeInput] = await Promise.all([
     fetchMaybeMetadata(client.rpc, metadata),
     getWriteInput(client, file, options),
   ]);
 
-  const instructionPlan = await getWriteMetadataInstructionPlan({
-    ...client,
-    ...writeInput,
-    payer: client.payer,
-    authority: client.authority,
-    program,
-    programData,
-    seed,
-    metadata: metadataAccount,
-    planner: client.planner,
-  });
-
   await client.planAndExecute(
-    `Write metadata for program ${picocolors.bold(program)} and seed "${picocolors.bold(seed)}"`,
-    instructionPlan
+    await getWriteMetadataInstructionPlan({
+      ...client,
+      ...writeInput,
+      payer: client.payer,
+      authority: client.authority,
+      program,
+      programData,
+      seed,
+      metadata: metadataAccount,
+      planner: client.planner,
+    })
   );
 }

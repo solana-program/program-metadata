@@ -2,7 +2,7 @@ import { address, Address } from '@solana/kit';
 import picocolors from 'picocolors';
 import { fetchMaybeBuffer, getCloseInstruction } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
-import { logErrorAndExit } from '../logs';
+import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions } from '../options';
 import { CustomCommand, getClient } from '../utils';
 
@@ -57,8 +57,7 @@ export async function doCloseBuffer(
     }),
   ]);
 
-  await client.planAndExecute(
-    `Close buffer ${picocolors.bold(buffer)}`,
-    instructionPlan
-  );
+  logCommand(`Closing buffer ${picocolors.bold(buffer)}...`);
+
+  await client.planAndExecute(instructionPlan);
 }

@@ -33,7 +33,7 @@ async function doRemoveAuthority(
     seed,
   });
   await client.planAndExecute(
-    'Remove additional authority from metadata account',
+    // 'Remove additional authority from metadata account',
     sequentialInstructionPlan([
       getSetAuthorityInstruction({
         account: metadata,

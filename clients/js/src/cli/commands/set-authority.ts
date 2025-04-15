@@ -1,12 +1,11 @@
 import { address, Address } from '@solana/kit';
-import picocolors from 'picocolors';
 import { getSetAuthorityInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
 import { programArgument, seedArgument } from '../arguments';
+import { logErrorAndExit } from '../logs';
 import { GlobalOptions } from '../options';
 import { CustomCommand, getClient } from '../utils';
-import { logErrorAndExit } from '../logs';
 
 export function setSetAuthorityCommand(program: CustomCommand): void {
   program
@@ -45,7 +44,7 @@ async function doSetAuthority(
     seed,
   });
   await client.planAndExecute(
-    `Set additional authority on metadata account to ${picocolors.bold(options.newAuthority)}`,
+    // `Set additional authority on metadata account to ${picocolors.bold(options.newAuthority)}`,
     sequentialInstructionPlan([
       getSetAuthorityInstruction({
         account: metadata,

@@ -35,7 +35,7 @@ async function doClose(
     seed
   );
   await client.planAndExecute(
-    'Close metadata account and recover rent',
+    // 'Close metadata account and recover rent',
     sequentialInstructionPlan([
       getCloseInstruction({
         account: metadata,

@@ -1,7 +1,9 @@
 import { Address } from '@solana/kit';
 import picocolors from 'picocolors';
 import { fetchMaybeMetadata, Seed } from '../../generated';
+import { getUpdateMetadataInstructionPlan } from '../../updateMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
+import { logCommand, logErrorAndExit } from '../logs';
 import {
   GlobalOptions,
   nonCanonicalWriteOption,
@@ -15,8 +17,6 @@ import {
   getPdaDetailsForWriting,
   getWriteInput,
 } from '../utils';
-import { logErrorAndExit } from '../logs';
-import { getUpdateMetadataInstructionPlan } from '../../updateMetadata';
 
 export function setUpdateCommand(program: CustomCommand): void {
   program
@@ -40,37 +40,41 @@ export async function doWrite(
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
-  const { metadata, programData } = await getPdaDetailsForWriting(
+  const { metadata, programData, isCanonical } = await getPdaDetailsForWriting(
     client,
     options,
     program,
     seed
   );
+
+  logCommand(`Updating metadata account...`, {
+    metadata,
+    program,
+    seed,
+    authority: isCanonical ? undefined : client.authority.address,
+  });
+
   const [metadataAccount, writeInput] = await Promise.all([
     fetchMaybeMetadata(client.rpc, metadata),
     getWriteInput(client, file, options),
   ]);
 
   if (!metadataAccount.exists) {
-    // TODO: show derivation seeds.
     logErrorAndExit(
       `Metadata account ${picocolors.bold(metadataAccount.address)} does not exist.`
     );
   }
 
-  const instructionPlan = await getUpdateMetadataInstructionPlan({
-    ...client,
-    ...writeInput,
-    payer: client.payer,
-    authority: client.authority,
-    program,
-    programData,
-    metadata: metadataAccount,
-    planner: client.planner,
-  });
-
   await client.planAndExecute(
-    `Update metadata for program ${picocolors.bold(program)} and seed "${picocolors.bold(seed)}"`,
-    instructionPlan
+    await getUpdateMetadataInstructionPlan({
+      ...client,
+      ...writeInput,
+      payer: client.payer,
+      authority: client.authority,
+      program,
+      programData,
+      metadata: metadataAccount,
+      planner: client.planner,
+    })
   );
 }

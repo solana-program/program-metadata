@@ -37,7 +37,7 @@ async function doSetImmutable(
     seed
   );
   await client.planAndExecute(
-    'Make metadata account immutable',
+    // 'Make metadata account immutable',
     sequentialInstructionPlan([
       getSetImmutableInstruction({
         metadata,
