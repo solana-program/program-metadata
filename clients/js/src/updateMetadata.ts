@@ -23,7 +23,6 @@ import {
   getSetAuthorityInstruction,
   getSetDataInstruction,
   getTrimInstruction,
-  getWriteInstruction,
   Metadata,
   PROGRAM_METADATA_PROGRAM_ADDRESS,
   SetDataInput,
@@ -92,7 +91,7 @@ export async function getUpdateMetadataInstructionPlan(
 ): Promise<InstructionPlan> {
   if (!input.buffer && !input.data) {
     throw new Error(
-      'Either `buffer` or `data` must be provided to update a new metadata account.'
+      'Either `buffer` or `data` must be provided to update a metadata account.'
     );
   }
   if (!input.metadata.data.mutable) {
@@ -294,12 +293,6 @@ export function getUpdateMetadataInstructionPlanUsingExistingBuffer(
           }),
         ]
       : []),
-    getWriteInstruction({
-      buffer: input.buffer,
-      authority: input.authority,
-      sourceBuffer: input.buffer,
-      offset: 0,
-    }),
     getSetDataInstruction({
       ...input,
       buffer: input.buffer,
