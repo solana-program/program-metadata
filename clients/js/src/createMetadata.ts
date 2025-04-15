@@ -84,9 +84,7 @@ export async function getCreateMetadataInstructionPlan(
     );
   }
 
-  const data = (
-    input.buffer ? input.buffer.data.data : input.data
-  ) as ReadonlyUint8Array;
+  const data = (input.buffer?.data.data ?? input.data) as ReadonlyUint8Array;
   const rent = await input.rpc
     .getMinimumBalanceForRentExemption(getAccountSize(data.length))
     .send();

@@ -92,9 +92,7 @@ export async function getUpdateMetadataInstructionPlan(
     throw new Error('Metadata account is immutable');
   }
 
-  const data = (
-    input.buffer ? input.buffer.data.data : input.data
-  ) as ReadonlyUint8Array;
+  const data = (input.buffer?.data.data ?? input.data) as ReadonlyUint8Array;
   const fullRentPromise = input.rpc
     .getMinimumBalanceForRentExemption(getAccountSize(data.length))
     .send();

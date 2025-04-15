@@ -34,8 +34,8 @@ export function getCreateBufferInstructionPlan(input: {
     );
   }
 
-  const data = (input.data ??
-    input.sourceBuffer?.data.data) as ReadonlyUint8Array;
+  const data = (input.sourceBuffer?.data.data ??
+    input.data) as ReadonlyUint8Array;
 
   return sequentialInstructionPlan([
     getCreateAccountInstruction({
