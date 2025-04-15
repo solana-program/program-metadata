@@ -22,9 +22,16 @@ import {
   DataSourceArgs,
   EncodingArgs,
   FormatArgs,
+  getExtendInstruction,
+  getWriteInstruction,
   SeedArgs,
 } from './generated';
-import { TransactionPlanResult } from './instructionPlans';
+import {
+  getLinearIterableInstructionPlan,
+  getReallocIterableInstructionPlan,
+  IterableInstructionPlan,
+  TransactionPlanResult,
+} from './instructionPlans';
 
 export const ACCOUNT_HEADER_LENGTH = 96;
 
@@ -161,4 +168,41 @@ function getLoaderV3Decoders() {
       ['authority', getOptionDecoder(getAddressDecoder())],
     ]),
   ] as const;
+}
+
+export function getExtendInstructionPlan(input: {
+  account: Address;
+  authority: TransactionSigner;
+  extraLength: number;
+  program?: Address;
+  programData?: Address;
+}): IterableInstructionPlan {
+  return getReallocIterableInstructionPlan({
+    totalSize: input.extraLength,
+    getInstruction: (size) =>
+      getExtendInstruction({
+        account: input.account,
+        authority: input.authority,
+        length: size,
+        program: input.program,
+        programData: input.programData,
+      }),
+  });
+}
+
+export function getWriteInstructionPlan(input: {
+  buffer: Address;
+  authority: TransactionSigner;
+  data: ReadonlyUint8Array;
+}): IterableInstructionPlan {
+  return getLinearIterableInstructionPlan({
+    totalLength: input.data.length,
+    getInstruction: (offset, length) =>
+      getWriteInstruction({
+        buffer: input.buffer,
+        authority: input.authority,
+        offset,
+        data: input.data.slice(offset, offset + length),
+      }),
+  });
 }
