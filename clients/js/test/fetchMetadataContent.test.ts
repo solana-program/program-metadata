@@ -1,10 +1,10 @@
 import { address } from '@solana/kit';
 import test from 'ava';
 import {
-  downloadAndParseMetadata,
+  fetchAndParseMetadataContent,
   Format,
   packDirectData,
-  uploadMetadata,
+  writeMetadata,
 } from '../src';
 import {
   createDefaultSolanaClient,
@@ -20,7 +20,7 @@ test('it fetches and parses direct IDLs from canonical metadata accounts', async
 
   // And given the following IDL exists for the program.
   const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
-  await uploadMetadata({
+  await writeMetadata({
     ...client,
     ...packDirectData({ content: idl }),
     payer: authority,
@@ -31,7 +31,7 @@ test('it fetches and parses direct IDLs from canonical metadata accounts', async
   });
 
   // When we fetch the canonical IDL for the program.
-  const result = await downloadAndParseMetadata(client.rpc, program, 'idl');
+  const result = await fetchAndParseMetadataContent(client.rpc, program, 'idl');
 
   // Then we expect the following IDL to be fetched and parsed.
   t.deepEqual(result, {
@@ -49,7 +49,7 @@ test('it fetches and parses direct IDLs from non-canonical metadata accounts', a
 
   // And given the following IDL exists for the program.
   const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
-  await uploadMetadata({
+  await writeMetadata({
     ...client,
     ...packDirectData({ content: idl }),
     payer: authority,
@@ -60,7 +60,7 @@ test('it fetches and parses direct IDLs from non-canonical metadata accounts', a
   });
 
   // When we fetch the non-canonical IDL for the program.
-  const result = await downloadAndParseMetadata(
+  const result = await fetchAndParseMetadataContent(
     client.rpc,
     program,
     'idl',

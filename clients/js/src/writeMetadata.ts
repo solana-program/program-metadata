@@ -21,7 +21,7 @@ import {
 } from './updateMetadata';
 import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
 
-export async function uploadMetadata(
+export async function writeMetadata(
   input: MetadataInput & {
     rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi> &
       Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];

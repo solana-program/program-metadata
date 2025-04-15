@@ -4,7 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import { fetchMetadataFromSeeds, Format, SeedArgs } from './generated';
 import { unpackAndFetchData } from './packData';
 
-export async function downloadMetadata(
+export async function fetchMetadataContent(
   rpc: Rpc<GetAccountInfoApi>,
   program: Address,
   seed: SeedArgs,
@@ -18,7 +18,7 @@ export async function downloadMetadata(
   return await unpackAndFetchData({ rpc, ...account.data });
 }
 
-export async function downloadAndParseMetadata(
+export async function fetchAndParseMetadataContent(
   rpc: Rpc<GetAccountInfoApi>,
   program: Address,
   seed: SeedArgs,

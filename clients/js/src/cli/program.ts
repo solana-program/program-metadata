@@ -32,7 +32,7 @@ import {
   getReadonlyClient,
   writeFile,
 } from './utils';
-import { downloadMetadata } from '../downloadMetadata';
+import { fetchMetadataContent } from '../fetchMetadataContent';
 import {
   getCloseInstruction,
   getSetAuthorityInstruction,
@@ -41,7 +41,7 @@ import {
 } from '../generated';
 import { sequentialInstructionPlan } from '../instructionPlans';
 import { getPdaDetails } from '../internals';
-import { uploadMetadata } from '../uploadMetadata';
+import { writeMetadata } from '../writeMetadata';
 import { getProgramAuthority } from '../utils';
 import { fileArgument, programArgument, seedArgument } from './arguments';
 
@@ -93,7 +93,7 @@ writeCommand
           'You must be the program authority to write to a canonical metadata account. Use `--non-canonical` option to write as a third party.'
         );
       }
-      await uploadMetadata({
+      await writeMetadata({
         ...client,
         ...getPackedData(file, options),
         payer: client.payer,
@@ -146,7 +146,7 @@ program
           ? options.nonCanonical
           : undefined;
     try {
-      const content = await downloadMetadata(
+      const content = await fetchMetadataContent(
         client.rpc,
         program,
         seed,
