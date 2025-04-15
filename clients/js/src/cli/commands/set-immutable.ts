@@ -1,16 +1,13 @@
 import { Address } from '@solana/kit';
 import { getSetImmutableInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
-import { getPdaDetails } from '../../internals';
-import { getProgramAuthority } from '../../utils';
 import { programArgument, seedArgument } from '../arguments';
-import { logErrorAndExit } from '../logs';
 import {
   GlobalOptions,
   NonCanonicalWriteOption,
   nonCanonicalWriteOption,
 } from '../options';
-import { CustomCommand, getClient } from '../utils';
+import { CustomCommand, getClient, getPdaDetailsForWriting } from '../utils';
 
 export function setSetImmutableCommand(program: CustomCommand): void {
   program
@@ -33,21 +30,12 @@ async function doSetImmutable(
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
-  const { authority: programAuthority } = await getProgramAuthority(
-    client.rpc,
-    program
-  );
-  if (!options.nonCanonical && client.authority.address !== programAuthority) {
-    logErrorAndExit(
-      'You must be the program authority to update a canonical metadata account. Use the `--non-canonical` option to update as a third party.'
-    );
-  }
-  const { metadata, programData } = await getPdaDetails({
-    rpc: client.rpc,
+  const { metadata, programData } = await getPdaDetailsForWriting(
+    client,
+    options,
     program,
-    authority: client.authority,
-    seed,
-  });
+    seed
+  );
   await client.planAndExecute(
     'Make metadata account immutable',
     sequentialInstructionPlan([
