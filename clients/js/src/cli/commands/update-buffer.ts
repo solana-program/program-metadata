@@ -1,5 +1,5 @@
 import { address, Address, lamports } from '@solana/kit';
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 import { fetchMaybeBuffer } from '../../generated';
 import { getUpdateBufferInstructionPlan } from '../../updateBuffer';
 import { fileArgument } from '../arguments';
@@ -67,7 +67,7 @@ export async function doUpdateBuffer(
   });
 
   await client.planAndExecute(
-    `Update buffer ${chalk.bold(buffer)}`,
+    `Update buffer ${picocolors.bold(buffer)}`,
     instructionPlan
   );
 }

@@ -1,15 +1,15 @@
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 
 export function logSuccess(message: string): void {
-  console.warn(chalk.green(`[Success] `) + message);
+  console.warn(picocolors.green(`[Success] `) + message);
 }
 
 export function logWarning(message: string): void {
-  console.warn(chalk.yellow(`[Warning] `) + message);
+  console.warn(picocolors.yellow(`[Warning] `) + message);
 }
 
 export function logError(message: string): void {
-  console.error(chalk.red(`[Error] `) + message);
+  console.error(picocolors.red(`[Error] `) + message);
 }
 
 export function logErrorAndExit(message: string): never {

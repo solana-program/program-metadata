@@ -1,5 +1,5 @@
 import { address, Address } from '@solana/kit';
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 import { getSetAuthorityInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
@@ -45,7 +45,7 @@ async function doSetAuthority(
     seed,
   });
   await client.planAndExecute(
-    `Set additional authority on metadata account to ${chalk.bold(options.newAuthority)}`,
+    `Set additional authority on metadata account to ${picocolors.bold(options.newAuthority)}`,
     sequentialInstructionPlan([
       getSetAuthorityInstruction({
         account: metadata,

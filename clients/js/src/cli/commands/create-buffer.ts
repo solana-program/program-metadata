@@ -1,5 +1,5 @@
 import { generateKeyPairSigner } from '@solana/kit';
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 import { getCreateBufferInstructionPlan } from '../../createBuffer';
 import { getAccountSize } from '../../utils';
 import { fileArgument } from '../arguments';
@@ -43,7 +43,7 @@ export async function doCreateBuffer(
   });
 
   await client.planAndExecute(
-    `Create buffer ${chalk.bold(buffer.address)}`,
+    `Create buffer ${picocolors.bold(buffer.address)}`,
     instructionPlan
   );
 }

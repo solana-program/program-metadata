@@ -1,5 +1,5 @@
 import { Address } from '@solana/kit';
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 import { fetchMaybeMetadata, Seed } from '../../generated';
 import { getWriteMetadataInstructionPlan } from '../../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
@@ -63,7 +63,7 @@ export async function doWrite(
   });
 
   await client.planAndExecute(
-    `Write metadata for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"`,
+    `Write metadata for program ${picocolors.bold(program)} and seed "${picocolors.bold(seed)}"`,
     instructionPlan
   );
 }

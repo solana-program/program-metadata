@@ -1,5 +1,5 @@
 import { address, Address } from '@solana/kit';
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 import { fetchMaybeBuffer, getCloseInstruction } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { logErrorAndExit } from '../logs';
@@ -58,7 +58,7 @@ export async function doCloseBuffer(
   ]);
 
   await client.planAndExecute(
-    `Close buffer ${chalk.bold(buffer)}`,
+    `Close buffer ${picocolors.bold(buffer)}`,
     instructionPlan
   );
 }

@@ -1,5 +1,5 @@
 import { Address, isSolanaError } from '@solana/kit';
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 import { Option } from 'commander';
 import {
   Compression,
@@ -71,7 +71,9 @@ async function doFetch(
 
     if (options.output) {
       writeFile(options.output, content);
-      logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);
+      logSuccess(
+        `Metadata content saved to ${picocolors.bold(options.output)}`
+      );
     } else {
       console.log(content);
     }

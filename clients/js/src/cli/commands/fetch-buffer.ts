@@ -1,5 +1,5 @@
 import { address, Address } from '@solana/kit';
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 import { Option } from 'commander';
 import { Compression, Encoding, fetchMaybeBuffer } from '../../generated';
 import { unpackDirectData } from '../../packData';
@@ -63,7 +63,7 @@ export async function doFetchBuffer(
 
   if (options.output) {
     writeFile(options.output, content);
-    logSuccess(`Buffer content saved to ${chalk.bold(options.output)}`);
+    logSuccess(`Buffer content saved to ${picocolors.bold(options.output)}`);
   } else {
     console.log(content);
   }

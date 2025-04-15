@@ -1,5 +1,5 @@
 import { Address } from '@solana/kit';
-import chalk from 'chalk';
+import picocolors from 'picocolors';
 import { fetchMaybeMetadata, Seed } from '../../generated';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
 import {
@@ -54,7 +54,7 @@ export async function doWrite(
   if (!metadataAccount.exists) {
     // TODO: show derivation seeds.
     logErrorAndExit(
-      `Metadata account ${chalk.bold(metadataAccount.address)} does not exist.`
+      `Metadata account ${picocolors.bold(metadataAccount.address)} does not exist.`
     );
   }
 
@@ -70,7 +70,7 @@ export async function doWrite(
   });
 
   await client.planAndExecute(
-    `Update metadata for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"`,
+    `Update metadata for program ${picocolors.bold(program)} and seed "${picocolors.bold(seed)}"`,
     instructionPlan
   );
 }
