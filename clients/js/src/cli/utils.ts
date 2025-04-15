@@ -33,8 +33,20 @@ import {
   packUrlData,
 } from '../packData';
 import { logErrorAndExit, logWarning } from './logs';
+import { Command } from 'commander';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
+
+export class CustomCommand extends Command {
+  createCommand(name: string) {
+    return new CustomCommand(name);
+  }
+
+  tap(fn: (command: CustomCommand) => void) {
+    fn(this);
+    return this;
+  }
+}
 
 export type Client = ReadonlyClient & {
   authority: KeyPairSigner;

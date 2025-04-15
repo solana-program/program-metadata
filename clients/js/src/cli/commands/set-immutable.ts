@@ -1,5 +1,4 @@
 import { Address } from '@solana/kit';
-import { Command } from 'commander';
 import { getSetImmutableInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
@@ -11,9 +10,9 @@ import {
   NonCanonicalWriteOption,
   nonCanonicalWriteOption,
 } from '../options';
-import { getClient } from '../utils';
+import { CustomCommand, getClient } from '../utils';
 
-export function setSetImmutableCommand(program: Command): void {
+export function setSetImmutableCommand(program: CustomCommand): void {
   program
     .command('set-immutable')
     .description(
@@ -30,7 +29,7 @@ async function doSetImmutable(
   seed: Seed,
   program: Address,
   _: Options,
-  cmd: Command
+  cmd: CustomCommand
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);

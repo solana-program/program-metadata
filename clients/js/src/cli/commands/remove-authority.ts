@@ -1,14 +1,13 @@
 import { Address } from '@solana/kit';
-import { Command } from 'commander';
 import { getSetAuthorityInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
 import { programArgument, seedArgument } from '../arguments';
 import { logSuccess } from '../logs';
 import { GlobalOptions } from '../options';
-import { getClient } from '../utils';
+import { CustomCommand, getClient } from '../utils';
 
-export function setRemoveAuthorityCommand(program: Command): void {
+export function setRemoveAuthorityCommand(program: CustomCommand): void {
   program
     .command('remove-authority')
     .description(
@@ -24,7 +23,7 @@ async function doRemoveAuthority(
   seed: Seed,
   program: Address,
   _: Options,
-  cmd: Command
+  cmd: CustomCommand
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);

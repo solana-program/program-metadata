@@ -1,7 +1,8 @@
 import { Address, isSolanaError } from '@solana/kit';
 import chalk from 'chalk';
-import { Command } from 'commander';
 import { fetchMetadataContent } from '../../fetchMetadataContent';
+import { Seed } from '../../generated';
+import { programArgument, seedArgument } from '../arguments';
 import { logErrorAndExit, logSuccess } from '../logs';
 import {
   GlobalOptions,
@@ -10,11 +11,14 @@ import {
   outputOption,
   OutputOption,
 } from '../options';
-import { getKeyPairSigners, getReadonlyClient, writeFile } from '../utils';
-import { Seed } from '../../generated';
-import { programArgument, seedArgument } from '../arguments';
+import {
+  CustomCommand,
+  getKeyPairSigners,
+  getReadonlyClient,
+  writeFile,
+} from '../utils';
 
-export function setFetchCommand(program: Command): void {
+export function setFetchCommand(program: CustomCommand): void {
   program
     .command('fetch')
     .description('Fetch the content of a metadata account for a given program.')
@@ -26,7 +30,12 @@ export function setFetchCommand(program: Command): void {
 }
 
 type Options = NonCanonicalReadOption & OutputOption;
-async function doFetch(seed: Seed, program: Address, _: Options, cmd: Command) {
+async function doFetch(
+  seed: Seed,
+  program: Address,
+  _: Options,
+  cmd: CustomCommand
+) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = getReadonlyClient(options);
   const authority =

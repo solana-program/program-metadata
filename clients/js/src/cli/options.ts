@@ -1,15 +1,16 @@
 import { address, type Address, type MicroLamports } from '@solana/kit';
-import { Command, Option } from 'commander';
-import { logErrorAndExit } from './logs';
+import { Option } from 'commander';
 import { Compression, Encoding, Format } from '../generated';
+import { logErrorAndExit } from './logs';
+import { CustomCommand } from './utils';
 
 export type GlobalOptions = KeypairOption &
   PayerOption &
   PriorityFeesOption &
   RpcOption;
 
-export function setGlobalOptions(command: Command) {
-  return command
+export function setGlobalOptions(command: CustomCommand) {
+  command
     .addOption(keypairOption)
     .addOption(payerOption)
     .addOption(priorityFeesOption)
@@ -53,20 +54,18 @@ export type WriteOptions = TextOption &
   EncodingOption &
   FormatOption;
 
-export function setWriteOptions(command: Command) {
-  return (
-    command
-      // Data sources.
-      .addOption(textOption)
-      .addOption(urlOption)
-      .addOption(accountOption)
-      .addOption(accountOffsetOption)
-      .addOption(accountLengthOption)
-      // Enums.
-      .addOption(compressionOption)
-      .addOption(encodingOption)
-      .addOption(formatOption)
-  );
+export function setWriteOptions(command: CustomCommand) {
+  command
+    // Data sources.
+    .addOption(textOption)
+    .addOption(urlOption)
+    .addOption(accountOption)
+    .addOption(accountOffsetOption)
+    .addOption(accountLengthOption)
+    // Enums.
+    .addOption(compressionOption)
+    .addOption(encodingOption)
+    .addOption(formatOption);
 }
 
 export type TextOption = { text?: string };

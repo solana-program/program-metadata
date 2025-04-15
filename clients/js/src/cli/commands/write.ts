@@ -1,8 +1,3 @@
-import chalk from 'chalk';
-import { Command } from 'commander';
-import { getClient, getFormatFromFile, getPackedData } from '../utils';
-import { writeMetadata } from '../../writeMetadata';
-import { Seed } from '../../generated';
 import {
   Address,
   getBase58Decoder,
@@ -10,6 +5,12 @@ import {
   getTransactionEncoder,
   Transaction,
 } from '@solana/kit';
+import chalk from 'chalk';
+import { Seed } from '../../generated';
+import { getProgramAuthority } from '../../utils';
+import { writeMetadata } from '../../writeMetadata';
+import { fileArgument, programArgument, seedArgument } from '../arguments';
+import { logErrorAndExit, logSuccess } from '../logs';
 import {
   GlobalOptions,
   nonCanonicalWriteOption,
@@ -17,19 +18,23 @@ import {
   setWriteOptions,
   WriteOptions,
 } from '../options';
-import { getProgramAuthority } from '../../utils';
-import { logErrorAndExit, logSuccess } from '../logs';
-import { fileArgument, programArgument, seedArgument } from '../arguments';
+import {
+  CustomCommand,
+  getClient,
+  getFormatFromFile,
+  getPackedData,
+} from '../utils';
 
-export function setWriteCommand(program: Command): void {
-  const writeCommand = program
+export function setWriteCommand(program: CustomCommand): void {
+  program
     .command('write')
     .description('Create or update a metadata account for a given program.')
     .addArgument(seedArgument)
     .addArgument(programArgument)
-    .addArgument(fileArgument);
-  setWriteOptions(writeCommand);
-  writeCommand.addOption(nonCanonicalWriteOption);
+    .addArgument(fileArgument)
+    .tap(setWriteOptions)
+    .addOption(nonCanonicalWriteOption)
+    .action(doWrite);
 }
 
 type Options = WriteOptions & NonCanonicalWriteOption;
@@ -38,7 +43,7 @@ export async function doWrite(
   program: Address,
   file: string | undefined,
   _: Options,
-  cmd: Command
+  cmd: CustomCommand
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);

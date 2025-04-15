@@ -1,5 +1,4 @@
 import { Address } from '@solana/kit';
-import { Command } from 'commander';
 import { getCloseInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
@@ -11,9 +10,9 @@ import {
   NonCanonicalWriteOption,
   nonCanonicalWriteOption,
 } from '../options';
-import { getClient } from '../utils';
+import { CustomCommand, getClient } from '../utils';
 
-export function setCloseCommand(program: Command): void {
+export function setCloseCommand(program: CustomCommand): void {
   program
     .command('close')
     .description('Close metadata account and recover rent.')
@@ -24,7 +23,12 @@ export function setCloseCommand(program: Command): void {
 }
 
 type Options = NonCanonicalWriteOption;
-async function doClose(seed: Seed, program: Address, _: Options, cmd: Command) {
+async function doClose(
+  seed: Seed,
+  program: Address,
+  _: Options,
+  cmd: CustomCommand
+) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
   const { authority: programAuthority } = await getProgramAuthority(
