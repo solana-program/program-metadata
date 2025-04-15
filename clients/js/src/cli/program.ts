@@ -1,13 +1,6 @@
 #!/usr/bin/env node
 
-import {
-  Address,
-  address,
-  getBase58Decoder,
-  getBase64Decoder,
-  getTransactionEncoder,
-  Transaction,
-} from '@solana/kit';
+import { Address, address } from '@solana/kit';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import {
@@ -19,8 +12,7 @@ import {
 import { sequentialInstructionPlan } from '../instructionPlans';
 import { getPdaDetails } from '../internals';
 import { getProgramAuthority } from '../utils';
-import { writeMetadata } from '../writeMetadata';
-import { fileArgument, programArgument, seedArgument } from './arguments';
+import { programArgument, seedArgument } from './arguments';
 import { setCommands } from './commands';
 import { logErrorAndExit, logSuccess } from './logs';
 import {
@@ -28,10 +20,8 @@ import {
   NonCanonicalWriteOption,
   nonCanonicalWriteOption,
   setGlobalOptions,
-  setWriteOptions,
-  WriteOptions,
 } from './options';
-import { getClient, getFormatFromFile, getPackedData } from './utils';
+import { getClient } from './utils';
 
 // Define the CLI program.
 const program = new Command();
@@ -42,78 +32,6 @@ program
   .configureHelp({ showGlobalOptions: true });
 setGlobalOptions(program);
 setCommands(program);
-
-// Write metadata command.
-const writeCommand = program
-  .command('write')
-  .description('Create or update a metadata account for a given program.')
-  .addArgument(seedArgument)
-  .addArgument(programArgument)
-  .addArgument(fileArgument)
-  .addOption(nonCanonicalWriteOption);
-setWriteOptions(writeCommand);
-writeCommand
-  .option(
-    '--buffer-only',
-    'Only create the buffer and export the transaction that sets the buffer.',
-    false
-  )
-  .action(
-    async (
-      seed: Seed,
-      program: Address,
-      file: string | undefined,
-      _,
-      cmd: Command
-    ) => {
-      const options = cmd.optsWithGlobals() as WriteOptions &
-        GlobalOptions &
-        NonCanonicalWriteOption & { bufferOnly: boolean };
-      const client = await getClient(options);
-      const { authority: programAuthority } = await getProgramAuthority(
-        client.rpc,
-        program
-      );
-      if (
-        !options.nonCanonical &&
-        client.authority.address !== programAuthority
-      ) {
-        logErrorAndExit(
-          'You must be the program authority to write to a canonical metadata account. Use `--non-canonical` option to write as a third party.'
-        );
-      }
-      await writeMetadata({
-        ...client,
-        ...getPackedData(file, options),
-        payer: client.payer,
-        authority: client.authority,
-        program,
-        seed,
-        format: options.format ?? getFormatFromFile(file),
-        closeBuffer: true,
-        priorityFees: options.priorityFees,
-      });
-      const exportTransaction = false; // TODO: Option
-      if (exportTransaction) {
-        const transactionBytes = getTransactionEncoder().encode(
-          {} as Transaction
-        );
-        const base64EncodedTransaction =
-          getBase64Decoder().decode(transactionBytes);
-        const base58EncodedTransaction =
-          getBase58Decoder().decode(transactionBytes);
-        logSuccess(
-          `Buffer successfully created for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"!\n` +
-            `Use the following transaction data to apply the buffer:\n\n` +
-            `[base64]\n${base64EncodedTransaction}\n\n[base58]\n${base58EncodedTransaction}`
-        );
-      } else {
-        logSuccess(
-          `Metadata uploaded successfully for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"!`
-        );
-      }
-    }
-  );
 
 program
   .command('set-authority')
