@@ -1,25 +1,17 @@
 import {
-  generateKeyPairSigner,
   GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
-  lamports,
   Rpc,
 } from '@solana/kit';
-import {
-  getCreateMetadataInstructionPlanUsingBuffer,
-  getCreateMetadataInstructionPlanUsingInstructionData,
-} from './createMetadata';
+import { getCreateMetadataInstructionPlan } from './createMetadata';
 import { fetchMaybeMetadata } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
 } from './instructionPlans';
 import { getPdaDetails } from './internals';
-import {
-  getUpdateMetadataInstructionPlanUsingBuffer,
-  getUpdateMetadataInstructionPlanUsingInstructionData,
-} from './updateMetadata';
-import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
+import { getUpdateMetadataInstructionPlan } from './updateMetadata';
+import { MetadataInput, MetadataResponse } from './utils';
 
 export async function writeMetadata(
   input: MetadataInput & {
@@ -40,64 +32,22 @@ export async function writeMetadata(
     parallelChunkSize: 5,
   });
 
-  const [{ programData, isCanonical, metadata }, rent] = await Promise.all([
-    getPdaDetails(input),
-    input.rpc
-      .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
-      .send(),
-  ]);
-
+  const { programData, isCanonical, metadata } = await getPdaDetails(input);
   const metadataAccount = await fetchMaybeMetadata(input.rpc, metadata);
-
-  if (!metadataAccount.exists) {
-    const extendedInput = {
-      ...input,
-      programData: isCanonical ? programData : undefined,
-      metadata,
-      rent,
-    };
-
-    const transactionPlan = await planner(
-      getCreateMetadataInstructionPlanUsingInstructionData(extendedInput)
-    ).catch(() =>
-      planner(getCreateMetadataInstructionPlanUsingBuffer(extendedInput))
-    );
-
-    const result = await executor(transactionPlan);
-    return { metadata, result };
-  }
-
-  if (!metadataAccount.data.mutable) {
-    throw new Error('Metadata account is immutable');
-  }
-
-  const sizeDifference =
-    BigInt(input.data.length) - BigInt(metadataAccount.data.data.length);
-  const extraRentPromise =
-    sizeDifference > 0
-      ? input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
-      : Promise.resolve(lamports(0n));
-  const [extraRent, buffer] = await Promise.all([
-    extraRentPromise,
-    generateKeyPairSigner(),
-  ]);
-
   const extendedInput = {
     ...input,
     programData: isCanonical ? programData : undefined,
-    metadata,
-    buffer,
-    fullRent: rent,
-    extraRent,
-    sizeDifference,
+    planner,
   };
 
-  const transactionPlan = await planner(
-    getUpdateMetadataInstructionPlanUsingInstructionData(extendedInput)
-  ).catch(() =>
-    planner(getUpdateMetadataInstructionPlanUsingBuffer(extendedInput))
-  );
+  const instructionPlan = metadataAccount.exists
+    ? await getUpdateMetadataInstructionPlan({
+        ...extendedInput,
+        metadata: metadataAccount,
+      })
+    : await getCreateMetadataInstructionPlan({ ...extendedInput, metadata });
 
+  const transactionPlan = await planner(instructionPlan);
   const result = await executor(transactionPlan);
   return { metadata, result };
 }
