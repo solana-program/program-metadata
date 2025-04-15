@@ -24,7 +24,7 @@ export function getCreateBufferInstructionPlan(input: {
   authority: TransactionSigner;
   payer: TransactionSigner;
   sourceBuffer?: Account<Buffer>;
-  closeBuffer?: boolean;
+  closeSourceBuffer?: boolean;
   data?: ReadonlyUint8Array;
   rent: Lamports;
 }) {
@@ -72,7 +72,7 @@ export function getCreateBufferInstructionPlan(input: {
             }),
           ]),
         ]),
-    ...(input.closeBuffer && input.sourceBuffer
+    ...(input.closeSourceBuffer && input.sourceBuffer
       ? [
           getCloseInstruction({
             account: input.sourceBuffer.address,
