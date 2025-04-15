@@ -1,6 +1,7 @@
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
   Account,
+  Address,
   GetMinimumBalanceForRentExemptionApi,
   Lamports,
   ReadonlyUint8Array,
@@ -11,6 +12,7 @@ import {
   Buffer,
   fetchBuffer,
   getAllocateInstruction,
+  getCloseInstruction,
   getInitializeInstruction,
   getWriteInstruction,
   InitializeInput,
@@ -47,16 +49,18 @@ export async function createMetadata(
   }
 ): Promise<MetadataResponse> {
   const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
-  const { programData, isCanonical, metadata } = await getPdaDetails(input);
-  const buffer = input.buffer
-    ? await fetchBuffer(input.rpc, input.buffer)
-    : undefined;
+  const [{ programData, isCanonical, metadata }, buffer] = await Promise.all([
+    getPdaDetails(input),
+    input.buffer
+      ? fetchBuffer(input.rpc, input.buffer)
+      : Promise.resolve(undefined),
+  ]);
   const instructionPlan = await getCreateMetadataInstructionPlan({
     ...input,
     buffer,
-    programData: isCanonical ? programData : undefined,
     metadata,
     planner,
+    programData: isCanonical ? programData : undefined,
   });
 
   const transactionPlan = await planner(instructionPlan);
@@ -89,20 +93,19 @@ export async function getCreateMetadataInstructionPlan(
   if (input.buffer) {
     return getCreateMetadataInstructionPlanUsingExistingBuffer({
       ...input,
-      buffer: input.buffer,
+      buffer: input.buffer.address,
+      dataLength: data.length,
       rent,
     });
   }
 
-  const plan = getCreateMetadataInstructionPlanUsingInstructionData({
-    ...input,
-    rent,
-    data,
-  });
+  const extendedInput = { ...input, rent, data };
+  const plan =
+    getCreateMetadataInstructionPlanUsingInstructionData(extendedInput);
   const validPlan = await isValidInstructionPlan(plan, input.planner);
   return validPlan
     ? plan
-    : getCreateMetadataInstructionPlanUsingNewBuffer({ ...input, rent, data });
+    : getCreateMetadataInstructionPlanUsingNewBuffer(extendedInput);
 }
 
 export function getCreateMetadataInstructionPlanUsingInstructionData(
@@ -166,12 +169,13 @@ export function getCreateMetadataInstructionPlanUsingNewBuffer(
 
 export function getCreateMetadataInstructionPlanUsingExistingBuffer(
   input: Omit<InitializeInput, 'data'> & {
-    buffer: Account<Buffer>;
+    buffer: Address;
+    dataLength: number;
     payer: TransactionSigner;
     rent: Lamports;
+    closeBuffer?: boolean;
   }
 ) {
-  const data = input.buffer.data.data;
   return sequentialInstructionPlan([
     getTransferSolInstruction({
       source: input.payer,
@@ -185,12 +189,12 @@ export function getCreateMetadataInstructionPlanUsingExistingBuffer(
       programData: input.programData,
       seed: input.seed,
     }),
-    ...(data.length > REALLOC_LIMIT
+    ...(input.dataLength > REALLOC_LIMIT
       ? [
           getExtendInstructionPlan({
             account: input.metadata,
             authority: input.authority,
-            extraLength: data.length,
+            extraLength: input.dataLength,
             program: input.program,
             programData: input.programData,
           }),
@@ -199,7 +203,7 @@ export function getCreateMetadataInstructionPlanUsingExistingBuffer(
     getWriteInstruction({
       buffer: input.metadata,
       authority: input.authority,
-      sourceBuffer: input.buffer.address,
+      sourceBuffer: input.buffer,
       offset: 0,
     }),
     getInitializeInstruction({
@@ -207,5 +211,16 @@ export function getCreateMetadataInstructionPlanUsingExistingBuffer(
       system: PROGRAM_METADATA_PROGRAM_ADDRESS,
       data: undefined,
     }),
+    ...(input.closeBuffer
+      ? [
+          getCloseInstruction({
+            account: input.buffer,
+            authority: input.authority,
+            destination: input.payer.address,
+            program: input.program,
+            programData: input.programData,
+          }),
+        ]
+      : []),
   ]);
 }

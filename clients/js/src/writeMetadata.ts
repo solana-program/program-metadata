@@ -60,7 +60,6 @@ export async function getWriteMetadataInstructionPlan(
     ? await getUpdateMetadataInstructionPlan({
         ...input,
         metadata: input.metadata,
-        data: input.data!, // TODO: Temporary.
       })
     : await getCreateMetadataInstructionPlan({
         ...input,

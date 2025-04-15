@@ -4,6 +4,7 @@ import {
 } from '@solana-program/system';
 import {
   Account,
+  Address,
   generateKeyPairSigner,
   GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
@@ -14,12 +15,15 @@ import {
   TransactionSigner,
 } from '@solana/kit';
 import {
+  Buffer,
+  fetchBuffer,
   fetchMetadata,
   getAllocateInstruction,
   getCloseInstruction,
   getSetAuthorityInstruction,
   getSetDataInstruction,
   getTrimInstruction,
+  getWriteInstruction,
   Metadata,
   PROGRAM_METADATA_PROGRAM_ADDRESS,
   SetDataInput,
@@ -56,14 +60,19 @@ export async function updateMetadata(
 ): Promise<MetadataResponse> {
   const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
   const { programData, isCanonical, metadata } = await getPdaDetails(input);
-  const metadataAccount = await fetchMetadata(input.rpc, metadata);
+  const [metadataAccount, buffer] = await Promise.all([
+    fetchMetadata(input.rpc, metadata),
+    input.buffer
+      ? fetchBuffer(input.rpc, input.buffer)
+      : Promise.resolve(undefined),
+  ]);
 
   const instructionPlan = await getUpdateMetadataInstructionPlan({
     ...input,
-    programData: isCanonical ? programData : undefined,
+    buffer,
     metadata: metadataAccount,
     planner,
-    data: input.data!, // TODO: Temporary.
+    programData: isCanonical ? programData : undefined,
   });
 
   const transactionPlan = await planner(instructionPlan);
@@ -74,22 +83,30 @@ export async function updateMetadata(
 export async function getUpdateMetadataInstructionPlan(
   input: Omit<SetDataInput, 'buffer' | 'data' | 'metadata'> & {
     metadata: Account<Metadata>;
-    // TODO: from buffer.
-    data: ReadonlyUint8Array;
+    buffer?: Account<Buffer>;
+    data?: ReadonlyUint8Array;
     payer: TransactionSigner;
     planner: TransactionPlanner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
   }
 ): Promise<InstructionPlan> {
+  if (!input.buffer && !input.data) {
+    throw new Error(
+      'Either `buffer` or `data` must be provided to update a new metadata account.'
+    );
+  }
   if (!input.metadata.data.mutable) {
     throw new Error('Metadata account is immutable');
   }
 
+  const data = (
+    input.buffer ? input.buffer.data.data : input.data
+  ) as ReadonlyUint8Array;
   const fullRentPromise = input.rpc
-    .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
+    .getMinimumBalanceForRentExemption(getAccountSize(data.length))
     .send();
   const sizeDifference =
-    BigInt(input.data.length) - BigInt(input.metadata.data.data.length);
+    BigInt(data.length) - BigInt(input.metadata.data.data.length);
   const extraRentPromise =
     sizeDifference > 0
       ? input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
@@ -100,12 +117,24 @@ export async function getUpdateMetadataInstructionPlan(
     generateKeyPairSigner(),
   ]);
 
+  if (input.buffer) {
+    return getUpdateMetadataInstructionPlanUsingExistingBuffer({
+      ...input,
+      buffer: input.buffer.address,
+      extraRent,
+      metadata: input.metadata.address,
+      fullRent,
+      sizeDifference,
+    });
+  }
+
   const extendedInput = {
     ...input,
-    metadata: input.metadata.address,
     buffer,
-    fullRent,
+    data,
     extraRent,
+    fullRent,
+    metadata: input.metadata.address,
     sizeDifference,
   };
 
@@ -114,7 +143,7 @@ export async function getUpdateMetadataInstructionPlan(
   const validPlan = await isValidInstructionPlan(plan, input.planner);
   return validPlan
     ? plan
-    : getUpdateMetadataInstructionPlanUsingBuffer(extendedInput);
+    : getUpdateMetadataInstructionPlanUsingNewBuffer(extendedInput);
 }
 
 export function getUpdateMetadataInstructionPlanUsingInstructionData(
@@ -149,7 +178,7 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData(
   ]);
 }
 
-export function getUpdateMetadataInstructionPlanUsingBuffer(
+export function getUpdateMetadataInstructionPlanUsingNewBuffer(
   input: Omit<SetDataInput, 'buffer' | 'data'> & {
     buffer: TransactionSigner;
     closeBuffer?: boolean;
@@ -213,6 +242,73 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
       ? [
           getCloseInstruction({
             account: input.buffer.address,
+            authority: input.authority,
+            destination: input.payer.address,
+            program: input.program,
+            programData: input.programData,
+          }),
+        ]
+      : []),
+    ...(input.sizeDifference < 0
+      ? [
+          getTrimInstruction({
+            account: input.metadata,
+            authority: input.authority,
+            destination: input.payer.address,
+            program: input.program,
+            programData: input.programData,
+          }),
+        ]
+      : []),
+  ]);
+}
+
+export function getUpdateMetadataInstructionPlanUsingExistingBuffer(
+  input: Omit<SetDataInput, 'buffer' | 'data'> & {
+    buffer: Address;
+    closeBuffer?: boolean;
+    extraRent: Lamports;
+    fullRent: Lamports;
+    payer: TransactionSigner;
+    sizeDifference: number | bigint;
+  }
+) {
+  return sequentialInstructionPlan([
+    ...(input.sizeDifference > 0
+      ? [
+          getTransferSolInstruction({
+            source: input.payer,
+            destination: input.metadata,
+            amount: input.extraRent,
+          }),
+        ]
+      : []),
+    ...(input.sizeDifference > REALLOC_LIMIT
+      ? [
+          getExtendInstructionPlan({
+            account: input.metadata,
+            authority: input.authority,
+            extraLength: Number(input.sizeDifference),
+            program: input.program,
+            programData: input.programData,
+          }),
+        ]
+      : []),
+    getWriteInstruction({
+      buffer: input.buffer,
+      authority: input.authority,
+      sourceBuffer: input.buffer,
+      offset: 0,
+    }),
+    getSetDataInstruction({
+      ...input,
+      buffer: input.buffer,
+      data: undefined,
+    }),
+    ...(input.closeBuffer
+      ? [
+          getCloseInstruction({
+            account: input.buffer,
             authority: input.authority,
             destination: input.payer.address,
             program: input.program,

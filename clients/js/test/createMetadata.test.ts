@@ -282,3 +282,7 @@ test('it cannot create a metadata account if no data or buffer is provided', asy
       'Either `buffer` or `data` must be provided to create a new metadata account.',
   });
 });
+
+test.todo(
+  'it can close an existing buffer after using it to create a new metadata account'
+);

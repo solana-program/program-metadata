@@ -228,3 +228,11 @@ test('it updates a non-canonical metadata account with data larger than a transa
     data: newData,
   });
 });
+
+test.todo(
+  'it can close a new buffer after using it to update a new metadata account'
+);
+
+test.todo(
+  'it can close an existing buffer after using it to update a new metadata account'
+);
