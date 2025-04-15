@@ -1,8 +1,9 @@
 import { Address } from '@solana/kit';
 import chalk from 'chalk';
+import { getCreateMetadataInstructionPlan } from '../../createMetadata';
 import { fetchMaybeMetadata, Seed } from '../../generated';
-import { getWriteMetadataInstructionPlan } from '../../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
+import { logErrorAndExit } from '../logs';
 import {
   GlobalOptions,
   nonCanonicalWriteOption,
@@ -17,20 +18,20 @@ import {
   getWriteInput,
 } from '../utils';
 
-export function setWriteCommand(program: CustomCommand): void {
+export function setCreateCommand(program: CustomCommand): void {
   program
-    .command('write')
-    .description('Create or update a metadata account for a given program.')
+    .command('create')
+    .description('Create a metadata account for a given program.')
     .addArgument(seedArgument)
     .addArgument(programArgument)
     .addArgument(fileArgument)
     .tap(setWriteOptions)
     .addOption(nonCanonicalWriteOption)
-    .action(doWrite);
+    .action(doCreate);
 }
 
 type Options = WriteOptions & NonCanonicalWriteOption;
-export async function doWrite(
+export async function doCreate(
   seed: Seed,
   program: Address,
   file: string | undefined,
@@ -50,7 +51,14 @@ export async function doWrite(
     getWriteInput(client, file, options),
   ]);
 
-  const instructionPlan = await getWriteMetadataInstructionPlan({
+  if (metadataAccount.exists) {
+    // TODO: show derivation seeds.
+    logErrorAndExit(
+      `Metadata account ${chalk.bold(metadataAccount.address)} already exists.`
+    );
+  }
+
+  const instructionPlan = await getCreateMetadataInstructionPlan({
     ...client,
     ...writeInput,
     payer: client.payer,
@@ -58,12 +66,12 @@ export async function doWrite(
     program,
     programData,
     seed,
-    metadata: metadataAccount,
+    metadata,
     planner: client.planner,
   });
 
   await client.planAndExecute(
-    `Write metadata for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"`,
+    `Create metadata for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"`,
     instructionPlan
   );
 }

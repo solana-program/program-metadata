@@ -1,15 +1,19 @@
 import { CustomCommand } from '../utils';
 import { setCloseCommand } from './close';
+import { setCreateCommand } from './create';
 import { setFetchCommand } from './fetch';
 import { setRemoveAuthorityCommand } from './remove-authority';
 import { setSetAuthorityCommand } from './set-authority';
 import { setSetImmutableCommand } from './set-immutable';
+import { setUpdateCommand } from './update';
 import { setWriteCommand } from './write';
 
 export function setCommands(program: CustomCommand): void {
   program
     // Metadata commands.
     .tap(setWriteCommand)
+    .tap(setCreateCommand)
+    .tap(setUpdateCommand)
     .tap(setFetchCommand)
     .tap(setSetAuthorityCommand)
     .tap(setRemoveAuthorityCommand)

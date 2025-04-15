@@ -1,7 +1,6 @@
 import { Address } from '@solana/kit';
 import chalk from 'chalk';
 import { fetchMaybeMetadata, Seed } from '../../generated';
-import { getWriteMetadataInstructionPlan } from '../../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
 import {
   GlobalOptions,
@@ -16,11 +15,13 @@ import {
   getPdaDetailsForWriting,
   getWriteInput,
 } from '../utils';
+import { logErrorAndExit } from '../logs';
+import { getUpdateMetadataInstructionPlan } from '../../updateMetadata';
 
-export function setWriteCommand(program: CustomCommand): void {
+export function setUpdateCommand(program: CustomCommand): void {
   program
-    .command('write')
-    .description('Create or update a metadata account for a given program.')
+    .command('update')
+    .description('Update a metadata account for a given program.')
     .addArgument(seedArgument)
     .addArgument(programArgument)
     .addArgument(fileArgument)
@@ -50,20 +51,26 @@ export async function doWrite(
     getWriteInput(client, file, options),
   ]);
 
-  const instructionPlan = await getWriteMetadataInstructionPlan({
+  if (!metadataAccount.exists) {
+    // TODO: show derivation seeds.
+    logErrorAndExit(
+      `Metadata account ${chalk.bold(metadataAccount.address)} does not exist.`
+    );
+  }
+
+  const instructionPlan = await getUpdateMetadataInstructionPlan({
     ...client,
     ...writeInput,
     payer: client.payer,
     authority: client.authority,
     program,
     programData,
-    seed,
     metadata: metadataAccount,
     planner: client.planner,
   });
 
   await client.planAndExecute(
-    `Write metadata for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"`,
+    `Update metadata for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"`,
     instructionPlan
   );
 }
