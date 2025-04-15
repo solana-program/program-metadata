@@ -1,11 +1,15 @@
 import {
   GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
+  MaybeAccount,
   Rpc,
 } from '@solana/kit';
 import { getCreateMetadataInstructionPlan } from './createMetadata';
-import { fetchMaybeMetadata } from './generated';
-import { createDefaultTransactionPlanExecutor } from './instructionPlans';
+import { fetchMaybeMetadata, Metadata } from './generated';
+import {
+  createDefaultTransactionPlanExecutor,
+  InstructionPlan,
+} from './instructionPlans';
 import {
   getDefaultTransactionPlannerAndExecutor,
   getPdaDetails,
@@ -25,20 +29,34 @@ export async function writeMetadata(
   const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
   const { programData, isCanonical, metadata } = await getPdaDetails(input);
   const metadataAccount = await fetchMaybeMetadata(input.rpc, metadata);
-  const extendedInput = {
+
+  const instructionPlan = await getWriteMetadataInstructionPlan({
     ...input,
+    metadata: metadataAccount,
     programData: isCanonical ? programData : undefined,
     planner,
-  };
-
-  const instructionPlan = metadataAccount.exists
-    ? await getUpdateMetadataInstructionPlan({
-        ...extendedInput,
-        metadata: metadataAccount,
-      })
-    : await getCreateMetadataInstructionPlan({ ...extendedInput, metadata });
+  });
 
   const transactionPlan = await planner(instructionPlan);
   const result = await executor(transactionPlan);
   return { metadata, result };
+}
+
+export async function getWriteMetadataInstructionPlan(
+  input: Omit<
+    Parameters<typeof getCreateMetadataInstructionPlan>[0],
+    'metadata'
+  > & {
+    metadata: MaybeAccount<Metadata>;
+  }
+): Promise<InstructionPlan> {
+  return input.metadata.exists
+    ? await getUpdateMetadataInstructionPlan({
+        ...input,
+        metadata: input.metadata,
+      })
+    : await getCreateMetadataInstructionPlan({
+        ...input,
+        metadata: input.metadata.address,
+      });
 }
