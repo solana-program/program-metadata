@@ -87,6 +87,7 @@ export async function getUpdateMetadataInstructionPlan(
     payer: TransactionSigner;
     planner: TransactionPlanner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+    closeBuffer?: boolean;
   }
 ): Promise<InstructionPlan> {
   if (!input.buffer && !input.data) {
