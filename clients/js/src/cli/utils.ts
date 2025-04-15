@@ -38,6 +38,7 @@ import {
   ExportOption,
   GlobalOptions,
   KeypairOption,
+  NonCanonicalWriteOption,
   PayerOption,
   RpcOption,
   WriteOptions,
@@ -261,4 +262,17 @@ export function getPackedData(
 export function writeFile(filepath: string, content: string): void {
   fs.mkdirSync(path.dirname(filepath), { recursive: true });
   fs.writeFileSync(filepath, content);
+}
+
+export function assertValidIsCanonical(
+  isCanonical: boolean,
+  options: NonCanonicalWriteOption
+): void {
+  const wantsCanonical = !options.nonCanonical;
+  if (wantsCanonical && !isCanonical) {
+    logErrorAndExit(
+      'You must be the program authority or an authorized authority to manage canonical metadata accounts. ' +
+        'Use the `--non-canonical` option to manage metadata accounts as a third party.'
+    );
+  }
 }

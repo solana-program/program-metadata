@@ -1,16 +1,9 @@
-import {
-  Address,
-  getBase58Decoder,
-  getBase64Decoder,
-  getTransactionEncoder,
-  Transaction,
-} from '@solana/kit';
+import { Address } from '@solana/kit';
 import chalk from 'chalk';
-import { Seed } from '../../generated';
-import { getProgramAuthority } from '../../utils';
-import { writeMetadata } from '../../writeMetadata';
+import { fetchBuffer, fetchMaybeMetadata, Seed } from '../../generated';
+import { getPdaDetails } from '../../internals';
+import { getWriteMetadataInstructionPlan } from '../../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
-import { logErrorAndExit, logSuccess } from '../logs';
 import {
   GlobalOptions,
   nonCanonicalWriteOption,
@@ -19,6 +12,7 @@ import {
   WriteOptions,
 } from '../options';
 import {
+  assertValidIsCanonical,
   CustomCommand,
   getClient,
   getFormatFromFile,
@@ -47,16 +41,21 @@ export async function doWrite(
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
-  const { authority: programAuthority } = await getProgramAuthority(
-    client.rpc,
-    program
-  );
-  if (!options.nonCanonical && client.authority.address !== programAuthority) {
-    logErrorAndExit(
-      'You must be the program authority to write to a canonical metadata account. Use `--non-canonical` option to write as a third party.'
-    );
-  }
-  await writeMetadata({
+  const { programData, isCanonical, metadata } = await getPdaDetails({
+    ...client,
+    program,
+    seed,
+  });
+  assertValidIsCanonical(isCanonical, options);
+  const tempBuffer: Address | undefined = undefined;
+  const [metadataAccount, buffer] = await Promise.all([
+    fetchMaybeMetadata(client.rpc, metadata),
+    tempBuffer
+      ? fetchBuffer(client.rpc, tempBuffer)
+      : Promise.resolve(undefined),
+  ]);
+
+  const instructionPlan = await getWriteMetadataInstructionPlan({
     ...client,
     ...getPackedData(file, options),
     payer: client.payer,
@@ -65,23 +64,14 @@ export async function doWrite(
     seed,
     format: options.format ?? getFormatFromFile(file),
     closeBuffer: true,
-    priorityFees: options.priorityFees,
+    buffer,
+    metadata: metadataAccount,
+    programData: isCanonical ? programData : undefined,
+    planner: client.planner,
   });
-  const exportTransaction = false; // TODO: Option
-  if (exportTransaction) {
-    const transactionBytes = getTransactionEncoder().encode({} as Transaction);
-    const base64EncodedTransaction =
-      getBase64Decoder().decode(transactionBytes);
-    const base58EncodedTransaction =
-      getBase58Decoder().decode(transactionBytes);
-    logSuccess(
-      `Buffer successfully created for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"!\n` +
-        `Use the following transaction data to apply the buffer:\n\n` +
-        `[base64]\n${base64EncodedTransaction}\n\n[base58]\n${base58EncodedTransaction}`
-    );
-  } else {
-    logSuccess(
-      `Metadata uploaded successfully for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"!`
-    );
-  }
+
+  await client.planAndExecute(
+    `Upload metadata for program ${chalk.bold(program)} and seed "${chalk.bold(seed)}"`,
+    instructionPlan
+  );
 }
