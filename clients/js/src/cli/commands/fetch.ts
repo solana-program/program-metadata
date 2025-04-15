@@ -1,7 +1,13 @@
 import { Address, isSolanaError } from '@solana/kit';
 import chalk from 'chalk';
-import { fetchMetadataContent } from '../../fetchMetadataContent';
-import { Seed } from '../../generated';
+import { Option } from 'commander';
+import {
+  Compression,
+  Encoding,
+  fetchMetadataFromSeeds,
+  Seed,
+} from '../../generated';
+import { unpackAndFetchData, unpackDirectData } from '../../packData';
 import { programArgument, seedArgument } from '../arguments';
 import { logErrorAndExit, logSuccess } from '../logs';
 import {
@@ -26,10 +32,15 @@ export function setFetchCommand(program: CustomCommand): void {
     .addArgument(programArgument)
     .addOption(nonCanonicalReadOption)
     .addOption(outputOption)
+    .addOption(
+      new Option('--raw', 'Output raw data in hexadecimal format.').default(
+        false
+      )
+    )
     .action(doFetch);
 }
 
-type Options = NonCanonicalReadOption & OutputOption;
+type Options = NonCanonicalReadOption & OutputOption & { raw: boolean };
 async function doFetch(
   seed: Seed,
   program: Address,
@@ -45,12 +56,19 @@ async function doFetch(
         ? options.nonCanonical
         : undefined;
   try {
-    const content = await fetchMetadataContent(
-      client.rpc,
+    const metadataAccount = await fetchMetadataFromSeeds(client.rpc, {
       program,
+      authority: authority ?? null,
       seed,
-      authority
-    );
+    });
+    const content = options.raw
+      ? unpackDirectData({
+          encoding: Encoding.None,
+          data: metadataAccount.data.data,
+          compression: Compression.None,
+        })
+      : await unpackAndFetchData({ rpc: client.rpc, ...metadataAccount.data });
+
     if (options.output) {
       writeFile(options.output, content);
       logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);

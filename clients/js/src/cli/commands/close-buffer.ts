@@ -32,20 +32,18 @@ export function setCloseBufferCommand(program: CustomCommand): void {
         }
       }
     )
-    .action(doUpdateBuffer);
+    .action(doCloseBuffer);
 }
 
 type Options = { recipient?: Address };
-export async function doUpdateBuffer(
+export async function doCloseBuffer(
   buffer: Address,
   _: Options,
   cmd: CustomCommand
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
-  const [bufferAccount] = await Promise.all([
-    fetchMaybeBuffer(client.rpc, buffer),
-  ]);
+  const bufferAccount = await fetchMaybeBuffer(client.rpc, buffer);
 
   if (!bufferAccount.exists) {
     logErrorAndExit(`Buffer account not found: "${buffer}"`);
