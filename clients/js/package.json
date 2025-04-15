@@ -1,6 +1,6 @@
 {
   "name": "@solana-program/program-metadata",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "JavaScript client for the Program Metadata program",
   "sideEffects": false,
   "module": "./dist/src/index.mjs",
