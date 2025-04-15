@@ -6,33 +6,10 @@ import {
   getBase58Decoder,
   getBase64Decoder,
   getTransactionEncoder,
-  isSolanaError,
   Transaction,
 } from '@solana/kit';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { logErrorAndExit, logSuccess } from './logs';
-import {
-  GlobalOptions,
-  NonCanonicalReadOption,
-  nonCanonicalReadOption,
-  NonCanonicalWriteOption,
-  nonCanonicalWriteOption,
-  OutputOption,
-  outputOption,
-  setGlobalOptions,
-  setWriteOptions,
-  WriteOptions,
-} from './options';
-import {
-  getClient,
-  getFormatFromFile,
-  getKeyPairSigners,
-  getPackedData,
-  getReadonlyClient,
-  writeFile,
-} from './utils';
-import { fetchMetadataContent } from '../fetchMetadataContent';
 import {
   getCloseInstruction,
   getSetAuthorityInstruction,
@@ -41,9 +18,20 @@ import {
 } from '../generated';
 import { sequentialInstructionPlan } from '../instructionPlans';
 import { getPdaDetails } from '../internals';
-import { writeMetadata } from '../writeMetadata';
 import { getProgramAuthority } from '../utils';
+import { writeMetadata } from '../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from './arguments';
+import { setCommands } from './commands';
+import { logErrorAndExit, logSuccess } from './logs';
+import {
+  GlobalOptions,
+  NonCanonicalWriteOption,
+  nonCanonicalWriteOption,
+  setGlobalOptions,
+  setWriteOptions,
+  WriteOptions,
+} from './options';
+import { getClient, getFormatFromFile, getPackedData } from './utils';
 
 // Define the CLI program.
 const program = new Command();
@@ -53,6 +41,7 @@ program
   .version(__VERSION__)
   .configureHelp({ showGlobalOptions: true });
 setGlobalOptions(program);
+setCommands(program);
 
 // Write metadata command.
 const writeCommand = program
@@ -125,44 +114,6 @@ writeCommand
       }
     }
   );
-
-// Fetch metadata command.
-program
-  .command('fetch')
-  .description('Fetch the content of a metadata account for a given program.')
-  .addArgument(seedArgument)
-  .addArgument(programArgument)
-  .addOption(outputOption)
-  .addOption(nonCanonicalReadOption)
-  .action(async (seed: Seed, program: Address, _, cmd: Command) => {
-    const options = cmd.optsWithGlobals() as GlobalOptions &
-      NonCanonicalReadOption &
-      OutputOption;
-    const client = getReadonlyClient(options);
-    const authority =
-      options.nonCanonical === true
-        ? (await getKeyPairSigners(options, client.configs))[0].address
-        : options.nonCanonical
-          ? options.nonCanonical
-          : undefined;
-    try {
-      const content = await fetchMetadataContent(
-        client.rpc,
-        program,
-        seed,
-        authority
-      );
-      if (options.output) {
-        writeFile(options.output, content);
-        logSuccess(`Metadata content saved to ${chalk.bold(options.output)}`);
-      } else {
-        console.log(content);
-      }
-    } catch (error) {
-      if (isSolanaError(error)) logErrorAndExit(error.message);
-      throw error;
-    }
-  });
 
 program
   .command('set-authority')
