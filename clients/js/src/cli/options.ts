@@ -62,12 +62,13 @@ export const exportOption = new Option(
     }
   });
 
-export type WriteOptions = BufferOption &
-  TextOption &
+export type WriteOptions = TextOption &
   UrlOption &
   AccountOption &
   AccountOffsetOption &
   AccountLengthOption &
+  BufferOption &
+  CloseBufferOption &
   CompressionOption &
   EncodingOption &
   FormatOption;
@@ -75,23 +76,18 @@ export type WriteOptions = BufferOption &
 export function setWriteOptions(command: CustomCommand) {
   command
     // Data sources.
-    .addOption(bufferOption)
     .addOption(textOption)
     .addOption(urlOption)
     .addOption(accountOption)
     .addOption(accountOffsetOption)
     .addOption(accountLengthOption)
+    .addOption(bufferOption)
+    .addOption(closeBufferOption)
     // Enums.
     .addOption(compressionOption)
     .addOption(encodingOption)
     .addOption(formatOption);
 }
-
-export type BufferOption = { buffer?: Address };
-export const bufferOption = new Option(
-  '--buffer <address>',
-  'The address of the buffer to use as source (creates a "direct" data source).'
-);
 
 export type TextOption = { text?: string };
 export const textOption = new Option(
@@ -122,6 +118,18 @@ export const accountLengthOption = new Option(
   '--account-length <number>',
   'The length of the data on the provided account. Requires "--account" to be set.'
 ).default(undefined, 'the rest of the data');
+
+export type BufferOption = { buffer?: Address };
+export const bufferOption = new Option(
+  '--buffer <address>',
+  'The address of the buffer to use as source (creates a "direct" data source).'
+);
+
+export type CloseBufferOption = { closeBuffer: boolean };
+export const closeBufferOption = new Option(
+  '--close-buffer',
+  'Whether to close provided `--buffer` account after using its data.'
+).default(false);
 
 export type CompressionOption = { compression: Compression };
 export const compressionOption = new Option(

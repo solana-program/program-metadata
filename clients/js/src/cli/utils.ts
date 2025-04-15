@@ -3,6 +3,8 @@ import os from 'os';
 import path from 'path';
 
 import {
+  Account,
+  Address,
   address,
   Commitment,
   createKeyPairSignerFromBytes,
@@ -18,7 +20,7 @@ import {
 } from '@solana/kit';
 import { Command } from 'commander';
 import { parse as parseYaml } from 'yaml';
-import { DataSource, Format } from '../generated';
+import { Buffer, DataSource, fetchBuffer, Format, Seed } from '../generated';
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
@@ -27,6 +29,7 @@ import {
   TransactionPlanner,
   TransactionPlanResult,
 } from '../instructionPlans';
+import { getPdaDetails, PdaDetails } from '../internals';
 import {
   packDirectData,
   PackedData,
@@ -206,6 +209,44 @@ export function getFormatFromFile(file: string | undefined): Format {
     default:
       return Format.None;
   }
+}
+
+export async function getPdaDetailsForWriting(
+  client: Client,
+  options: NonCanonicalWriteOption,
+  program: Address,
+  seed: Seed
+): Promise<PdaDetails> {
+  const details = await getPdaDetails({ ...client, program, seed });
+  assertValidIsCanonical(details.isCanonical, options);
+  const isCanonical = !options.nonCanonical;
+  return {
+    programData: isCanonical ? details.programData : undefined,
+    metadata: details.metadata,
+    isCanonical,
+  };
+}
+
+export async function getWriteInput(
+  client: Client,
+  file: string | undefined,
+  options: WriteOptions
+): Promise<
+  PackedData & {
+    buffer?: Account<Buffer>;
+    format: Format;
+    closeBuffer?: boolean;
+  }
+> {
+  const buffer = options.buffer
+    ? await fetchBuffer(client.rpc, options.buffer)
+    : undefined;
+  return {
+    ...getPackedData(file, options),
+    format: options.format ?? getFormatFromFile(file),
+    closeBuffer: options.buffer ? options.closeBuffer : true,
+    buffer,
+  };
 }
 
 export function getPackedData(

@@ -1,7 +1,6 @@
 import { Address } from '@solana/kit';
 import chalk from 'chalk';
-import { fetchBuffer, fetchMaybeMetadata, Seed } from '../../generated';
-import { getPdaDetails } from '../../internals';
+import { fetchMaybeMetadata, Seed } from '../../generated';
 import { getWriteMetadataInstructionPlan } from '../../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
 import {
@@ -12,11 +11,10 @@ import {
   WriteOptions,
 } from '../options';
 import {
-  assertValidIsCanonical,
   CustomCommand,
   getClient,
-  getFormatFromFile,
-  getPackedData,
+  getPdaDetailsForWriting,
+  getWriteInput,
 } from '../utils';
 
 export function setWriteCommand(program: CustomCommand): void {
@@ -41,32 +39,26 @@ export async function doWrite(
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
-  const { programData, isCanonical, metadata } = await getPdaDetails({
-    ...client,
+  const { metadata, programData } = await getPdaDetailsForWriting(
+    client,
+    options,
     program,
-    seed,
-  });
-  assertValidIsCanonical(isCanonical, options);
-  const [metadataAccount, buffer] = await Promise.all([
+    seed
+  );
+  const [metadataAccount, writeInput] = await Promise.all([
     fetchMaybeMetadata(client.rpc, metadata),
-    options.buffer
-      ? fetchBuffer(client.rpc, options.buffer)
-      : Promise.resolve(undefined),
+    getWriteInput(client, file, options),
   ]);
 
-  const closeBufferOption: boolean = false; // TODO
   const instructionPlan = await getWriteMetadataInstructionPlan({
     ...client,
-    ...getPackedData(file, options),
+    ...writeInput,
     payer: client.payer,
     authority: client.authority,
     program,
+    programData,
     seed,
-    format: options.format ?? getFormatFromFile(file),
-    closeBuffer: buffer ? closeBufferOption : true,
-    buffer,
     metadata: metadataAccount,
-    programData: isCanonical ? programData : undefined,
     planner: client.planner,
   });
 
