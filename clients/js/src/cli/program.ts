@@ -126,10 +126,10 @@ writeCommand
     }
   );
 
-// Download metadata command.
+// Fetch metadata command.
 program
-  .command('download')
-  .description('Download metadata to file.')
+  .command('fetch')
+  .description('Fetch the content of a metadata account for a given program.')
   .addArgument(seedArgument)
   .addArgument(programArgument)
   .addOption(outputOption)
