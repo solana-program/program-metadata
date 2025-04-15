@@ -4,7 +4,7 @@ import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
 import { getProgramAuthority } from '../../utils';
 import { programArgument, seedArgument } from '../arguments';
-import { logErrorAndExit, logSuccess } from '../logs';
+import { logErrorAndExit } from '../logs';
 import {
   GlobalOptions,
   NonCanonicalWriteOption,
@@ -49,6 +49,7 @@ async function doSetImmutable(
     seed,
   });
   await client.planAndExecute(
+    'Make metadata account immutable',
     sequentialInstructionPlan([
       getSetImmutableInstruction({
         metadata,
@@ -58,5 +59,4 @@ async function doSetImmutable(
       }),
     ])
   );
-  logSuccess('Metadata account successfully set as immutable');
 }

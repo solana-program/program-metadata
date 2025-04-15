@@ -6,17 +6,18 @@ import {
   address,
   Commitment,
   createKeyPairSignerFromBytes,
+  createNoopSigner,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
-  KeyPairSigner,
-  MicroLamports,
+  MessageSigner,
   Rpc,
   RpcSubscriptions,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
+  TransactionSigner,
 } from '@solana/kit';
+import { Command } from 'commander';
 import { parse as parseYaml } from 'yaml';
-import { WriteOptions } from './options';
 import { Format } from '../generated';
 import {
   createDefaultTransactionPlanExecutor,
@@ -32,8 +33,15 @@ import {
   packExternalData,
   packUrlData,
 } from '../packData';
-import { logErrorAndExit, logWarning } from './logs';
-import { Command } from 'commander';
+import { logErrorAndExit, logSuccess, logWarning } from './logs';
+import {
+  ExportOption,
+  GlobalOptions,
+  KeypairOption,
+  PayerOption,
+  RpcOption,
+  WriteOptions,
+} from './options';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 
@@ -49,21 +57,17 @@ export class CustomCommand extends Command {
 }
 
 export type Client = ReadonlyClient & {
-  authority: KeyPairSigner;
+  authority: TransactionSigner & MessageSigner;
   executor: TransactionPlanExecutor;
-  payer: KeyPairSigner;
+  payer: TransactionSigner & MessageSigner;
   planAndExecute: (
+    description: string,
     instructionPlan: InstructionPlan
   ) => Promise<TransactionPlanResult>;
   planner: TransactionPlanner;
 };
 
-export async function getClient(options: {
-  keypair?: string;
-  payer?: string;
-  priorityFees?: MicroLamports;
-  rpc?: string;
-}): Promise<Client> {
+export async function getClient(options: GlobalOptions): Promise<Client> {
   const readonlyClient = getReadonlyClient(options);
   const [authority, payer] = await getKeyPairSigners(
     options,
@@ -79,10 +83,14 @@ export async function getClient(options: {
     parallelChunkSize: 5,
   });
   const planAndExecute = async (
+    description: string,
     instructionPlan: InstructionPlan
   ): Promise<TransactionPlanResult> => {
+    console.log(description);
     const transactionPlan = await planner(instructionPlan);
-    return await executor(transactionPlan);
+    const result = await executor(transactionPlan);
+    logSuccess('Operation executed successfully');
+    return result;
   };
   return {
     ...readonlyClient,
@@ -100,7 +108,7 @@ export type ReadonlyClient = {
   rpcSubscriptions: RpcSubscriptions<SolanaRpcSubscriptionsApi>;
 };
 
-export function getReadonlyClient(options: { rpc?: string }): ReadonlyClient {
+export function getReadonlyClient(options: RpcOption): ReadonlyClient {
   const configs = getSolanaConfigs();
   const rpcUrl = getRpcUrl(options, configs);
   const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
@@ -111,7 +119,7 @@ export function getReadonlyClient(options: { rpc?: string }): ReadonlyClient {
   };
 }
 
-function getRpcUrl(options: { rpc?: string }, configs: SolanaConfigs): string {
+function getRpcUrl(options: RpcOption, configs: SolanaConfigs): string {
   if (options.rpc) return options.rpc;
   if (configs.json_rpc_url) return configs.json_rpc_url;
   return LOCALHOST_URL;
@@ -146,19 +154,25 @@ function getSolanaConfigPath(): string {
 }
 
 export async function getKeyPairSigners(
-  options: { keypair?: string; payer?: string },
+  options: KeypairOption & PayerOption & ExportOption,
   configs: SolanaConfigs
-): Promise<[KeyPairSigner, KeyPairSigner]> {
+): Promise<
+  [TransactionSigner & MessageSigner, TransactionSigner & MessageSigner]
+> {
   const keypairPath = getKeyPairPath(options, configs);
   const keypairPromise = getKeyPairSignerFromPath(keypairPath);
   const payerPromise = options.payer
     ? getKeyPairSignerFromPath(options.payer)
     : keypairPromise;
-  return await Promise.all([keypairPromise, payerPromise]);
+  const [keypair, payer] = await Promise.all([keypairPromise, payerPromise]);
+  if (typeof options.export === 'string') {
+    return [createNoopSigner(options.export), payer];
+  }
+  return [keypair, payer];
 }
 
 function getKeyPairPath(
-  options: { keypair?: string },
+  options: KeypairOption,
   configs: SolanaConfigs
 ): string {
   if (options.keypair) return options.keypair;
@@ -166,9 +180,7 @@ function getKeyPairPath(
   return path.join(os.homedir(), '.config', 'solana', 'id.json');
 }
 
-async function getKeyPairSignerFromPath(
-  keypairPath: string
-): Promise<KeyPairSigner> {
+async function getKeyPairSignerFromPath(keypairPath: string) {
   if (!fs.existsSync(keypairPath)) {
     logErrorAndExit(`Keypair file not found at: ${keypairPath}`);
   }

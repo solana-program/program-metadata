@@ -3,7 +3,6 @@ import { getSetAuthorityInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
 import { programArgument, seedArgument } from '../arguments';
-import { logSuccess } from '../logs';
 import { GlobalOptions } from '../options';
 import { CustomCommand, getClient } from '../utils';
 
@@ -34,6 +33,7 @@ async function doRemoveAuthority(
     seed,
   });
   await client.planAndExecute(
+    'Remove additional authority from metadata account',
     sequentialInstructionPlan([
       getSetAuthorityInstruction({
         account: metadata,
@@ -44,5 +44,4 @@ async function doRemoveAuthority(
       }),
     ])
   );
-  logSuccess('Additional authority successfully removed');
 }

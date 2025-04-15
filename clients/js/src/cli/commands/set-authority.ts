@@ -4,7 +4,6 @@ import { getSetAuthorityInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
 import { programArgument, seedArgument } from '../arguments';
-import { logSuccess } from '../logs';
 import { GlobalOptions } from '../options';
 import { CustomCommand, getClient } from '../utils';
 
@@ -37,6 +36,7 @@ async function doSetAuthority(
     seed,
   });
   await client.planAndExecute(
+    `Set additional authority on metadata account to ${chalk.bold(newAuthority)}`,
     sequentialInstructionPlan([
       getSetAuthorityInstruction({
         account: metadata,
@@ -46,8 +46,5 @@ async function doSetAuthority(
         programData,
       }),
     ])
-  );
-  logSuccess(
-    `Additional authority successfully set to ${chalk.bold(newAuthority)}`
   );
 }

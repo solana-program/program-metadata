@@ -7,14 +7,16 @@ import { CustomCommand } from './utils';
 export type GlobalOptions = KeypairOption &
   PayerOption &
   PriorityFeesOption &
-  RpcOption;
+  RpcOption &
+  ExportOption;
 
 export function setGlobalOptions(command: CustomCommand) {
   command
     .addOption(keypairOption)
     .addOption(payerOption)
     .addOption(priorityFeesOption)
-    .addOption(rpcOption);
+    .addOption(rpcOption)
+    .addOption(exportOption);
 }
 
 export type KeypairOption = { keypair?: string };
@@ -44,6 +46,21 @@ export const rpcOption = new Option('--rpc <string>', 'RPC URL.').default(
   undefined,
   'solana config or localhost'
 );
+
+export type ExportOption = { export: Address | boolean };
+export const exportOption = new Option(
+  '--export [address]',
+  'When provided, export transactions instead of running them. An optional address can be provided to override the local keypair as the authority.'
+)
+  .default(false)
+  .argParser((value: string | undefined): Address | boolean => {
+    if (value === undefined) return true;
+    try {
+      return address(value);
+    } catch {
+      logErrorAndExit(`Invalid export address: "${value}"`);
+    }
+  });
 
 export type WriteOptions = TextOption &
   UrlOption &
@@ -175,9 +192,7 @@ export const nonCanonicalReadOption = new Option(
 )
   .default(false)
   .argParser((value: string | undefined): Address | boolean => {
-    if (value === undefined) {
-      return true;
-    }
+    if (value === undefined) return true;
     try {
       return address(value);
     } catch {

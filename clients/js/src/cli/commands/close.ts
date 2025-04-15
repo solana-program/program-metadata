@@ -4,7 +4,7 @@ import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
 import { getProgramAuthority } from '../../utils';
 import { programArgument, seedArgument } from '../arguments';
-import { logErrorAndExit, logSuccess } from '../logs';
+import { logErrorAndExit } from '../logs';
 import {
   GlobalOptions,
   NonCanonicalWriteOption,
@@ -47,6 +47,7 @@ async function doClose(
     seed,
   });
   await client.planAndExecute(
+    'Close metadata account and recover rent',
     sequentialInstructionPlan([
       getCloseInstruction({
         account: metadata,
@@ -57,5 +58,4 @@ async function doClose(
       }),
     ])
   );
-  logSuccess('Account successfully closed and rent recovered');
 }
