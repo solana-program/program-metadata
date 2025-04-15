@@ -1,7 +1,4 @@
-import {
-  getCreateAccountInstruction,
-  getTransferSolInstruction,
-} from '@solana-program/system';
+import { getTransferSolInstruction } from '@solana-program/system';
 import {
   Account,
   Address,
@@ -14,24 +11,21 @@ import {
   Rpc,
   TransactionSigner,
 } from '@solana/kit';
+import { getCreateBufferInstructionPlan } from './createBuffer';
 import {
   Buffer,
   fetchBuffer,
   fetchMetadata,
-  getAllocateInstruction,
   getCloseInstruction,
-  getSetAuthorityInstruction,
   getSetDataInstruction,
   getTrimInstruction,
   Metadata,
-  PROGRAM_METADATA_PROGRAM_ADDRESS,
   SetDataInput,
 } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
   InstructionPlan,
   isValidInstructionPlan,
-  parallelInstructionPlan,
   sequentialInstructionPlan,
   TransactionPlanner,
 } from './instructionPlans';
@@ -43,7 +37,6 @@ import {
 import {
   getAccountSize,
   getExtendInstructionPlan,
-  getWriteInstructionPlan,
   MetadataInput,
   MetadataResponse,
 } from './utils';
@@ -199,22 +192,6 @@ export function getUpdateMetadataInstructionPlanUsingNewBuffer(
           }),
         ]
       : []),
-    getCreateAccountInstruction({
-      payer: input.payer,
-      newAccount: input.buffer,
-      lamports: input.fullRent,
-      space: getAccountSize(input.data.length),
-      programAddress: PROGRAM_METADATA_PROGRAM_ADDRESS,
-    }),
-    getAllocateInstruction({
-      buffer: input.buffer.address,
-      authority: input.buffer,
-    }),
-    getSetAuthorityInstruction({
-      account: input.buffer.address,
-      authority: input.buffer,
-      newAuthority: input.authority.address,
-    }),
     ...(input.sizeDifference > REALLOC_LIMIT
       ? [
           getExtendInstructionPlan({
@@ -226,13 +203,13 @@ export function getUpdateMetadataInstructionPlanUsingNewBuffer(
           }),
         ]
       : []),
-    parallelInstructionPlan([
-      getWriteInstructionPlan({
-        buffer: input.buffer.address,
-        authority: input.authority,
-        data: input.data,
-      }),
-    ]),
+    getCreateBufferInstructionPlan({
+      newBuffer: input.buffer,
+      authority: input.authority,
+      payer: input.payer,
+      rent: input.fullRent,
+      data: input.data,
+    }),
     getSetDataInstruction({
       ...input,
       buffer: input.buffer.address,
