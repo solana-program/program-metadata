@@ -3,6 +3,7 @@ import {
   getTransferSolInstruction,
 } from '@solana-program/system';
 import {
+  Account,
   generateKeyPairSigner,
   GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
@@ -19,14 +20,18 @@ import {
   getSetAuthorityInstruction,
   getSetDataInstruction,
   getTrimInstruction,
+  Metadata,
   PROGRAM_METADATA_PROGRAM_ADDRESS,
   SetDataInput,
 } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
+  InstructionPlan,
+  isValidInstructionPlan,
   parallelInstructionPlan,
   sequentialInstructionPlan,
+  TransactionPlanner,
 } from './instructionPlans';
 import {
   getExtendInstructionPlan,
@@ -55,13 +60,12 @@ export async function updateMetadata(
     parallelChunkSize: 5,
   });
 
-  const [{ programData, isCanonical, metadata }, bufferRent] =
-    await Promise.all([
-      getPdaDetails(input),
-      input.rpc
-        .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
-        .send(),
-    ]);
+  const [{ programData, isCanonical, metadata }, fullRent] = await Promise.all([
+    getPdaDetails(input),
+    input.rpc
+      .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
+      .send(),
+  ]);
 
   const metadataAccount = await fetchMetadata(input.rpc, metadata);
   if (!metadataAccount.data.mutable) {
@@ -84,7 +88,7 @@ export async function updateMetadata(
     programData: isCanonical ? programData : undefined,
     metadata,
     buffer,
-    bufferRent,
+    fullRent,
     extraRent,
     sizeDifference,
   };
@@ -97,6 +101,52 @@ export async function updateMetadata(
 
   const result = await executor(transactionPlan);
   return { metadata, result };
+}
+
+export async function getUpdateMetadataInstructionPlan(
+  input: Omit<SetDataInput, 'buffer' | 'data' | 'metadata'> & {
+    metadata: Account<Metadata>;
+    // TODO: from buffer.
+    data: ReadonlyUint8Array;
+    payer: TransactionSigner;
+    planner: TransactionPlanner;
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+  }
+): Promise<InstructionPlan> {
+  if (!input.metadata.data.mutable) {
+    throw new Error('Metadata account is immutable');
+  }
+
+  const fullRentPromise = input.rpc
+    .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
+    .send();
+  const sizeDifference =
+    BigInt(input.data.length) - BigInt(input.metadata.data.data.length);
+  const extraRentPromise =
+    sizeDifference > 0
+      ? input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
+      : Promise.resolve(lamports(0n));
+  const [fullRent, extraRent, buffer] = await Promise.all([
+    fullRentPromise,
+    extraRentPromise,
+    generateKeyPairSigner(),
+  ]);
+
+  const extendedInput = {
+    ...input,
+    metadata: input.metadata.address,
+    buffer,
+    fullRent,
+    extraRent,
+    sizeDifference,
+  };
+
+  const plan =
+    getUpdateMetadataInstructionPlanUsingInstructionData(extendedInput);
+  const validPlan = await isValidInstructionPlan(plan, input.planner);
+  return validPlan
+    ? plan
+    : getUpdateMetadataInstructionPlanUsingBuffer(extendedInput);
 }
 
 export function getUpdateMetadataInstructionPlanUsingInstructionData(
@@ -134,10 +184,10 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData(
 export function getUpdateMetadataInstructionPlanUsingBuffer(
   input: Omit<SetDataInput, 'buffer' | 'data'> & {
     buffer: TransactionSigner;
-    bufferRent: Lamports;
     closeBuffer?: boolean;
     data: ReadonlyUint8Array;
     extraRent: Lamports;
+    fullRent: Lamports;
     payer: TransactionSigner;
     sizeDifference: number | bigint;
   }
@@ -155,7 +205,7 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
     getCreateAccountInstruction({
       payer: input.payer,
       newAccount: input.buffer,
-      lamports: input.bufferRent,
+      lamports: input.fullRent,
       space: getAccountSize(input.data.length),
       programAddress: PROGRAM_METADATA_PROGRAM_ADDRESS,
     }),

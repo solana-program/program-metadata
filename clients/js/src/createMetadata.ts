@@ -1,5 +1,7 @@
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
+  Address,
+  GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
   Lamports,
   ReadonlyUint8Array,
@@ -15,8 +17,11 @@ import {
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
+  InstructionPlan,
+  isValidInstructionPlan,
   parallelInstructionPlan,
   sequentialInstructionPlan,
+  TransactionPlanner,
 } from './instructionPlans';
 import {
   getExtendInstructionPlan,
@@ -66,6 +71,56 @@ export async function createMetadata(
 
   const result = await executor(transactionPlan);
   return { metadata, result };
+}
+
+export async function getCreateMetadataInstructionPlanAlt(
+  input: MetadataInput & {
+    planner: TransactionPlanner;
+    rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi>;
+  }
+): Promise<InstructionPlan> {
+  const planner = input.planner;
+  const [{ programData, isCanonical, metadata }, rent] = await Promise.all([
+    getPdaDetails(input),
+    input.rpc
+      .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
+      .send(),
+  ]);
+  const extendedInput = {
+    ...input,
+    programData: isCanonical ? programData : undefined,
+    metadata,
+    rent,
+  };
+
+  const plan =
+    getCreateMetadataInstructionPlanUsingInstructionData(extendedInput);
+  const validPlan = await isValidInstructionPlan(plan, planner);
+  return validPlan
+    ? plan
+    : getCreateMetadataInstructionPlanUsingBuffer(extendedInput);
+}
+
+export async function getCreateMetadataInstructionPlan(
+  input: Omit<InitializeInput, 'data'> & {
+    buffer?: Address; // TODO
+    data: ReadonlyUint8Array;
+    payer: TransactionSigner;
+    planner: TransactionPlanner;
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+  }
+): Promise<InstructionPlan> {
+  const rent = await input.rpc
+    .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
+    .send();
+  const extendedInput = { ...input, rent };
+
+  const plan =
+    getCreateMetadataInstructionPlanUsingInstructionData(extendedInput);
+  const validPlan = await isValidInstructionPlan(plan, input.planner);
+  return validPlan
+    ? plan
+    : getCreateMetadataInstructionPlanUsingBuffer(extendedInput);
 }
 
 export function getCreateMetadataInstructionPlanUsingInstructionData(

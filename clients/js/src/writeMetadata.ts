@@ -87,7 +87,7 @@ export async function writeMetadata(
     programData: isCanonical ? programData : undefined,
     metadata,
     buffer,
-    bufferRent: rent,
+    fullRent: rent,
     extraRent,
     sizeDifference,
   };
