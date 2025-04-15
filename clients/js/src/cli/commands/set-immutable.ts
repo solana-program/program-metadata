@@ -2,6 +2,7 @@ import { Address } from '@solana/kit';
 import { getSetImmutableInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { programArgument, seedArgument } from '../arguments';
+import { logCommand } from '../logs';
 import {
   GlobalOptions,
   NonCanonicalWriteOption,
@@ -30,14 +31,21 @@ async function doSetImmutable(
 ) {
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
-  const { metadata, programData } = await getPdaDetailsForWriting(
+  const { metadata, programData, isCanonical } = await getPdaDetailsForWriting(
     client,
     options,
     program,
     seed
   );
+
+  logCommand(`Making metadata account immutable...`, {
+    metadata,
+    program,
+    seed,
+    authority: isCanonical ? undefined : client.authority.address,
+  });
+
   await client.planAndExecute(
-    // 'Make metadata account immutable',
     sequentialInstructionPlan([
       getSetImmutableInstruction({
         metadata,

@@ -3,7 +3,7 @@ import { getSetAuthorityInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
 import { programArgument, seedArgument } from '../arguments';
-import { logErrorAndExit } from '../logs';
+import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions } from '../options';
 import { CustomCommand, getClient } from '../utils';
 
@@ -43,8 +43,15 @@ async function doSetAuthority(
     program,
     seed,
   });
+
+  logCommand(`Setting additional authority from metadata account...`, {
+    'new authority': options.newAuthority,
+    metadata,
+    program,
+    seed,
+  });
+
   await client.planAndExecute(
-    // `Set additional authority on metadata account to ${picocolors.bold(options.newAuthority)}`,
     sequentialInstructionPlan([
       getSetAuthorityInstruction({
         account: metadata,

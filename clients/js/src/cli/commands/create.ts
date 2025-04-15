@@ -47,7 +47,7 @@ export async function doCreate(
     seed
   );
 
-  logCommand(`Creating metadata account...`, {
+  logCommand(`Creating new metadata account...`, {
     metadata,
     program,
     seed,

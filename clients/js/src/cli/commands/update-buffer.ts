@@ -2,7 +2,7 @@ import { address, Address, lamports } from '@solana/kit';
 import { fetchMaybeBuffer } from '../../generated';
 import { getUpdateBufferInstructionPlan } from '../../updateBuffer';
 import { fileArgument } from '../arguments';
-import { logErrorAndExit } from '../logs';
+import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions, setWriteOptions, WriteOptions } from '../options';
 import { CustomCommand, getClient, getWriteInput } from '../utils';
 
@@ -33,6 +33,8 @@ export async function doUpdateBuffer(
   _: Options,
   cmd: CustomCommand
 ) {
+  logCommand(`Updating buffer...`, { buffer });
+
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
   const [writeInput, bufferAccount] = await Promise.all([
@@ -54,19 +56,16 @@ export async function doUpdateBuffer(
           .send()
       : lamports(0n);
 
-  const instructionPlan = getUpdateBufferInstructionPlan({
-    buffer,
-    authority: client.authority,
-    payer: client.payer,
-    extraRent,
-    sizeDifference,
-    sourceBuffer: writeInput.buffer,
-    closeSourceBuffer: writeInput.closeBuffer,
-    data: newData,
-  });
-
   await client.planAndExecute(
-    // `Update buffer ${picocolors.bold(buffer)}`,
-    instructionPlan
+    getUpdateBufferInstructionPlan({
+      buffer,
+      authority: client.authority,
+      payer: client.payer,
+      extraRent,
+      sizeDifference,
+      sourceBuffer: writeInput.buffer,
+      closeSourceBuffer: writeInput.closeBuffer,
+      data: newData,
+    })
   );
 }

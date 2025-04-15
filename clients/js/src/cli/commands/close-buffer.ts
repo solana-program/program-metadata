@@ -1,5 +1,4 @@
 import { address, Address } from '@solana/kit';
-import picocolors from 'picocolors';
 import { fetchMaybeBuffer, getCloseInstruction } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { logCommand, logErrorAndExit } from '../logs';
@@ -41,6 +40,8 @@ export async function doCloseBuffer(
   _: Options,
   cmd: CustomCommand
 ) {
+  logCommand(`Closing buffer...`, { buffer });
+
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
   const bufferAccount = await fetchMaybeBuffer(client.rpc, buffer);
@@ -49,15 +50,13 @@ export async function doCloseBuffer(
     logErrorAndExit(`Buffer account not found: "${buffer}"`);
   }
 
-  const instructionPlan = sequentialInstructionPlan([
-    getCloseInstruction({
-      account: buffer,
-      authority: client.authority,
-      destination: options.recipient ?? client.payer.address,
-    }),
-  ]);
-
-  logCommand(`Closing buffer ${picocolors.bold(buffer)}...`);
-
-  await client.planAndExecute(instructionPlan);
+  await client.planAndExecute(
+    sequentialInstructionPlan([
+      getCloseInstruction({
+        account: buffer,
+        authority: client.authority,
+        destination: options.recipient ?? client.payer.address,
+      }),
+    ])
+  );
 }

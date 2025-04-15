@@ -5,6 +5,7 @@ import { getPdaDetails } from '../../internals';
 import { programArgument, seedArgument } from '../arguments';
 import { GlobalOptions } from '../options';
 import { CustomCommand, getClient } from '../utils';
+import { logCommand } from '../logs';
 
 export function setRemoveAuthorityCommand(program: CustomCommand): void {
   program
@@ -32,8 +33,14 @@ async function doRemoveAuthority(
     authority: client.authority,
     seed,
   });
+
+  logCommand(`Removing additional authority from metadata account...`, {
+    metadata,
+    program,
+    seed,
+  });
+
   await client.planAndExecute(
-    // 'Remove additional authority from metadata account',
     sequentialInstructionPlan([
       getSetAuthorityInstruction({
         account: metadata,

@@ -4,6 +4,7 @@ import { getAccountSize } from '../../utils';
 import { fileArgument } from '../arguments';
 import { GlobalOptions, setWriteOptions, WriteOptions } from '../options';
 import { CustomCommand, getClient, getWriteInput } from '../utils';
+import { logCommand } from '../logs';
 
 export function setCreateBufferCommand(program: CustomCommand): void {
   program
@@ -26,23 +27,23 @@ export async function doCreateBuffer(
     generateKeyPairSigner(),
     getWriteInput(client, file, options),
   ]);
+
+  logCommand(`Creating new buffer...`, { buffer: buffer.address });
+
   const data = writeInput.buffer?.data.data ?? writeInput.data;
   const rent = await client.rpc
     .getMinimumBalanceForRentExemption(getAccountSize(data.length))
     .send();
 
-  const instructionPlan = getCreateBufferInstructionPlan({
-    newBuffer: buffer,
-    authority: client.authority,
-    payer: client.payer,
-    rent,
-    sourceBuffer: writeInput.buffer,
-    closeSourceBuffer: writeInput.closeBuffer,
-    data,
-  });
-
   await client.planAndExecute(
-    // `Create buffer ${picocolors.bold(buffer.address)}`,
-    instructionPlan
+    getCreateBufferInstructionPlan({
+      newBuffer: buffer,
+      authority: client.authority,
+      payer: client.payer,
+      rent,
+      sourceBuffer: writeInput.buffer,
+      closeSourceBuffer: writeInput.closeBuffer,
+      data,
+    })
   );
 }
