@@ -54,16 +54,16 @@ program
   .configureHelp({ showGlobalOptions: true });
 setGlobalOptions(program);
 
-// Upload metadata command.
-const uploadCommand = program
-  .command('upload')
-  .description('Upload metadata.')
+// Write metadata command.
+const writeCommand = program
+  .command('write')
+  .description('Create or update a metadata account for a given program.')
   .addArgument(seedArgument)
   .addArgument(programArgument)
   .addArgument(fileArgument)
   .addOption(nonCanonicalWriteOption);
-setWriteOptions(uploadCommand);
-uploadCommand
+setWriteOptions(writeCommand);
+writeCommand
   .option(
     '--buffer-only',
     'Only create the buffer and export the transaction that sets the buffer.',
@@ -90,7 +90,7 @@ uploadCommand
         client.authority.address !== programAuthority
       ) {
         logErrorAndExit(
-          'You must be the program authority to upload a canonical metadata account. Use `--non-canonical` option to upload as a third party.'
+          'You must be the program authority to write to a canonical metadata account. Use `--non-canonical` option to write as a third party.'
         );
       }
       await uploadMetadata({
