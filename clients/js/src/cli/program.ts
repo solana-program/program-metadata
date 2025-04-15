@@ -11,7 +11,7 @@ import {
 } from '@solana/kit';
 import chalk from 'chalk';
 import { Command } from 'commander';
-import { logErrorAndExit, logSuccess } from './cli-logs';
+import { logErrorAndExit, logSuccess } from './logs';
 import {
   GlobalOptions,
   NonCanonicalReadOption,
@@ -23,7 +23,7 @@ import {
   setGlobalOptions,
   setWriteOptions,
   WriteOptions,
-} from './cli-options';
+} from './options';
 import {
   getClient,
   getFormatFromFile,
@@ -31,19 +31,19 @@ import {
   getPackedData,
   getReadonlyClient,
   writeFile,
-} from './cli-utils';
-import { downloadMetadata } from './downloadMetadata';
+} from './utils';
+import { downloadMetadata } from '../downloadMetadata';
 import {
   getCloseInstruction,
   getSetAuthorityInstruction,
   getSetImmutableInstruction,
   Seed,
-} from './generated';
-import { sequentialInstructionPlan } from './instructionPlans';
-import { getPdaDetails } from './internals';
-import { uploadMetadata } from './uploadMetadata';
-import { getProgramAuthority } from './utils';
-import { fileArgument, programArgument, seedArgument } from './cli-arguments';
+} from '../generated';
+import { sequentialInstructionPlan } from '../instructionPlans';
+import { getPdaDetails } from '../internals';
+import { uploadMetadata } from '../uploadMetadata';
+import { getProgramAuthority } from '../utils';
+import { fileArgument, programArgument, seedArgument } from './arguments';
 
 // Define the CLI program.
 const program = new Command();

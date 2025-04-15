@@ -1,6 +1,6 @@
 import { Argument } from 'commander';
 import { address, Address } from '@solana/kit';
-import { logErrorAndExit } from './cli-logs';
+import { logErrorAndExit } from './logs';
 
 export const seedArgument = new Argument(
   '<seed>',

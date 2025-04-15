@@ -1,7 +1,7 @@
 import { address, type Address, type MicroLamports } from '@solana/kit';
 import { Command, Option } from 'commander';
-import { logErrorAndExit } from './cli-logs';
-import { Compression, Encoding, Format } from './generated';
+import { logErrorAndExit } from './logs';
+import { Compression, Encoding, Format } from '../generated';
 
 export type GlobalOptions = KeypairOption &
   PayerOption &

@@ -16,8 +16,8 @@ import {
   SolanaRpcSubscriptionsApi,
 } from '@solana/kit';
 import { parse as parseYaml } from 'yaml';
-import { WriteOptions } from './cli-options';
-import { Format } from './generated';
+import { WriteOptions } from './options';
+import { Format } from '../generated';
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
@@ -25,14 +25,14 @@ import {
   TransactionPlanExecutor,
   TransactionPlanner,
   TransactionPlanResult,
-} from './instructionPlans';
+} from '../instructionPlans';
 import {
   packDirectData,
   PackedData,
   packExternalData,
   packUrlData,
-} from './packData';
-import { logErrorAndExit, logWarning } from './cli-logs';
+} from '../packData';
+import { logErrorAndExit, logWarning } from './logs';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 
