@@ -1,7 +1,6 @@
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
   Address,
-  GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
   Lamports,
   ReadonlyUint8Array,
@@ -50,55 +49,17 @@ export async function createMetadata(
     parallelChunkSize: 5,
   });
 
-  const [{ programData, isCanonical, metadata }, rent] = await Promise.all([
-    getPdaDetails(input),
-    input.rpc
-      .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
-      .send(),
-  ]);
-  const extendedInput = {
+  const { programData, isCanonical, metadata } = await getPdaDetails(input);
+  const instructionPlan = await getCreateMetadataInstructionPlan({
     ...input,
     programData: isCanonical ? programData : undefined,
     metadata,
-    rent,
-  };
+    planner,
+  });
 
-  const transactionPlan = await planner(
-    getCreateMetadataInstructionPlanUsingInstructionData(extendedInput)
-  ).catch(() =>
-    planner(getCreateMetadataInstructionPlanUsingBuffer(extendedInput))
-  );
-
+  const transactionPlan = await planner(instructionPlan);
   const result = await executor(transactionPlan);
   return { metadata, result };
-}
-
-export async function getCreateMetadataInstructionPlanAlt(
-  input: MetadataInput & {
-    planner: TransactionPlanner;
-    rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi>;
-  }
-): Promise<InstructionPlan> {
-  const planner = input.planner;
-  const [{ programData, isCanonical, metadata }, rent] = await Promise.all([
-    getPdaDetails(input),
-    input.rpc
-      .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
-      .send(),
-  ]);
-  const extendedInput = {
-    ...input,
-    programData: isCanonical ? programData : undefined,
-    metadata,
-    rent,
-  };
-
-  const plan =
-    getCreateMetadataInstructionPlanUsingInstructionData(extendedInput);
-  const validPlan = await isValidInstructionPlan(plan, planner);
-  return validPlan
-    ? plan
-    : getCreateMetadataInstructionPlanUsingBuffer(extendedInput);
 }
 
 export async function getCreateMetadataInstructionPlan(

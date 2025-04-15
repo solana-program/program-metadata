@@ -60,45 +60,17 @@ export async function updateMetadata(
     parallelChunkSize: 5,
   });
 
-  const [{ programData, isCanonical, metadata }, fullRent] = await Promise.all([
-    getPdaDetails(input),
-    input.rpc
-      .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
-      .send(),
-  ]);
-
+  const { programData, isCanonical, metadata } = await getPdaDetails(input);
   const metadataAccount = await fetchMetadata(input.rpc, metadata);
-  if (!metadataAccount.data.mutable) {
-    throw new Error('Metadata account is immutable');
-  }
 
-  const sizeDifference =
-    BigInt(input.data.length) - BigInt(metadataAccount.data.data.length);
-  const extraRentPromise =
-    sizeDifference > 0
-      ? input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
-      : Promise.resolve(lamports(0n));
-  const [extraRent, buffer] = await Promise.all([
-    extraRentPromise,
-    generateKeyPairSigner(),
-  ]);
-
-  const extendedInput = {
+  const instructionPlan = await getUpdateMetadataInstructionPlan({
     ...input,
     programData: isCanonical ? programData : undefined,
-    metadata,
-    buffer,
-    fullRent,
-    extraRent,
-    sizeDifference,
-  };
+    metadata: metadataAccount,
+    planner,
+  });
 
-  const transactionPlan = await planner(
-    getUpdateMetadataInstructionPlanUsingInstructionData(extendedInput)
-  ).catch(() =>
-    planner(getUpdateMetadataInstructionPlanUsingBuffer(extendedInput))
-  );
-
+  const transactionPlan = await planner(instructionPlan);
   const result = await executor(transactionPlan);
   return { metadata, result };
 }
