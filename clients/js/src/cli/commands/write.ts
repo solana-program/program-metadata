@@ -47,14 +47,14 @@ export async function doWrite(
     seed,
   });
   assertValidIsCanonical(isCanonical, options);
-  const tempBuffer: Address | undefined = undefined;
   const [metadataAccount, buffer] = await Promise.all([
     fetchMaybeMetadata(client.rpc, metadata),
-    tempBuffer
-      ? fetchBuffer(client.rpc, tempBuffer)
+    options.buffer
+      ? fetchBuffer(client.rpc, options.buffer)
       : Promise.resolve(undefined),
   ]);
 
+  const closeBufferOption: boolean = false; // TODO
   const instructionPlan = await getWriteMetadataInstructionPlan({
     ...client,
     ...getPackedData(file, options),
@@ -63,7 +63,7 @@ export async function doWrite(
     program,
     seed,
     format: options.format ?? getFormatFromFile(file),
-    closeBuffer: true,
+    closeBuffer: buffer ? closeBufferOption : true,
     buffer,
     metadata: metadataAccount,
     programData: isCanonical ? programData : undefined,

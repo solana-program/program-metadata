@@ -62,7 +62,8 @@ export const exportOption = new Option(
     }
   });
 
-export type WriteOptions = TextOption &
+export type WriteOptions = BufferOption &
+  TextOption &
   UrlOption &
   AccountOption &
   AccountOffsetOption &
@@ -74,6 +75,7 @@ export type WriteOptions = TextOption &
 export function setWriteOptions(command: CustomCommand) {
   command
     // Data sources.
+    .addOption(bufferOption)
     .addOption(textOption)
     .addOption(urlOption)
     .addOption(accountOption)
@@ -84,6 +86,12 @@ export function setWriteOptions(command: CustomCommand) {
     .addOption(encodingOption)
     .addOption(formatOption);
 }
+
+export type BufferOption = { buffer?: Address };
+export const bufferOption = new Option(
+  '--buffer <address>',
+  'The address of the buffer to use as source (creates a "direct" data source).'
+);
 
 export type TextOption = { text?: string };
 export const textOption = new Option(

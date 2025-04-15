@@ -18,7 +18,7 @@ import {
 } from '@solana/kit';
 import { Command } from 'commander';
 import { parse as parseYaml } from 'yaml';
-import { Format } from '../generated';
+import { DataSource, Format } from '../generated';
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
@@ -45,6 +45,8 @@ import {
 } from './options';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
+const DATA_SOURCE_OPTIONS =
+  '`[file]`, `--buffer <address>`, `--text <content>`, `--url <url>` or `--account <address>`';
 
 export class CustomCommand extends Command {
   createCommand(name: string) {
@@ -215,7 +217,7 @@ export function getPackedData(
   const assertSingleUse = () => {
     if (packData) {
       logErrorAndExit(
-        'Multiple data sources provided. Use only one of: `[file]`, `--text <content>`, `--url <url>` or `--account <address>` to provide data.'
+        `Multiple data sources provided. Use only one of: ${DATA_SOURCE_OPTIONS} to provide data.`
       );
     }
   };
@@ -226,6 +228,15 @@ export function getPackedData(
     }
     const fileContent = fs.readFileSync(file, 'utf-8');
     packData = packDirectData({ content: fileContent, compression, encoding });
+  }
+  if (options.buffer) {
+    assertSingleUse();
+    packData = {
+      data: new Uint8Array(0),
+      compression,
+      encoding,
+      dataSource: DataSource.Direct,
+    };
   }
   if (options.text) {
     assertSingleUse();
@@ -252,7 +263,7 @@ export function getPackedData(
 
   if (!packData) {
     logErrorAndExit(
-      'No data provided. Use `[file]`, `--text <content>`, `--url <url>` or `--account <address>` to provide data.'
+      `No data provided. Use ${DATA_SOURCE_OPTIONS} to provide data.`
     );
   }
 
