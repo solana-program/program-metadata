@@ -1,5 +1,6 @@
 import { CustomCommand } from '../utils';
 import { setCloseCommand } from './close';
+import { setCloseBufferCommand } from './close-buffer';
 import { setCreateCommand } from './create';
 import { setCreateBufferCommand } from './create-buffer';
 import { setFetchCommand } from './fetch';
@@ -26,5 +27,6 @@ export function setCommands(program: CustomCommand): void {
     // Buffer commands.
     // TODO: list-buffers: List all buffer accounts owned by an authority.
     .tap(setCreateBufferCommand)
-    .tap(setUpdateBufferCommand);
+    .tap(setUpdateBufferCommand)
+    .tap(setCloseBufferCommand);
 }
