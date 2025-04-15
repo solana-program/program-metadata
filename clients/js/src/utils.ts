@@ -53,7 +53,8 @@ export type MetadataInput = {
   compression: CompressionArgs;
   format: FormatArgs;
   dataSource: DataSourceArgs;
-  data: ReadonlyUint8Array;
+  data?: ReadonlyUint8Array;
+  buffer?: Address;
   /**
    * Extra fees to pay in microlamports per CU.
    * Defaults to no extra fees.

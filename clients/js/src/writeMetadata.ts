@@ -5,7 +5,7 @@ import {
   Rpc,
 } from '@solana/kit';
 import { getCreateMetadataInstructionPlan } from './createMetadata';
-import { fetchMaybeMetadata, Metadata } from './generated';
+import { fetchBuffer, fetchMaybeMetadata, Metadata } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
   InstructionPlan,
@@ -28,10 +28,16 @@ export async function writeMetadata(
 ): Promise<MetadataResponse> {
   const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
   const { programData, isCanonical, metadata } = await getPdaDetails(input);
-  const metadataAccount = await fetchMaybeMetadata(input.rpc, metadata);
+  const [metadataAccount, buffer] = await Promise.all([
+    fetchMaybeMetadata(input.rpc, metadata),
+    input.buffer
+      ? fetchBuffer(input.rpc, input.buffer)
+      : Promise.resolve(undefined),
+  ]);
 
   const instructionPlan = await getWriteMetadataInstructionPlan({
     ...input,
+    buffer,
     metadata: metadataAccount,
     programData: isCanonical ? programData : undefined,
     planner,
@@ -54,6 +60,7 @@ export async function getWriteMetadataInstructionPlan(
     ? await getUpdateMetadataInstructionPlan({
         ...input,
         metadata: input.metadata,
+        data: input.data!, // TODO: Temporary.
       })
     : await getCreateMetadataInstructionPlan({
         ...input,

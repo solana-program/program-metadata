@@ -63,6 +63,7 @@ export async function updateMetadata(
     programData: isCanonical ? programData : undefined,
     metadata: metadataAccount,
     planner,
+    data: input.data!, // TODO: Temporary.
   });
 
   const transactionPlan = await planner(instructionPlan);
