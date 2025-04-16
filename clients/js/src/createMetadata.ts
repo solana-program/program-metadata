@@ -219,8 +219,6 @@ export function getCreateMetadataInstructionPlanUsingExistingBuffer(
               typeof input.closeBuffer === 'string'
                 ? input.closeBuffer
                 : input.payer.address,
-            program: input.program,
-            programData: input.programData,
           }),
         ]
       : []),
