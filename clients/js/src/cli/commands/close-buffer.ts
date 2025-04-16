@@ -1,10 +1,11 @@
-import { address, Address } from '@solana/kit';
+import { Address } from '@solana/kit';
 import { fetchMaybeBuffer, getCloseInstruction } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
+import { bufferArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions } from '../options';
+import { addressParser } from '../parsers';
 import { CustomCommand, getClient } from '../utils';
-import { bufferArgument } from '../arguments';
 
 export function setCloseBufferCommand(program: CustomCommand): void {
   program
@@ -14,13 +15,7 @@ export function setCloseBufferCommand(program: CustomCommand): void {
     .option(
       '--recipient <recipient>',
       'Address receiving the storage fees for the closed account.',
-      (value: string): Address => {
-        try {
-          return address(value);
-        } catch {
-          logErrorAndExit(`Invalid recipient address: "${value}"`);
-        }
-      }
+      addressParser('recipient')
     )
     .action(doCloseBuffer);
 }

@@ -1,6 +1,5 @@
 import { Argument } from 'commander';
-import { address, Address } from '@solana/kit';
-import { logErrorAndExit } from './logs';
+import { addressParser } from './parsers';
 
 export const seedArgument = new Argument(
   '<seed>',
@@ -10,13 +9,7 @@ export const seedArgument = new Argument(
 export const programArgument = new Argument(
   '<program>',
   'Program associated with the metadata account.'
-).argParser((value: string): Address => {
-  try {
-    return address(value);
-  } catch {
-    logErrorAndExit(`Invalid program address: "${value}"`);
-  }
-});
+).argParser(addressParser('program'));
 
 export const fileArgument = new Argument(
   '[file]',
@@ -26,10 +19,4 @@ export const fileArgument = new Argument(
 export const bufferArgument = new Argument(
   '<buffer>',
   'The address of the buffer account.'
-).argParser((value: string): Address => {
-  try {
-    return address(value);
-  } catch {
-    logErrorAndExit(`Invalid buffer address: "${value}"`);
-  }
-});
+).argParser(addressParser('buffer'));

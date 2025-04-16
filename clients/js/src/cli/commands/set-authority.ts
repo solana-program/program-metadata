@@ -1,10 +1,14 @@
-import { address, Address } from '@solana/kit';
+import { Address } from '@solana/kit';
 import { getSetAuthorityInstruction, Seed } from '../../generated';
 import { sequentialInstructionPlan } from '../../instructionPlans';
 import { getPdaDetails } from '../../internals';
 import { programArgument, seedArgument } from '../arguments';
-import { logCommand, logErrorAndExit } from '../logs';
-import { GlobalOptions } from '../options';
+import { logCommand } from '../logs';
+import {
+  GlobalOptions,
+  NewAuthorityOption,
+  newAuthorityOption,
+} from '../options';
 import { CustomCommand, getClient } from '../utils';
 
 export function setSetAuthorityCommand(program: CustomCommand): void {
@@ -15,21 +19,11 @@ export function setSetAuthorityCommand(program: CustomCommand): void {
     )
     .addArgument(seedArgument)
     .addArgument(programArgument)
-    .requiredOption(
-      '--new-authority <new-authority>',
-      'The new authority to set',
-      (value: string): Address => {
-        try {
-          return address(value);
-        } catch {
-          logErrorAndExit(`Invalid new authority address: "${value}"`);
-        }
-      }
-    )
+    .addOption(newAuthorityOption)
     .action(doSetAuthority);
 }
 
-type Options = { newAuthority: Address };
+type Options = NewAuthorityOption;
 async function doSetAuthority(
   seed: Seed,
   program: Address,

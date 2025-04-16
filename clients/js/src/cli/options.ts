@@ -1,7 +1,8 @@
-import { address, type Address, type MicroLamports } from '@solana/kit';
+import { type Address, type MicroLamports } from '@solana/kit';
 import { Option } from 'commander';
 import { Compression, Encoding, Format } from '../generated';
 import { logErrorAndExit } from './logs';
+import { addressOrBooleanParser, addressParser } from './parsers';
 import { CustomCommand } from './utils';
 
 export type GlobalOptions = KeypairOption &
@@ -53,14 +54,7 @@ export const exportOption = new Option(
   'When provided, export transactions instead of running them. An optional address can be provided to override the local keypair as the authority.'
 )
   .default(false)
-  .argParser((value: string | undefined): Address | boolean => {
-    if (value === undefined) return true;
-    try {
-      return address(value);
-    } catch {
-      logErrorAndExit(`Invalid export address: "${value}"`);
-    }
-  });
+  .argParser(addressOrBooleanParser('export'));
 
 export type WriteOptions = TextOption &
   UrlOption &
@@ -207,14 +201,7 @@ export const nonCanonicalReadOption = new Option(
   'When provided, a non-canonical metadata account will be downloaded using the provided address or the active keypair as the authority.'
 )
   .default(false)
-  .argParser((value: string | undefined): Address | boolean => {
-    if (value === undefined) return true;
-    try {
-      return address(value);
-    } catch {
-      logErrorAndExit(`Invalid non-canonical address: "${value}"`);
-    }
-  });
+  .argParser(addressOrBooleanParser('non-canonical'));
 
 export type OutputOption = { output?: string };
 export const outputOption = new Option(
@@ -228,10 +215,4 @@ export const newAuthorityOption = new Option(
   'The new authority to set'
 )
   .makeOptionMandatory()
-  .argParser((value: string): Address => {
-    try {
-      return address(value);
-    } catch {
-      logErrorAndExit(`Invalid new authority address: "${value}"`);
-    }
-  });
+  .argParser(addressParser('new authority'));
