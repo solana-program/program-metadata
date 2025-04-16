@@ -5,6 +5,7 @@ import { setCreateCommand } from './create';
 import { setCreateBufferCommand } from './create-buffer';
 import { setFetchCommand } from './fetch';
 import { setFetchBufferCommand } from './fetch-buffer';
+import { setListBuffersCommand } from './list-buffers';
 import { setRemoveAuthorityCommand } from './remove-authority';
 import { setSetAuthorityCommand } from './set-authority';
 import { setSetBufferAuthorityCommand } from './set-buffer-authority';
@@ -28,7 +29,7 @@ export function setCommands(program: CustomCommand): void {
     // Buffer commands.
     .tap(setCreateBufferCommand)
     .tap(setUpdateBufferCommand)
-    // TODO: list-buffers: List all buffer accounts owned by an authority.
+    .tap(setListBuffersCommand)
     .tap(setFetchBufferCommand)
     .tap(setSetBufferAuthorityCommand)
     .tap(setCloseBufferCommand);
