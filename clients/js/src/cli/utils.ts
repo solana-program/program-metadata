@@ -261,7 +261,7 @@ export async function getWriteInput(
   PackedData & {
     buffer?: Account<Buffer>;
     format: Format;
-    closeBuffer?: boolean;
+    closeBuffer?: Address | boolean;
   }
 > {
   const buffer = options.buffer

@@ -80,7 +80,7 @@ export async function getUpdateMetadataInstructionPlan(
     payer: TransactionSigner;
     planner: TransactionPlanner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
-    closeBuffer?: boolean;
+    closeBuffer?: Address | boolean;
   }
 ): Promise<InstructionPlan> {
   if (!input.buffer && !input.data) {
@@ -172,7 +172,7 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData(
 export function getUpdateMetadataInstructionPlanUsingNewBuffer(
   input: Omit<SetDataInput, 'buffer' | 'data'> & {
     buffer: TransactionSigner;
-    closeBuffer?: boolean;
+    closeBuffer?: Address | boolean;
     data: ReadonlyUint8Array;
     extraRent: Lamports;
     fullRent: Lamports;
@@ -218,7 +218,10 @@ export function getUpdateMetadataInstructionPlanUsingNewBuffer(
           getCloseInstruction({
             account: input.buffer.address,
             authority: input.authority,
-            destination: input.payer.address,
+            destination:
+              typeof input.closeBuffer === 'string'
+                ? input.closeBuffer
+                : input.payer.address,
             program: input.program,
             programData: input.programData,
           }),
@@ -241,7 +244,7 @@ export function getUpdateMetadataInstructionPlanUsingNewBuffer(
 export function getUpdateMetadataInstructionPlanUsingExistingBuffer(
   input: Omit<SetDataInput, 'buffer' | 'data'> & {
     buffer: Address;
-    closeBuffer?: boolean;
+    closeBuffer?: Address | boolean;
     extraRent: Lamports;
     fullRent: Lamports;
     payer: TransactionSigner;
@@ -279,7 +282,10 @@ export function getUpdateMetadataInstructionPlanUsingExistingBuffer(
           getCloseInstruction({
             account: input.buffer,
             authority: input.authority,
-            destination: input.payer.address,
+            destination:
+              typeof input.closeBuffer === 'string'
+                ? input.closeBuffer
+                : input.payer.address,
             program: input.program,
             programData: input.programData,
           }),

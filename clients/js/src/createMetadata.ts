@@ -75,7 +75,7 @@ export async function getCreateMetadataInstructionPlan(
     payer: TransactionSigner;
     planner: TransactionPlanner;
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
-    closeBuffer?: boolean;
+    closeBuffer?: Address | boolean;
   }
 ): Promise<InstructionPlan> {
   if (!input.buffer && !input.data) {
@@ -172,7 +172,7 @@ export function getCreateMetadataInstructionPlanUsingExistingBuffer(
     dataLength: number;
     payer: TransactionSigner;
     rent: Lamports;
-    closeBuffer?: boolean;
+    closeBuffer?: Address | boolean;
   }
 ) {
   return sequentialInstructionPlan([
@@ -215,7 +215,10 @@ export function getCreateMetadataInstructionPlanUsingExistingBuffer(
           getCloseInstruction({
             account: input.buffer,
             authority: input.authority,
-            destination: input.payer.address,
+            destination:
+              typeof input.closeBuffer === 'string'
+                ? input.closeBuffer
+                : input.payer.address,
             program: input.program,
             programData: input.programData,
           }),

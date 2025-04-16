@@ -1,6 +1,7 @@
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
   Account,
+  Address,
   Lamports,
   ReadonlyUint8Array,
   TransactionSigner,
@@ -24,7 +25,7 @@ export function getCreateBufferInstructionPlan(input: {
   authority: TransactionSigner;
   payer: TransactionSigner;
   sourceBuffer?: Account<Buffer>;
-  closeSourceBuffer?: boolean;
+  closeSourceBuffer?: Address | boolean;
   data?: ReadonlyUint8Array;
   rent: Lamports;
 }) {
@@ -72,12 +73,15 @@ export function getCreateBufferInstructionPlan(input: {
             }),
           ]),
         ]),
-    ...(input.closeSourceBuffer && input.sourceBuffer
+    ...(input.sourceBuffer && input.closeSourceBuffer
       ? [
           getCloseInstruction({
             account: input.sourceBuffer.address,
             authority: input.authority,
-            destination: input.payer.address,
+            destination:
+              typeof input.closeSourceBuffer === 'string'
+                ? input.closeSourceBuffer
+                : input.payer.address,
           }),
         ]
       : []),

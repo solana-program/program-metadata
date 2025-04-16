@@ -62,11 +62,10 @@ export type MetadataInput = {
   priorityFees?: MicroLamports;
   /**
    * When using a buffer, whether to close the buffer account after the operation.
-   * This is only relevant when updating a metadata account since, when creating
-   * them, buffer accounts are transformed into metadata accounts.
+   * If an address is provided, it will be used as the destination for the close instruction.
    * Defaults to `true`.
    */
-  closeBuffer?: boolean;
+  closeBuffer?: Address | boolean;
 };
 
 export type MetadataResponse = {

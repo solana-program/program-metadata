@@ -119,11 +119,13 @@ export const bufferOption = new Option(
   'The address of the buffer to use as source (creates a "direct" data source).'
 );
 
-export type CloseBufferOption = { closeBuffer: boolean };
+export type CloseBufferOption = { closeBuffer: Address | boolean };
 export const closeBufferOption = new Option(
   '--close-buffer',
   'Whether to close provided `--buffer` account after using its data.'
-).default(false);
+)
+  .default(false)
+  .argParser(addressOrBooleanParser('--close-buffer recipient'));
 
 export type CompressionOption = { compression: Compression };
 export const compressionOption = new Option(

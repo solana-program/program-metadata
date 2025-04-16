@@ -26,7 +26,7 @@ export function getUpdateBufferInstructionPlan(input: {
   extraRent: Lamports;
   sizeDifference: number | bigint;
   sourceBuffer?: Account<Buffer>;
-  closeSourceBuffer?: boolean;
+  closeSourceBuffer?: Address | boolean;
   data?: ReadonlyUint8Array;
 }) {
   if (!input.data && !input.sourceBuffer) {
@@ -89,7 +89,10 @@ export function getUpdateBufferInstructionPlan(input: {
           getCloseInstruction({
             account: input.sourceBuffer.address,
             authority: input.authority,
-            destination: input.payer.address,
+            destination:
+              typeof input.closeSourceBuffer === 'string'
+                ? input.closeSourceBuffer
+                : input.payer.address,
           }),
         ]
       : []),
