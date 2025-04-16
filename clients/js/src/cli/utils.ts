@@ -12,7 +12,7 @@ import {
   createNoopSigner,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
-  getBase64EncodedWireTransaction,
+  getTransactionEncoder,
   MessageSigner,
   Rpc,
   RpcSubscriptions,
@@ -35,6 +35,7 @@ import {
 } from '../instructionPlans';
 import { getPdaDetails, PdaDetails } from '../internals';
 import {
+  decodeData,
   packDirectData,
   PackedData,
   packExternalData,
@@ -112,14 +113,16 @@ function exportTransactionPlan(
   options: GlobalOptions
 ) {
   const singleTransactions = getAllSingleTransactionPlans(transactionPlan);
-  logExports(
-    singleTransactions.length,
-    typeof options.export === 'string' ? options.export : undefined
-  );
+  const transactionEncoder = getTransactionEncoder();
+
+  logExports(singleTransactions.length, options);
 
   for (let i = 0; i < singleTransactions.length; i++) {
     const transaction = compileTransaction(singleTransactions[i].message);
-    const encodedTransaction = getBase64EncodedWireTransaction(transaction);
+    const encodedTransaction = decodeData(
+      transactionEncoder.encode(transaction),
+      options.exportEncoding
+    );
     const prefix = picocolors.yellow(`[Transaction #${i + 1}]`);
     console.log(`${prefix}\n${encodedTransaction}\n`);
   }

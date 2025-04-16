@@ -2,14 +2,19 @@ import { type Address, type MicroLamports } from '@solana/kit';
 import { Option } from 'commander';
 import { Compression, Encoding, Format } from '../generated';
 import { logErrorAndExit } from './logs';
-import { addressOrBooleanParser, addressParser } from './parsers';
+import {
+  addressOrBooleanParser,
+  addressParser,
+  encodingParser,
+} from './parsers';
 import { CustomCommand } from './utils';
 
 export type GlobalOptions = KeypairOption &
   PayerOption &
   PriorityFeesOption &
   RpcOption &
-  ExportOption;
+  ExportOption &
+  ExportEncodingOption;
 
 export function setGlobalOptions(command: CustomCommand) {
   command
@@ -17,7 +22,8 @@ export function setGlobalOptions(command: CustomCommand) {
     .addOption(payerOption)
     .addOption(priorityFeesOption)
     .addOption(rpcOption)
-    .addOption(exportOption);
+    .addOption(exportOption)
+    .addOption(exportEncodingOption);
 }
 
 export type KeypairOption = { keypair?: string };
@@ -55,6 +61,15 @@ export const exportOption = new Option(
 )
   .default(false)
   .argParser(addressOrBooleanParser('export'));
+
+export type ExportEncodingOption = { exportEncoding: Encoding };
+export const exportEncodingOption = new Option(
+  '--export-encoding <encoding>',
+  'Describes how to encode exported transactions.'
+)
+  .choices(['none', 'utf8', 'base58', 'base64'])
+  .default(Encoding.Base64, 'base64')
+  .argParser(encodingParser);
 
 export type WriteOptions = TextOption &
   UrlOption &
@@ -154,20 +169,7 @@ export const encodingOption = new Option(
 )
   .choices(['none', 'utf8', 'base58', 'base64'])
   .default(Encoding.Utf8, 'utf8')
-  .argParser((value: string): Encoding => {
-    switch (value) {
-      case 'none':
-        return Encoding.None;
-      case 'utf8':
-        return Encoding.Utf8;
-      case 'base58':
-        return Encoding.Base58;
-      case 'base64':
-        return Encoding.Base64;
-      default:
-        logErrorAndExit(`Invalid encoding option: ${value}`);
-    }
-  });
+  .argParser(encodingParser);
 
 export type FormatOption = { format?: Format };
 export const formatOption = new Option(

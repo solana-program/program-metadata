@@ -3,6 +3,7 @@ import { Console } from 'node:console';
 import { Transform } from 'node:stream';
 
 import picocolors from 'picocolors';
+import { Encoding } from '../generated';
 
 export function logCommand(
   message: string,
@@ -28,12 +29,21 @@ export function logCommand(
 
 export function logExports(
   transactionLength: number,
-  authority?: Address
+  options: { export: Address | boolean; exportEncoding: Encoding }
 ): void {
   const transactionPluralized =
     transactionLength === 1 ? 'transaction' : 'transactions';
-  const forAuthority = authority ? ` for ${picocolors.bold(authority)}` : '';
-  const message = `Exporting ${transactionLength} ${transactionPluralized}${forAuthority} in Base64:\n`;
+  const forAuthority =
+    typeof options.export === 'string'
+      ? ` for ${picocolors.bold(options.export)}`
+      : '';
+  const encodingName = {
+    [Encoding.None]: 'hexadecimal',
+    [Encoding.Utf8]: 'UTF-8',
+    [Encoding.Base58]: 'Base58',
+    [Encoding.Base64]: 'Base64',
+  }[options.exportEncoding];
+  const message = `Exporting ${transactionLength} ${transactionPluralized}${forAuthority} in ${encodingName}:\n`;
   console.log(picocolors.yellow(message));
 }
 
