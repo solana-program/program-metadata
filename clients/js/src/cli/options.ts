@@ -121,7 +121,7 @@ export const bufferOption = new Option(
 
 export type CloseBufferOption = { closeBuffer: Address | boolean };
 export const closeBufferOption = new Option(
-  '--close-buffer',
+  '--close-buffer [address]',
   'Whether to close provided `--buffer` account after using its data.'
 )
   .default(false)
