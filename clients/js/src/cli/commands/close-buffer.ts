@@ -4,22 +4,13 @@ import { sequentialInstructionPlan } from '../../instructionPlans';
 import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions } from '../options';
 import { CustomCommand, getClient } from '../utils';
+import { bufferArgument } from '../arguments';
 
 export function setCloseBufferCommand(program: CustomCommand): void {
   program
     .command('close-buffer')
     .description('Close an existing buffer account.')
-    .argument(
-      '<buffer>',
-      'The address of the buffer account to close.',
-      (value: string): Address => {
-        try {
-          return address(value);
-        } catch {
-          logErrorAndExit(`Invalid buffer address: "${value}"`);
-        }
-      }
-    )
+    .addArgument(bufferArgument)
     .option(
       '--recipient <recipient>',
       'Address receiving the storage fees for the closed account.',
@@ -40,10 +31,10 @@ export async function doCloseBuffer(
   _: Options,
   cmd: CustomCommand
 ) {
-  logCommand(`Closing buffer...`, { buffer });
-
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
+
+  logCommand(`Closing buffer...`, { buffer });
   const bufferAccount = await fetchMaybeBuffer(client.rpc, buffer);
 
   if (!bufferAccount.exists) {

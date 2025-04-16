@@ -22,3 +22,14 @@ export const fileArgument = new Argument(
   '[file]',
   'Filepath of the data to upload (creates a "direct" data source). See options for other sources such as --text, --url and --account.'
 );
+
+export const bufferArgument = new Argument(
+  '<buffer>',
+  'The address of the buffer account.'
+).argParser((value: string): Address => {
+  try {
+    return address(value);
+  } catch {
+    logErrorAndExit(`Invalid buffer address: "${value}"`);
+  }
+});

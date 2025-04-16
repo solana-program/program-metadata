@@ -7,6 +7,7 @@ import { setFetchCommand } from './fetch';
 import { setFetchBufferCommand } from './fetch-buffer';
 import { setRemoveAuthorityCommand } from './remove-authority';
 import { setSetAuthorityCommand } from './set-authority';
+import { setSetBufferAuthorityCommand } from './set-buffer-authority';
 import { setSetImmutableCommand } from './set-immutable';
 import { setUpdateCommand } from './update';
 import { setUpdateBufferCommand } from './update-buffer';
@@ -18,7 +19,6 @@ export function setCommands(program: CustomCommand): void {
     .tap(setWriteCommand)
     .tap(setCreateCommand)
     .tap(setUpdateCommand)
-    // TODO: list: List all metadata accounts owned by an authority.
     .tap(setFetchCommand)
     .tap(setSetAuthorityCommand)
     .tap(setRemoveAuthorityCommand)
@@ -30,5 +30,6 @@ export function setCommands(program: CustomCommand): void {
     .tap(setUpdateBufferCommand)
     // TODO: list-buffers: List all buffer accounts owned by an authority.
     .tap(setFetchBufferCommand)
+    .tap(setSetBufferAuthorityCommand)
     .tap(setCloseBufferCommand);
 }

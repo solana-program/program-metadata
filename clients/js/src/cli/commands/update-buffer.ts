@@ -1,7 +1,7 @@
-import { address, Address, lamports } from '@solana/kit';
+import { Address, lamports } from '@solana/kit';
 import { fetchMaybeBuffer } from '../../generated';
 import { getUpdateBufferInstructionPlan } from '../../updateBuffer';
-import { fileArgument } from '../arguments';
+import { bufferArgument, fileArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions, setWriteOptions, WriteOptions } from '../options';
 import { CustomCommand, getClient, getWriteInput } from '../utils';
@@ -10,17 +10,7 @@ export function setUpdateBufferCommand(program: CustomCommand): void {
   program
     .command('update-buffer')
     .description('Update an existing buffer account.')
-    .argument(
-      '<buffer>',
-      'The address of the buffer account to update.',
-      (value: string): Address => {
-        try {
-          return address(value);
-        } catch {
-          logErrorAndExit(`Invalid buffer address: "${value}"`);
-        }
-      }
-    )
+    .addArgument(bufferArgument)
     .addArgument(fileArgument)
     .tap(setWriteOptions)
     .action(doUpdateBuffer);
@@ -33,10 +23,10 @@ export async function doUpdateBuffer(
   _: Options,
   cmd: CustomCommand
 ) {
-  logCommand(`Updating buffer...`, { buffer });
-
   const options = cmd.optsWithGlobals() as GlobalOptions & Options;
   const client = await getClient(options);
+
+  logCommand(`Updating buffer...`, { buffer });
   const [writeInput, bufferAccount] = await Promise.all([
     getWriteInput(client, file, options),
     fetchMaybeBuffer(client.rpc, buffer),

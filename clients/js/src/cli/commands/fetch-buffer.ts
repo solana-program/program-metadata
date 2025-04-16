@@ -1,8 +1,9 @@
-import { address, Address } from '@solana/kit';
-import picocolors from 'picocolors';
+import { Address } from '@solana/kit';
 import { Option } from 'commander';
+import picocolors from 'picocolors';
 import { Compression, Encoding, fetchMaybeBuffer } from '../../generated';
 import { unpackDirectData } from '../../packData';
+import { bufferArgument } from '../arguments';
 import { logErrorAndExit, logSuccess } from '../logs';
 import {
   compressionOption,
@@ -19,17 +20,7 @@ export function setFetchBufferCommand(program: CustomCommand): void {
   program
     .command('fetch-buffer')
     .description('Fetch the content of a buffer account.')
-    .argument(
-      '<buffer>',
-      'The address of the buffer account to fetch.',
-      (value: string): Address => {
-        try {
-          return address(value);
-        } catch {
-          logErrorAndExit(`Invalid buffer address: "${value}"`);
-        }
-      }
-    )
+    .addArgument(bufferArgument)
     .addOption(outputOption)
     .addOption(compressionOption)
     .addOption(encodingOption)

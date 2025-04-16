@@ -221,3 +221,17 @@ export const outputOption = new Option(
   '-o, --output <path>',
   'Path to save the retrieved data.'
 );
+
+export type NewAuthorityOption = { newAuthority: Address };
+export const newAuthorityOption = new Option(
+  '--new-authority <new-authority>',
+  'The new authority to set'
+)
+  .makeOptionMandatory()
+  .argParser((value: string): Address => {
+    try {
+      return address(value);
+    } catch {
+      logErrorAndExit(`Invalid new authority address: "${value}"`);
+    }
+  });
