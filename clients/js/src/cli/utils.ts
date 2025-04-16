@@ -7,6 +7,7 @@ import {
   Address,
   address,
   Commitment,
+  CompilableTransactionMessage,
   compileTransaction,
   createKeyPairSignerFromBytes,
   createNoopSigner,
@@ -14,8 +15,10 @@ import {
   createSolanaRpcSubscriptions,
   getTransactionEncoder,
   MessageSigner,
+  pipe,
   Rpc,
   RpcSubscriptions,
+  setTransactionMessageLifetimeUsingBlockhash,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
   TransactionSigner,
@@ -28,6 +31,7 @@ import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
   getAllSingleTransactionPlans,
+  getSetComputeUnitLimitInstructionIndex,
   InstructionPlan,
   TransactionPlan,
   TransactionPlanExecutor,
@@ -93,7 +97,7 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
   const planAndExecute = async (instructionPlan: InstructionPlan) => {
     const transactionPlan = await planner(instructionPlan);
     if (options.export) {
-      exportTransactionPlan(transactionPlan, options);
+      await exportTransactionPlan(transactionPlan, readonlyClient, options);
     } else {
       await executeTransactionPlan(transactionPlan, executor);
     }
@@ -108,8 +112,9 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
   };
 }
 
-function exportTransactionPlan(
+async function exportTransactionPlan(
   transactionPlan: TransactionPlan,
+  client: Pick<Client, 'rpc'>,
   options: GlobalOptions
 ) {
   const singleTransactions = getAllSingleTransactionPlans(transactionPlan);
@@ -117,8 +122,17 @@ function exportTransactionPlan(
 
   logExports(singleTransactions.length, options);
 
+  const { value: latestBlockhash } = await client.rpc
+    .getLatestBlockhash()
+    .send();
+
   for (let i = 0; i < singleTransactions.length; i++) {
-    const transaction = compileTransaction(singleTransactions[i].message);
+    const transaction = pipe(
+      singleTransactions[i].message,
+      (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+      removeComputeUnitLimitInstruction,
+      compileTransaction
+    );
     const encodedTransaction = decodeData(
       transactionEncoder.encode(transaction),
       options.exportEncoding
@@ -126,6 +140,17 @@ function exportTransactionPlan(
     const prefix = picocolors.yellow(`[Transaction #${i + 1}]`);
     console.log(`${prefix}\n${encodedTransaction}\n`);
   }
+}
+
+function removeComputeUnitLimitInstruction<
+  TTransactionMessage extends CompilableTransactionMessage,
+>(message: TTransactionMessage): TTransactionMessage {
+  const index = getSetComputeUnitLimitInstructionIndex(message);
+  if (index === -1) return message;
+  return {
+    ...message,
+    instructions: message.instructions.filter((_, i) => i !== index),
+  };
 }
 
 async function executeTransactionPlan(
