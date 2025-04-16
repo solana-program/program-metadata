@@ -1,3 +1,4 @@
+import { Address } from '@solana/kit';
 import { Console } from 'node:console';
 import { Transform } from 'node:stream';
 
@@ -23,6 +24,17 @@ export function logCommand(
     );
   }
   console.log('');
+}
+
+export function logExports(
+  transactionLength: number,
+  authority?: Address
+): void {
+  const transactionPluralized =
+    transactionLength === 1 ? 'transaction' : 'transactions';
+  const forAuthority = authority ? ` for ${picocolors.bold(authority)}` : '';
+  const message = `Exporting ${transactionLength} ${transactionPluralized}${forAuthority} in Base64:\n`;
+  console.log(picocolors.yellow(message));
 }
 
 export function logSuccess(message: string): void {

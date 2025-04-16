@@ -7,10 +7,12 @@ import {
   Address,
   address,
   Commitment,
+  compileTransaction,
   createKeyPairSignerFromBytes,
   createNoopSigner,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  getBase64EncodedWireTransaction,
   MessageSigner,
   Rpc,
   RpcSubscriptions,
@@ -19,15 +21,17 @@ import {
   TransactionSigner,
 } from '@solana/kit';
 import { Command } from 'commander';
+import picocolors from 'picocolors';
 import { parse as parseYaml } from 'yaml';
 import { Buffer, DataSource, fetchBuffer, Format, Seed } from '../generated';
 import {
   createDefaultTransactionPlanExecutor,
   createDefaultTransactionPlanner,
+  getAllSingleTransactionPlans,
   InstructionPlan,
+  TransactionPlan,
   TransactionPlanExecutor,
   TransactionPlanner,
-  TransactionPlanResult,
 } from '../instructionPlans';
 import { getPdaDetails, PdaDetails } from '../internals';
 import {
@@ -36,7 +40,7 @@ import {
   packExternalData,
   packUrlData,
 } from '../packData';
-import { logErrorAndExit, logSuccess, logWarning } from './logs';
+import { logErrorAndExit, logExports, logSuccess, logWarning } from './logs';
 import {
   ExportOption,
   GlobalOptions,
@@ -66,9 +70,7 @@ export type Client = ReadonlyClient & {
   authority: TransactionSigner & MessageSigner;
   executor: TransactionPlanExecutor;
   payer: TransactionSigner & MessageSigner;
-  planAndExecute: (
-    instructionPlan: InstructionPlan
-  ) => Promise<TransactionPlanResult>;
+  planAndExecute: (instructionPlan: InstructionPlan) => Promise<void>;
   planner: TransactionPlanner;
 };
 
@@ -87,13 +89,13 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
     rpcSubscriptions: readonlyClient.rpcSubscriptions,
     parallelChunkSize: 5,
   });
-  const planAndExecute = async (
-    instructionPlan: InstructionPlan
-  ): Promise<TransactionPlanResult> => {
+  const planAndExecute = async (instructionPlan: InstructionPlan) => {
     const transactionPlan = await planner(instructionPlan);
-    const result = await executor(transactionPlan);
-    logSuccess('Operation executed successfully');
-    return result;
+    if (options.export) {
+      exportTransactionPlan(transactionPlan, options);
+    } else {
+      await executeTransactionPlan(transactionPlan, executor);
+    }
   };
   return {
     ...readonlyClient,
@@ -103,6 +105,33 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
     planAndExecute,
     planner,
   };
+}
+
+function exportTransactionPlan(
+  transactionPlan: TransactionPlan,
+  options: GlobalOptions
+) {
+  const singleTransactions = getAllSingleTransactionPlans(transactionPlan);
+  logExports(
+    singleTransactions.length,
+    typeof options.export === 'string' ? options.export : undefined
+  );
+
+  for (let i = 0; i < singleTransactions.length; i++) {
+    const transaction = compileTransaction(singleTransactions[i].message);
+    const encodedTransaction = getBase64EncodedWireTransaction(transaction);
+    const prefix = picocolors.yellow(`[Transaction #${i + 1}]`);
+    console.log(`${prefix}\n${encodedTransaction}\n`);
+  }
+}
+
+async function executeTransactionPlan(
+  transactionPlan: TransactionPlan,
+  executor: TransactionPlanExecutor
+) {
+  // TODO: progress + error handling
+  await executor(transactionPlan);
+  logSuccess('Operation executed successfully');
 }
 
 export type ReadonlyClient = {
@@ -162,16 +191,16 @@ export async function getKeyPairSigners(
 ): Promise<
   [TransactionSigner & MessageSigner, TransactionSigner & MessageSigner]
 > {
+  if (typeof options.export === 'string') {
+    const exportSigner = createNoopSigner(options.export);
+    return [exportSigner, exportSigner];
+  }
   const keypairPath = getKeyPairPath(options, configs);
   const keypairPromise = getKeyPairSignerFromPath(keypairPath);
   const payerPromise = options.payer
     ? getKeyPairSignerFromPath(options.payer)
     : keypairPromise;
-  const [keypair, payer] = await Promise.all([keypairPromise, payerPromise]);
-  if (typeof options.export === 'string') {
-    return [createNoopSigner(options.export), payer];
-  }
-  return [keypair, payer];
+  return await Promise.all([keypairPromise, payerPromise]);
 }
 
 function getKeyPairPath(
