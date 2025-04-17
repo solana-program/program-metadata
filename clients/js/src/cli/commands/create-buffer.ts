@@ -28,7 +28,10 @@ export async function doCreateBuffer(
     getWriteInput(client, file, options),
   ]);
 
-  logCommand(`Creating new buffer...`, { buffer: buffer.address });
+  logCommand(`Creating new buffer and setting authority...`, {
+    buffer: buffer.address,
+    authority: client.authority.address,
+  });
 
   const data = writeInput.buffer?.data.data ?? writeInput.data;
   const rent = await client.rpc
