@@ -1,8 +1,7 @@
+import { getTransferSolInstruction } from '@solana-program/system';
 import {
-  getCreateAccountInstruction,
-  getTransferSolInstruction,
-} from '@solana-program/system';
-import {
+  Account,
+  Address,
   generateKeyPairSigner,
   GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
@@ -12,29 +11,35 @@ import {
   Rpc,
   TransactionSigner,
 } from '@solana/kit';
+import { getCreateBufferInstructionPlan } from './createBuffer';
 import {
+  Buffer,
+  fetchBuffer,
   fetchMetadata,
-  getAllocateInstruction,
   getCloseInstruction,
-  getSetAuthorityInstruction,
   getSetDataInstruction,
   getTrimInstruction,
-  PROGRAM_METADATA_PROGRAM_ADDRESS,
+  Metadata,
   SetDataInput,
 } from './generated';
 import {
   createDefaultTransactionPlanExecutor,
-  createDefaultTransactionPlanner,
-  parallelInstructionPlan,
+  InstructionPlan,
+  isValidInstructionPlan,
   sequentialInstructionPlan,
+  TransactionPlanner,
 } from './instructionPlans';
 import {
-  getExtendInstructionPlan,
+  getDefaultTransactionPlannerAndExecutor,
   getPdaDetails,
-  getWriteInstructionPlan,
   REALLOC_LIMIT,
 } from './internals';
-import { getAccountSize, MetadataInput, MetadataResponse } from './utils';
+import {
+  getAccountSize,
+  getExtendInstructionPlan,
+  MetadataInput,
+  MetadataResponse,
+} from './utils';
 
 export async function updateMetadata(
   input: MetadataInput & {
@@ -45,58 +50,91 @@ export async function updateMetadata(
     >[0]['rpcSubscriptions'];
   }
 ): Promise<MetadataResponse> {
-  const planner = createDefaultTransactionPlanner({
-    feePayer: input.payer,
-    computeUnitPrice: input.priorityFees,
-  });
-  const executor = createDefaultTransactionPlanExecutor({
-    rpc: input.rpc,
-    rpcSubscriptions: input.rpcSubscriptions,
-    parallelChunkSize: 5,
+  const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
+  const { programData, isCanonical, metadata } = await getPdaDetails(input);
+  const [metadataAccount, buffer] = await Promise.all([
+    fetchMetadata(input.rpc, metadata),
+    input.buffer
+      ? fetchBuffer(input.rpc, input.buffer)
+      : Promise.resolve(undefined),
+  ]);
+
+  const instructionPlan = await getUpdateMetadataInstructionPlan({
+    ...input,
+    buffer,
+    metadata: metadataAccount,
+    planner,
+    programData: isCanonical ? programData : undefined,
   });
 
-  const [{ programData, isCanonical, metadata }, bufferRent] =
-    await Promise.all([
-      getPdaDetails(input),
-      input.rpc
-        .getMinimumBalanceForRentExemption(getAccountSize(input.data.length))
-        .send(),
-    ]);
+  const transactionPlan = await planner(instructionPlan);
+  const result = await executor(transactionPlan);
+  return { metadata, result };
+}
 
-  const metadataAccount = await fetchMetadata(input.rpc, metadata);
-  if (!metadataAccount.data.mutable) {
+export async function getUpdateMetadataInstructionPlan(
+  input: Omit<SetDataInput, 'buffer' | 'data' | 'metadata'> & {
+    metadata: Account<Metadata>;
+    buffer?: Account<Buffer>;
+    data?: ReadonlyUint8Array;
+    payer: TransactionSigner;
+    planner: TransactionPlanner;
+    rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+    closeBuffer?: Address | boolean;
+  }
+): Promise<InstructionPlan> {
+  if (!input.buffer && !input.data) {
+    throw new Error(
+      'Either `buffer` or `data` must be provided to update a metadata account.'
+    );
+  }
+  if (!input.metadata.data.mutable) {
     throw new Error('Metadata account is immutable');
   }
 
+  const data = (input.buffer?.data.data ?? input.data) as ReadonlyUint8Array;
+  const fullRentPromise = input.rpc
+    .getMinimumBalanceForRentExemption(getAccountSize(data.length))
+    .send();
   const sizeDifference =
-    BigInt(input.data.length) - BigInt(metadataAccount.data.data.length);
+    BigInt(data.length) - BigInt(input.metadata.data.data.length);
   const extraRentPromise =
     sizeDifference > 0
       ? input.rpc.getMinimumBalanceForRentExemption(sizeDifference).send()
       : Promise.resolve(lamports(0n));
-  const [extraRent, buffer] = await Promise.all([
+  const [fullRent, extraRent, buffer] = await Promise.all([
+    fullRentPromise,
     extraRentPromise,
     generateKeyPairSigner(),
   ]);
 
+  if (input.buffer) {
+    return getUpdateMetadataInstructionPlanUsingExistingBuffer({
+      ...input,
+      buffer: input.buffer.address,
+      extraRent,
+      metadata: input.metadata.address,
+      fullRent,
+      sizeDifference,
+    });
+  }
+
   const extendedInput = {
     ...input,
-    programData: isCanonical ? programData : undefined,
-    metadata,
     buffer,
-    bufferRent,
+    data,
     extraRent,
+    fullRent,
+    metadata: input.metadata.address,
     sizeDifference,
   };
 
-  const transactionPlan = await planner(
-    getUpdateMetadataInstructionPlanUsingInstructionData(extendedInput)
-  ).catch(() =>
-    planner(getUpdateMetadataInstructionPlanUsingBuffer(extendedInput))
-  );
-
-  const result = await executor(transactionPlan);
-  return { metadata, result };
+  const plan =
+    getUpdateMetadataInstructionPlanUsingInstructionData(extendedInput);
+  const validPlan = await isValidInstructionPlan(plan, input.planner);
+  return validPlan
+    ? plan
+    : getUpdateMetadataInstructionPlanUsingNewBuffer(extendedInput);
 }
 
 export function getUpdateMetadataInstructionPlanUsingInstructionData(
@@ -131,13 +169,13 @@ export function getUpdateMetadataInstructionPlanUsingInstructionData(
   ]);
 }
 
-export function getUpdateMetadataInstructionPlanUsingBuffer(
+export function getUpdateMetadataInstructionPlanUsingNewBuffer(
   input: Omit<SetDataInput, 'buffer' | 'data'> & {
     buffer: TransactionSigner;
-    bufferRent: Lamports;
-    closeBuffer?: boolean;
+    closeBuffer?: Address | boolean;
     data: ReadonlyUint8Array;
     extraRent: Lamports;
+    fullRent: Lamports;
     payer: TransactionSigner;
     sizeDifference: number | bigint;
   }
@@ -152,22 +190,6 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
           }),
         ]
       : []),
-    getCreateAccountInstruction({
-      payer: input.payer,
-      newAccount: input.buffer,
-      lamports: input.bufferRent,
-      space: getAccountSize(input.data.length),
-      programAddress: PROGRAM_METADATA_PROGRAM_ADDRESS,
-    }),
-    getAllocateInstruction({
-      buffer: input.buffer.address,
-      authority: input.buffer,
-    }),
-    getSetAuthorityInstruction({
-      account: input.buffer.address,
-      authority: input.buffer,
-      newAuthority: input.authority.address,
-    }),
     ...(input.sizeDifference > REALLOC_LIMIT
       ? [
           getExtendInstructionPlan({
@@ -179,13 +201,13 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
           }),
         ]
       : []),
-    parallelInstructionPlan([
-      getWriteInstructionPlan({
-        buffer: input.buffer.address,
-        authority: input.authority,
-        data: input.data,
-      }),
-    ]),
+    getCreateBufferInstructionPlan({
+      newBuffer: input.buffer,
+      authority: input.authority,
+      payer: input.payer,
+      rent: input.fullRent,
+      data: input.data,
+    }),
     getSetDataInstruction({
       ...input,
       buffer: input.buffer.address,
@@ -196,9 +218,72 @@ export function getUpdateMetadataInstructionPlanUsingBuffer(
           getCloseInstruction({
             account: input.buffer.address,
             authority: input.authority,
+            destination:
+              typeof input.closeBuffer === 'string'
+                ? input.closeBuffer
+                : input.payer.address,
+          }),
+        ]
+      : []),
+    ...(input.sizeDifference < 0
+      ? [
+          getTrimInstruction({
+            account: input.metadata,
+            authority: input.authority,
             destination: input.payer.address,
             program: input.program,
             programData: input.programData,
+          }),
+        ]
+      : []),
+  ]);
+}
+
+export function getUpdateMetadataInstructionPlanUsingExistingBuffer(
+  input: Omit<SetDataInput, 'buffer' | 'data'> & {
+    buffer: Address;
+    closeBuffer?: Address | boolean;
+    extraRent: Lamports;
+    fullRent: Lamports;
+    payer: TransactionSigner;
+    sizeDifference: number | bigint;
+  }
+) {
+  return sequentialInstructionPlan([
+    ...(input.sizeDifference > 0
+      ? [
+          getTransferSolInstruction({
+            source: input.payer,
+            destination: input.metadata,
+            amount: input.extraRent,
+          }),
+        ]
+      : []),
+    ...(input.sizeDifference > REALLOC_LIMIT
+      ? [
+          getExtendInstructionPlan({
+            account: input.metadata,
+            authority: input.authority,
+            extraLength: Number(input.sizeDifference),
+            program: input.program,
+            programData: input.programData,
+          }),
+        ]
+      : []),
+    getSetDataInstruction({
+      ...input,
+      buffer: input.buffer,
+      data: undefined,
+    }),
+    ...(input.closeBuffer
+      ? [
+          getCloseInstruction({
+            account: input.buffer,
+            authority: input.authority,
+            destination:
+              typeof input.closeBuffer === 'string'
+                ? input.closeBuffer
+                : input.payer.address,
           }),
         ]
       : []),

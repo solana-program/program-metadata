@@ -51,9 +51,9 @@
     "@iarna/toml": "^2.2.5",
     "@solana-program/compute-budget": "^0.7.0",
     "@solana-program/system": "^0.7.0",
-    "chalk": "^4.1.0",
     "commander": "^13.0.0",
     "pako": "^2.1.0",
+    "picocolors": "^1.1.1",
     "yaml": "^2.7.0"
   },
   "devDependencies": {

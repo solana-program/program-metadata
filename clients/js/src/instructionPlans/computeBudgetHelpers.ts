@@ -125,7 +125,7 @@ function getSetComputeUnitLimitInstructionIndexAndUnits(
   return { index, units };
 }
 
-function getSetComputeUnitLimitInstructionIndex(
+export function getSetComputeUnitLimitInstructionIndex(
   transactionMessage: BaseTransactionMessage
 ) {
   return transactionMessage.instructions.findIndex((ix) => {

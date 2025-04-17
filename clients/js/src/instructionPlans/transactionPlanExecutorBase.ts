@@ -48,6 +48,7 @@ export function createBaseTransactionPlanExecutor(
         result: TransactionPlanResult;
       };
       error.result = result;
+      error.cause = findErrorFromTransactionPlanResult(result);
       throw error;
     }
 
@@ -167,5 +168,19 @@ async function traverseSingle(
       message: transactionPlan.message,
       status: { kind: 'failed', error: error as SolanaError },
     };
+  }
+}
+
+function findErrorFromTransactionPlanResult(
+  result: TransactionPlanResult
+): Error | undefined {
+  if (result.kind === 'single') {
+    return result.status.kind === 'failed' ? result.status.error : undefined;
+  }
+  for (const plan of result.plans) {
+    const error = findErrorFromTransactionPlanResult(plan);
+    if (error) {
+      return error;
+    }
   }
 }

@@ -1,22 +1,16 @@
 import {
   Address,
   GetAccountInfoApi,
-  ReadonlyUint8Array,
+  MicroLamports,
   Rpc,
   TransactionSigner,
 } from '@solana/kit';
-import {
-  findMetadataPda,
-  getExtendInstruction,
-  getWriteInstruction,
-  SeedArgs,
-} from './generated';
-import {
-  getLinearIterableInstructionPlan,
-  getReallocIterableInstructionPlan,
-  IterableInstructionPlan,
-} from './instructionPlans';
+import { findMetadataPda, SeedArgs } from './generated';
 import { getProgramAuthority } from './utils';
+import {
+  createDefaultTransactionPlanExecutor,
+  createDefaultTransactionPlanner,
+} from './instructionPlans';
 
 export const REALLOC_LIMIT = 10_240;
 
@@ -49,39 +43,22 @@ export async function getPdaDetails(input: {
   return { metadata, isCanonical, programData };
 }
 
-export function getExtendInstructionPlan(input: {
-  account: Address;
-  authority: TransactionSigner;
-  extraLength: number;
-  program?: Address;
-  programData?: Address;
-}): IterableInstructionPlan {
-  return getReallocIterableInstructionPlan({
-    totalSize: input.extraLength,
-    getInstruction: (size) =>
-      getExtendInstruction({
-        account: input.account,
-        authority: input.authority,
-        length: size,
-        program: input.program,
-        programData: input.programData,
-      }),
+export function getDefaultTransactionPlannerAndExecutor(input: {
+  payer: TransactionSigner;
+  priorityFees?: MicroLamports;
+  rpc: Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
+  rpcSubscriptions: Parameters<
+    typeof createDefaultTransactionPlanExecutor
+  >[0]['rpcSubscriptions'];
+}) {
+  const planner = createDefaultTransactionPlanner({
+    feePayer: input.payer,
+    computeUnitPrice: input.priorityFees,
   });
-}
-
-export function getWriteInstructionPlan(input: {
-  buffer: Address;
-  authority: TransactionSigner;
-  data: ReadonlyUint8Array;
-}): IterableInstructionPlan {
-  return getLinearIterableInstructionPlan({
-    totalLength: input.data.length,
-    getInstruction: (offset, length) =>
-      getWriteInstruction({
-        buffer: input.buffer,
-        authority: input.authority,
-        offset,
-        data: input.data.slice(offset, offset + length),
-      }),
+  const executor = createDefaultTransactionPlanExecutor({
+    rpc: input.rpc,
+    rpcSubscriptions: input.rpcSubscriptions,
+    parallelChunkSize: 5,
   });
+  return { planner, executor };
 }

@@ -46,6 +46,7 @@ import {
   getExtendInstruction,
   getInitializeInstruction,
   getProgramDataPda as getLoaderV3ProgramDataPda,
+  getSetAuthorityInstruction,
   getWriteInstruction,
   InitializeInput,
   LOADER_V3_PROGRAM_ADDRESS,
@@ -328,6 +329,20 @@ export async function createKeypairBuffer(
     ...input,
   });
   return buffer;
+}
+
+export async function setAuthority(
+  client: Client,
+  input: Parameters<typeof getSetAuthorityInstruction>[0] & {
+    payer: TransactionSigner;
+  }
+) {
+  const setAuthorityIx = getSetAuthorityInstruction(input);
+  await pipe(
+    await createDefaultTransaction(client, input.payer),
+    (tx) => appendTransactionMessageInstructions([setAuthorityIx], tx),
+    (tx) => signAndSendTransaction(client, tx)
+  );
 }
 
 type PartialExcept<T, K extends keyof T> = Partial<Omit<T, K>> & Pick<T, K>;
