@@ -15,7 +15,7 @@
     }
   },
   "bin": {
-    "program-metadata": "./dist/src/cli.js"
+    "program-metadata": "./bin/cli.cjs"
   },
   "files": [
     "./dist/src",
