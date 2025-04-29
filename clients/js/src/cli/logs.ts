@@ -59,6 +59,10 @@ export function logError(message: string): void {
   console.error(picocolors.red(`[Error] `) + message);
 }
 
+export function logDebug(message: string): void {
+  console.debug(picocolors.magenta(`[Debug] `) + message);
+}
+
 export function logErrorAndExit(message: string): never {
   logError(message);
   process.exit(1);

@@ -1,6 +1,11 @@
 module.exports = {
   extends: ['@solana/eslint-config-solana'],
-  ignorePatterns: ['.eslintrc.cjs', 'tsup.config.ts', 'env-shim.ts'],
+  ignorePatterns: [
+    '.eslintrc.cjs',
+    'tsup.config.ts',
+    'env-shim.ts',
+    'bin/cli.cjs',
+  ],
   parserOptions: {
     project: 'tsconfig.json',
     tsconfigRootDir: __dirname,
