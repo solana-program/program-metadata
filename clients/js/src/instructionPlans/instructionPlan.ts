@@ -36,8 +36,6 @@ export type IterableInstructionPlan<
   TInstruction extends IInstruction = IInstruction,
 > = Readonly<{
   kind: 'iterable';
-  /** Get all the instructions in one go or return `null` if not possible */
-  getAll: () => TInstruction[] | null;
   /** Get an iterator for the instructions. */
   getIterator: () => InstructionIterator<TInstruction>;
 }>;
@@ -102,7 +100,6 @@ export function getLinearIterableInstructionPlan({
 }): IterableInstructionPlan {
   return {
     kind: 'iterable',
-    getAll: () => [getInstruction(0, totalBytes)],
     getIterator: () => {
       let offset = 0;
       return {
@@ -135,7 +132,6 @@ export function getIterableInstructionPlanFromInstructions<
 >(instructions: TInstruction[]): IterableInstructionPlan<TInstruction> {
   return {
     kind: 'iterable',
-    getAll: () => instructions,
     getIterator: () => {
       let instructionIndex = 0;
       return {
