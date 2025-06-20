@@ -153,16 +153,26 @@ async function traverseSequential(
     context.parent &&
     (context.parent.kind === 'parallel' || !instructionPlan.divisible);
   if (mustEntirelyFitInCandidate) {
-    const allInstructions = getAllInstructions(instructionPlan);
-    candidate = allInstructions
-      ? selectCandidate(context.parentCandidates, allInstructions)
-      : null;
-    if (candidate && allInstructions) {
-      await context.addInstructionsToSingleTransactionPlan(
-        candidate,
-        allInstructions
+    for (const parentCandidate of context.parentCandidates) {
+      const transactionPlan = await traverseWithSingleCandidate(
+        instructionPlan,
+        {
+          ...context,
+          candidate: {
+            kind: 'single',
+            message: {
+              ...parentCandidate.message,
+              instructions: [...parentCandidate.message.instructions],
+            } as CompilableTransactionMessage,
+          },
+        }
       );
-      return null;
+      if (transactionPlan) {
+        (parentCandidate as Mutable<SingleTransactionPlan>).message =
+          transactionPlan.message;
+        // TODO: Use hook.
+        return null;
+      }
     }
   } else {
     candidate =
@@ -327,27 +337,6 @@ function getParallelCandidates(
   return getAllSingleTransactionPlans(latestPlan);
 }
 
-function getAllInstructions(
-  instructionPlan: InstructionPlan
-): IInstruction[] | null {
-  if (instructionPlan.kind === 'single') {
-    return [instructionPlan.instruction];
-  }
-  if (instructionPlan.kind === 'iterable') {
-    return instructionPlan.getAll();
-  }
-  return instructionPlan.plans.reduce(
-    (acc, plan) => {
-      if (acc === null) return null;
-      const instructions = getAllInstructions(plan);
-      if (instructions === null) return null;
-      acc.push(...instructions);
-      return acc;
-    },
-    [] as IInstruction[] | null
-  );
-}
-
 function selectCandidateForIterator(
   candidates: SingleTransactionPlan[],
   iterator: InstructionIterator
@@ -394,4 +383,122 @@ function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
     return transactionSize <= TRANSACTION_SIZE_LIMIT;
   }
   return transactionPlan.plans.every(isValidTransactionPlan);
+}
+
+type TraverseWithSingleCandidateContext = {
+  abortSignal?: AbortSignal;
+  candidate: SingleTransactionPlan | null;
+  createSingleTransactionPlan: (
+    instructions?: IInstruction[],
+    abortSignal?: AbortSignal
+  ) => Promise<SingleTransactionPlan>;
+  addInstructionsToSingleTransactionPlan: (
+    plan: SingleTransactionPlan,
+    instructions: IInstruction[],
+    abortSignal?: AbortSignal
+  ) => Promise<void>;
+};
+
+async function traverseWithSingleCandidate(
+  instructionPlan: InstructionPlan,
+  context: TraverseWithSingleCandidateContext
+): Promise<SingleTransactionPlan | null> {
+  context.abortSignal?.throwIfAborted();
+  switch (instructionPlan.kind) {
+    case 'sequential':
+      return await traverseSequentialWithSingleCandidate(
+        instructionPlan,
+        context
+      );
+    case 'parallel':
+      return await traverseParallelWithSingleCandidate(
+        instructionPlan,
+        context
+      );
+    case 'single':
+      return await traverseSingleWithSingleCandidate(instructionPlan, context);
+    case 'iterable':
+      return await traverseIterableWithSingleCandidate(
+        instructionPlan,
+        context
+      );
+    default:
+      instructionPlan satisfies never;
+      throw new Error(
+        `Unknown instruction plan kind: ${(instructionPlan as { kind: string }).kind}`
+      );
+  }
+}
+
+async function traverseSequentialWithSingleCandidate(
+  instructionPlan: SequentialInstructionPlan,
+  context: TraverseWithSingleCandidateContext
+): Promise<SingleTransactionPlan | null> {
+  if (context.candidate === null) {
+    return null;
+  }
+  for (const plan of instructionPlan.plans) {
+    const candidate = await traverseWithSingleCandidate(plan, {
+      ...context,
+      candidate: context.candidate,
+    });
+    if (candidate === null) {
+      return null;
+    }
+  }
+  return context.candidate;
+}
+
+async function traverseParallelWithSingleCandidate(
+  instructionPlan: ParallelInstructionPlan,
+  context: TraverseWithSingleCandidateContext
+): Promise<SingleTransactionPlan | null> {
+  if (context.candidate === null) {
+    return null;
+  }
+  for (const plan of instructionPlan.plans) {
+    const candidate = await traverseWithSingleCandidate(plan, {
+      ...context,
+      candidate: context.candidate,
+    });
+    if (candidate === null) {
+      return null;
+    }
+  }
+  return context.candidate;
+}
+
+async function traverseSingleWithSingleCandidate(
+  instructionPlan: SingleInstructionPlan,
+  context: TraverseWithSingleCandidateContext
+): Promise<SingleTransactionPlan | null> {
+  if (context.candidate === null) {
+    return null;
+  }
+  const ix = instructionPlan.instruction;
+  if (!isValidCandidate(context.candidate, [ix])) {
+    return null;
+  }
+  await context.addInstructionsToSingleTransactionPlan(context.candidate, [ix]);
+  return context.candidate;
+}
+
+async function traverseIterableWithSingleCandidate(
+  instructionPlan: IterableInstructionPlan,
+  context: TraverseWithSingleCandidateContext
+): Promise<SingleTransactionPlan | null> {
+  if (context.candidate === null) {
+    return null;
+  }
+  const iterator = instructionPlan.getIterator();
+  while (iterator.hasNext()) {
+    const ix = iterator.next(context.candidate.message);
+    if (!ix || !isValidCandidate(context.candidate, [ix])) {
+      return null;
+    }
+    await context.addInstructionsToSingleTransactionPlan(context.candidate, [
+      ix,
+    ]);
+  }
+  return context.candidate;
 }

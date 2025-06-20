@@ -33,7 +33,6 @@ export function instructionIteratorFactory() {
     return {
       get: getInstruction,
       kind: 'iterable',
-      getAll: () => [getInstruction(totalBytes, 0)],
       getIterator: () => {
         let offset = 0;
         return {
