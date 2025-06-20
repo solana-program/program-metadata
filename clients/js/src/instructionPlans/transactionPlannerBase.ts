@@ -18,6 +18,7 @@ import {
 } from './transactionHelpers';
 import {
   getAllSingleTransactionPlans,
+  singleTransactionPlan,
   SingleTransactionPlan,
   TransactionPlan,
 } from './transactionPlan';
@@ -27,7 +28,7 @@ export type TransactionPlannerConfig = {
   createTransactionMessage: (config?: {
     abortSignal?: AbortSignal;
   }) => Promise<CompilableTransactionMessage> | CompilableTransactionMessage;
-  newInstructionsTransformer?: <
+  onTransactionMessageUpdated?: <
     TTransactionMessage extends CompilableTransactionMessage,
   >(
     transactionMessage: TTransactionMessage,
@@ -38,56 +39,49 @@ export type TransactionPlannerConfig = {
 export function createBaseTransactionPlanner(
   config: TransactionPlannerConfig
 ): TransactionPlanner {
-  const createSingleTransactionPlan = async (
-    instructions: IInstruction[] = [],
-    abortSignal?: AbortSignal
-  ): Promise<SingleTransactionPlan> => {
-    abortSignal?.throwIfAborted();
-    const plan: SingleTransactionPlan = {
-      kind: 'single',
-      message: await Promise.resolve(
-        config.createTransactionMessage({ abortSignal })
-      ),
-    };
-    if (instructions.length > 0) {
-      abortSignal?.throwIfAborted();
-      await addInstructionsToSingleTransactionPlan(
-        plan,
-        instructions,
-        abortSignal
-      );
-    }
-    return plan;
-  };
-
-  const addInstructionsToSingleTransactionPlan = async (
-    plan: SingleTransactionPlan,
-    instructions: IInstruction[],
-    abortSignal?: AbortSignal
-  ): Promise<void> => {
-    let message = appendTransactionMessageInstructions(
-      instructions,
-      plan.message
-    );
-    if (config?.newInstructionsTransformer) {
-      abortSignal?.throwIfAborted();
-      message = await Promise.resolve(
-        config.newInstructionsTransformer(plan.message, { abortSignal })
-      );
-    }
-    (plan as Mutable<SingleTransactionPlan>).message = message;
-  };
-
   return async (
     originalInstructionPlan,
     { abortSignal } = {}
   ): Promise<TransactionPlan> => {
+    const createSingleTransactionPlan: CreateSingleTransactionPlanFunction =
+      async (instructions = []) => {
+        abortSignal?.throwIfAborted();
+        const emptyMessage = await Promise.resolve(
+          config.createTransactionMessage({ abortSignal })
+        );
+        if (instructions.length <= 0) {
+          return { kind: 'single', message: emptyMessage };
+        }
+        const plan: SingleTransactionPlan = {
+          kind: 'single',
+          message: appendTransactionMessageInstructions(
+            instructions,
+            emptyMessage
+          ),
+        };
+        return await onSingleTransactionPlanUpdated(plan);
+      };
+
+    const onSingleTransactionPlanUpdated: OnSingleTransactionPlanUpdatedFunction =
+      async (plan) => {
+        abortSignal?.throwIfAborted();
+        if (!config?.onTransactionMessageUpdated) {
+          return plan;
+        }
+        return {
+          kind: 'single',
+          message: await Promise.resolve(
+            config.onTransactionMessageUpdated(plan.message, { abortSignal })
+          ),
+        };
+      };
+
     const plan = await traverse(originalInstructionPlan, {
       abortSignal,
       parent: null,
       parentCandidates: [],
       createSingleTransactionPlan,
-      addInstructionsToSingleTransactionPlan,
+      onSingleTransactionPlanUpdated,
     });
 
     if (!plan) {
@@ -107,19 +101,20 @@ export function createBaseTransactionPlanner(
   };
 }
 
+type CreateSingleTransactionPlanFunction = (
+  instructions?: IInstruction[]
+) => Promise<SingleTransactionPlan>;
+
+type OnSingleTransactionPlanUpdatedFunction = (
+  plan: SingleTransactionPlan
+) => Promise<SingleTransactionPlan>;
+
 type TraverseContext = {
   abortSignal?: AbortSignal;
   parent: InstructionPlan | null;
   parentCandidates: SingleTransactionPlan[];
-  createSingleTransactionPlan: (
-    instructions?: IInstruction[],
-    abortSignal?: AbortSignal
-  ) => Promise<SingleTransactionPlan>;
-  addInstructionsToSingleTransactionPlan: (
-    plan: SingleTransactionPlan,
-    instructions: IInstruction[],
-    abortSignal?: AbortSignal
-  ) => Promise<void>;
+  createSingleTransactionPlan: CreateSingleTransactionPlanFunction;
+  onSingleTransactionPlanUpdated: OnSingleTransactionPlanUpdatedFunction;
 };
 
 async function traverse(
@@ -149,28 +144,19 @@ async function traverseSequential(
   context: TraverseContext
 ): Promise<TransactionPlan | null> {
   let candidate: SingleTransactionPlan | null = null;
-  const mustEntirelyFitInCandidate =
+  const mustEntirelyFitInParentCandidate =
     context.parent &&
     (context.parent.kind === 'parallel' || !instructionPlan.divisible);
-  if (mustEntirelyFitInCandidate) {
+  if (mustEntirelyFitInParentCandidate) {
     for (const parentCandidate of context.parentCandidates) {
-      const transactionPlan = await traverseWithSingleCandidate(
+      const transactionPlan = fitEntirePlanInsideCandidate(
         instructionPlan,
-        {
-          ...context,
-          candidate: {
-            kind: 'single',
-            message: {
-              ...parentCandidate.message,
-              instructions: [...parentCandidate.message.instructions],
-            } as CompilableTransactionMessage,
-          },
-        }
+        parentCandidate
       );
       if (transactionPlan) {
         (parentCandidate as Mutable<SingleTransactionPlan>).message =
           transactionPlan.message;
-        // TODO: Use hook.
+        await context.onSingleTransactionPlanUpdated(parentCandidate);
         return null;
       }
     }
@@ -253,10 +239,12 @@ async function traverseSingle(
   const ix = instructionPlan.instruction;
   const candidate = selectCandidate(context.parentCandidates, [ix]);
   if (candidate) {
-    await context.addInstructionsToSingleTransactionPlan(candidate, [ix]);
+    (candidate.message as Mutable<CompilableTransactionMessage>) =
+      appendTransactionMessageInstructions([ix], candidate.message);
+    await context.onSingleTransactionPlanUpdated(candidate);
     return null;
   }
-  return await context.createSingleTransactionPlan([ix], context.abortSignal);
+  return await context.createSingleTransactionPlan([ix]);
 }
 
 async function traverseIterable(
@@ -271,27 +259,20 @@ async function traverseIterable(
     const candidateResult = selectCandidateForIterator(candidates, iterator);
     if (candidateResult) {
       const [candidate, ix] = candidateResult;
-      await context.addInstructionsToSingleTransactionPlan(
-        candidate,
-        [ix],
-        context.abortSignal
-      );
+      (candidate.message as Mutable<CompilableTransactionMessage>) =
+        appendTransactionMessageInstructions([ix], candidate.message);
+      await context.onSingleTransactionPlanUpdated(candidate);
     } else {
-      const newPlan = await context.createSingleTransactionPlan(
-        [],
-        context.abortSignal
-      );
+      const newPlan = await context.createSingleTransactionPlan([]);
       const ix = iterator.next(newPlan.message);
       if (!ix) {
         throw new Error(
           'Could not fit `InterableInstructionPlan` into a transaction'
         );
       }
-      await context.addInstructionsToSingleTransactionPlan(
-        newPlan,
-        [ix],
-        context.abortSignal
-      );
+      (newPlan.message as Mutable<CompilableTransactionMessage>) =
+        appendTransactionMessageInstructions([ix], newPlan.message);
+      await context.onSingleTransactionPlanUpdated(newPlan);
       transactionPlans.push(newPlan);
 
       // Adding the new plan to the candidates is important for cases
@@ -385,120 +366,50 @@ function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
   return transactionPlan.plans.every(isValidTransactionPlan);
 }
 
-type TraverseWithSingleCandidateContext = {
-  abortSignal?: AbortSignal;
-  candidate: SingleTransactionPlan | null;
-  createSingleTransactionPlan: (
-    instructions?: IInstruction[],
-    abortSignal?: AbortSignal
-  ) => Promise<SingleTransactionPlan>;
-  addInstructionsToSingleTransactionPlan: (
-    plan: SingleTransactionPlan,
-    instructions: IInstruction[],
-    abortSignal?: AbortSignal
-  ) => Promise<void>;
-};
-
-async function traverseWithSingleCandidate(
+function fitEntirePlanInsideCandidate(
   instructionPlan: InstructionPlan,
-  context: TraverseWithSingleCandidateContext
-): Promise<SingleTransactionPlan | null> {
-  context.abortSignal?.throwIfAborted();
+  candidate: SingleTransactionPlan
+): SingleTransactionPlan | null {
+  let newCandidate: SingleTransactionPlan = candidate;
+
   switch (instructionPlan.kind) {
     case 'sequential':
-      return await traverseSequentialWithSingleCandidate(
-        instructionPlan,
-        context
-      );
     case 'parallel':
-      return await traverseParallelWithSingleCandidate(
-        instructionPlan,
-        context
-      );
+      for (const plan of instructionPlan.plans) {
+        const result = fitEntirePlanInsideCandidate(plan, newCandidate);
+        if (result === null) {
+          return null;
+        }
+        newCandidate = result;
+      }
+      return newCandidate;
     case 'single':
-      return await traverseSingleWithSingleCandidate(instructionPlan, context);
-    case 'iterable':
-      return await traverseIterableWithSingleCandidate(
-        instructionPlan,
-        context
+      if (!isValidCandidate(candidate, [instructionPlan.instruction])) {
+        return null;
+      }
+      return singleTransactionPlan(
+        appendTransactionMessageInstructions(
+          [instructionPlan.instruction],
+          candidate.message
+        )
       );
+    case 'iterable':
+      // eslint-disable-next-line no-case-declarations
+      const iterator = instructionPlan.getIterator();
+      while (iterator.hasNext()) {
+        const ix = iterator.next(candidate.message);
+        if (!ix || !isValidCandidate(candidate, [ix])) {
+          return null;
+        }
+        newCandidate = singleTransactionPlan(
+          appendTransactionMessageInstructions([ix], newCandidate.message)
+        );
+      }
+      return newCandidate;
     default:
       instructionPlan satisfies never;
       throw new Error(
         `Unknown instruction plan kind: ${(instructionPlan as { kind: string }).kind}`
       );
   }
-}
-
-async function traverseSequentialWithSingleCandidate(
-  instructionPlan: SequentialInstructionPlan,
-  context: TraverseWithSingleCandidateContext
-): Promise<SingleTransactionPlan | null> {
-  if (context.candidate === null) {
-    return null;
-  }
-  for (const plan of instructionPlan.plans) {
-    const candidate = await traverseWithSingleCandidate(plan, {
-      ...context,
-      candidate: context.candidate,
-    });
-    if (candidate === null) {
-      return null;
-    }
-  }
-  return context.candidate;
-}
-
-async function traverseParallelWithSingleCandidate(
-  instructionPlan: ParallelInstructionPlan,
-  context: TraverseWithSingleCandidateContext
-): Promise<SingleTransactionPlan | null> {
-  if (context.candidate === null) {
-    return null;
-  }
-  for (const plan of instructionPlan.plans) {
-    const candidate = await traverseWithSingleCandidate(plan, {
-      ...context,
-      candidate: context.candidate,
-    });
-    if (candidate === null) {
-      return null;
-    }
-  }
-  return context.candidate;
-}
-
-async function traverseSingleWithSingleCandidate(
-  instructionPlan: SingleInstructionPlan,
-  context: TraverseWithSingleCandidateContext
-): Promise<SingleTransactionPlan | null> {
-  if (context.candidate === null) {
-    return null;
-  }
-  const ix = instructionPlan.instruction;
-  if (!isValidCandidate(context.candidate, [ix])) {
-    return null;
-  }
-  await context.addInstructionsToSingleTransactionPlan(context.candidate, [ix]);
-  return context.candidate;
-}
-
-async function traverseIterableWithSingleCandidate(
-  instructionPlan: IterableInstructionPlan,
-  context: TraverseWithSingleCandidateContext
-): Promise<SingleTransactionPlan | null> {
-  if (context.candidate === null) {
-    return null;
-  }
-  const iterator = instructionPlan.getIterator();
-  while (iterator.hasNext()) {
-    const ix = iterator.next(context.candidate.message);
-    if (!ix || !isValidCandidate(context.candidate, [ix])) {
-      return null;
-    }
-    await context.addInstructionsToSingleTransactionPlan(context.candidate, [
-      ix,
-    ]);
-  }
-  return context.candidate;
 }

@@ -25,21 +25,49 @@ export type SingleTransactionPlan<
 }>;
 
 export function parallelTransactionPlan(
-  plans: TransactionPlan[]
+  plans: (CompilableTransactionMessage | TransactionPlan)[]
 ): ParallelTransactionPlan {
-  return { kind: 'parallel', plans };
+  return Object.freeze({
+    kind: 'parallel',
+    plans: parseSingleTransactionPlans(plans),
+  });
 }
 
 export function sequentialTransactionPlan(
-  plans: TransactionPlan[]
-): SequentialTransactionPlan {
-  return { kind: 'sequential', divisible: true, plans };
+  plans: (CompilableTransactionMessage | TransactionPlan)[]
+): SequentialTransactionPlan & { divisible: true } {
+  return Object.freeze({
+    divisible: true,
+    kind: 'sequential',
+    plans: parseSingleTransactionPlans(plans),
+  });
 }
 
 export function nonDivisibleSequentialTransactionPlan(
-  plans: TransactionPlan[]
-): SequentialTransactionPlan {
-  return { kind: 'sequential', divisible: false, plans };
+  plans: (CompilableTransactionMessage | TransactionPlan)[]
+): SequentialTransactionPlan & { divisible: false } {
+  return Object.freeze({
+    divisible: false,
+    kind: 'sequential',
+    plans: parseSingleTransactionPlans(plans),
+  });
+}
+
+export function singleTransactionPlan<
+  TTransactionMessage extends
+    CompilableTransactionMessage = CompilableTransactionMessage,
+>(
+  transactionMessage: TTransactionMessage
+): SingleTransactionPlan<TTransactionMessage> {
+  return Object.freeze({ kind: 'single', message: transactionMessage });
+}
+
+function parseSingleTransactionPlans(
+  plans: (CompilableTransactionMessage | TransactionPlan)[]
+): TransactionPlan[] {
+  return plans.map((plan) =>
+    'kind' in plan ? plan : singleTransactionPlan(plan)
+  );
 }
 
 export function getAllSingleTransactionPlans(
