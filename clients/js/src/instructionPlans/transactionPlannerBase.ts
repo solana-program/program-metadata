@@ -149,7 +149,7 @@ async function traverseSequential(
     (context.parent.kind === 'parallel' || !instructionPlan.divisible);
   if (mustEntirelyFitInCandidate) {
     for (const parentCandidate of context.parentCandidates) {
-      const transactionPlan = traverseWithSingleCandidate(instructionPlan, {
+      const transactionPlan = fitEntirePlanInsideCandidate(instructionPlan, {
         kind: 'single',
         message: { ...parentCandidate.message },
       });
@@ -366,84 +366,50 @@ function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
   return transactionPlan.plans.every(isValidTransactionPlan);
 }
 
-function traverseWithSingleCandidate(
+function fitEntirePlanInsideCandidate(
   instructionPlan: InstructionPlan,
   candidate: SingleTransactionPlan
 ): SingleTransactionPlan | null {
+  let newCandidate: SingleTransactionPlan = candidate;
+
   switch (instructionPlan.kind) {
     case 'sequential':
-      return traverseSequentialWithSingleCandidate(instructionPlan, candidate);
     case 'parallel':
-      return traverseParallelWithSingleCandidate(instructionPlan, candidate);
+      for (const plan of instructionPlan.plans) {
+        const result = fitEntirePlanInsideCandidate(plan, newCandidate);
+        if (result === null) {
+          return null;
+        }
+        newCandidate = result;
+      }
+      return newCandidate;
     case 'single':
-      return traverseSingleWithSingleCandidate(instructionPlan, candidate);
+      if (!isValidCandidate(candidate, [instructionPlan.instruction])) {
+        return null;
+      }
+      return singleTransactionPlan(
+        appendTransactionMessageInstructions(
+          [instructionPlan.instruction],
+          candidate.message
+        )
+      );
     case 'iterable':
-      return traverseIterableWithSingleCandidate(instructionPlan, candidate);
+      // eslint-disable-next-line no-case-declarations
+      const iterator = instructionPlan.getIterator();
+      while (iterator.hasNext()) {
+        const ix = iterator.next(candidate.message);
+        if (!ix || !isValidCandidate(candidate, [ix])) {
+          return null;
+        }
+        newCandidate = singleTransactionPlan(
+          appendTransactionMessageInstructions([ix], newCandidate.message)
+        );
+      }
+      return newCandidate;
     default:
       instructionPlan satisfies never;
       throw new Error(
         `Unknown instruction plan kind: ${(instructionPlan as { kind: string }).kind}`
       );
   }
-}
-
-function traverseSequentialWithSingleCandidate(
-  instructionPlan: SequentialInstructionPlan,
-  candidate: SingleTransactionPlan
-): SingleTransactionPlan | null {
-  let newCandidate: SingleTransactionPlan = candidate;
-  for (const plan of instructionPlan.plans) {
-    const result = traverseWithSingleCandidate(plan, newCandidate);
-    if (result === null) {
-      return null;
-    }
-    newCandidate = result;
-  }
-  return newCandidate;
-}
-
-function traverseParallelWithSingleCandidate(
-  instructionPlan: ParallelInstructionPlan,
-  candidate: SingleTransactionPlan
-): SingleTransactionPlan | null {
-  let newCandidate: SingleTransactionPlan = candidate;
-  for (const plan of instructionPlan.plans) {
-    const result = traverseWithSingleCandidate(plan, newCandidate);
-    if (result === null) {
-      return null;
-    }
-    newCandidate = result;
-  }
-  return newCandidate;
-}
-
-function traverseSingleWithSingleCandidate(
-  instructionPlan: SingleInstructionPlan,
-  candidate: SingleTransactionPlan
-): SingleTransactionPlan | null {
-  const ix = instructionPlan.instruction;
-  if (!isValidCandidate(candidate, [ix])) {
-    return null;
-  }
-  return singleTransactionPlan(
-    appendTransactionMessageInstructions([ix], candidate.message)
-  );
-}
-
-function traverseIterableWithSingleCandidate(
-  instructionPlan: IterableInstructionPlan,
-  candidate: SingleTransactionPlan
-): SingleTransactionPlan | null {
-  const iterator = instructionPlan.getIterator();
-  let newCandidate: SingleTransactionPlan = candidate;
-  while (iterator.hasNext()) {
-    const ix = iterator.next(candidate.message);
-    if (!ix || !isValidCandidate(candidate, [ix])) {
-      return null;
-    }
-    newCandidate = singleTransactionPlan(
-      appendTransactionMessageInstructions([ix], newCandidate.message)
-    );
-  }
-  return newCandidate;
 }
