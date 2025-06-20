@@ -149,14 +149,8 @@ async function traverseSequential(
   if (mustEntirelyFitInCandidate) {
     for (const parentCandidate of context.parentCandidates) {
       const transactionPlan = traverseWithSingleCandidate(instructionPlan, {
-        ...context,
-        candidate: {
-          kind: 'single',
-          message: {
-            ...parentCandidate.message,
-            instructions: [...parentCandidate.message.instructions],
-          } as CompilableTransactionMessage,
-        },
+        kind: 'single',
+        message: { ...parentCandidate.message },
       });
       if (transactionPlan) {
         (parentCandidate as Mutable<SingleTransactionPlan>).message =
@@ -371,27 +365,19 @@ function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
   return transactionPlan.plans.every(isValidTransactionPlan);
 }
 
-type TraverseWithSingleCandidateContext = {
-  abortSignal?: AbortSignal;
-  candidate: SingleTransactionPlan | null;
-  createSingleTransactionPlan: CreateSingleTransactionPlanFunction;
-  onSingleTransactionPlanUpdated: OnSingleTransactionPlanUpdatedFunction;
-};
-
 function traverseWithSingleCandidate(
   instructionPlan: InstructionPlan,
-  context: TraverseWithSingleCandidateContext
+  candidate: SingleTransactionPlan | null
 ): SingleTransactionPlan | null {
-  context.abortSignal?.throwIfAborted();
   switch (instructionPlan.kind) {
     case 'sequential':
-      return traverseSequentialWithSingleCandidate(instructionPlan, context);
+      return traverseSequentialWithSingleCandidate(instructionPlan, candidate);
     case 'parallel':
-      return traverseParallelWithSingleCandidate(instructionPlan, context);
+      return traverseParallelWithSingleCandidate(instructionPlan, candidate);
     case 'single':
-      return traverseSingleWithSingleCandidate(instructionPlan, context);
+      return traverseSingleWithSingleCandidate(instructionPlan, candidate);
     case 'iterable':
-      return traverseIterableWithSingleCandidate(instructionPlan, context);
+      return traverseIterableWithSingleCandidate(instructionPlan, candidate);
     default:
       instructionPlan satisfies never;
       throw new Error(
@@ -402,73 +388,67 @@ function traverseWithSingleCandidate(
 
 function traverseSequentialWithSingleCandidate(
   instructionPlan: SequentialInstructionPlan,
-  context: TraverseWithSingleCandidateContext
+  candidate: SingleTransactionPlan | null
 ): SingleTransactionPlan | null {
-  if (context.candidate === null) {
+  if (candidate === null) {
     return null;
   }
   for (const plan of instructionPlan.plans) {
-    const candidate = traverseWithSingleCandidate(plan, {
-      ...context,
-      candidate: context.candidate,
-    });
-    if (candidate === null) {
+    const updatedCandidate = traverseWithSingleCandidate(plan, candidate);
+    if (updatedCandidate === null) {
       return null;
     }
   }
-  return context.candidate;
+  return candidate;
 }
 
 function traverseParallelWithSingleCandidate(
   instructionPlan: ParallelInstructionPlan,
-  context: TraverseWithSingleCandidateContext
+  candidate: SingleTransactionPlan | null
 ): SingleTransactionPlan | null {
-  if (context.candidate === null) {
+  if (candidate === null) {
     return null;
   }
   for (const plan of instructionPlan.plans) {
-    const candidate = traverseWithSingleCandidate(plan, {
-      ...context,
-      candidate: context.candidate,
-    });
-    if (candidate === null) {
+    const updatedCandidate = traverseWithSingleCandidate(plan, candidate);
+    if (updatedCandidate === null) {
       return null;
     }
   }
-  return context.candidate;
+  return candidate;
 }
 
 function traverseSingleWithSingleCandidate(
   instructionPlan: SingleInstructionPlan,
-  context: TraverseWithSingleCandidateContext
+  candidate: SingleTransactionPlan | null
 ): SingleTransactionPlan | null {
-  if (context.candidate === null) {
+  if (candidate === null) {
     return null;
   }
   const ix = instructionPlan.instruction;
-  if (!isValidCandidate(context.candidate, [ix])) {
+  if (!isValidCandidate(candidate, [ix])) {
     return null;
   }
-  (context.candidate.message as Mutable<CompilableTransactionMessage>) =
-    appendTransactionMessageInstructions([ix], context.candidate.message);
-  return context.candidate;
+  (candidate.message as Mutable<CompilableTransactionMessage>) =
+    appendTransactionMessageInstructions([ix], candidate.message);
+  return candidate;
 }
 
 function traverseIterableWithSingleCandidate(
   instructionPlan: IterableInstructionPlan,
-  context: TraverseWithSingleCandidateContext
+  candidate: SingleTransactionPlan | null
 ): SingleTransactionPlan | null {
-  if (context.candidate === null) {
+  if (candidate === null) {
     return null;
   }
   const iterator = instructionPlan.getIterator();
   while (iterator.hasNext()) {
-    const ix = iterator.next(context.candidate.message);
-    if (!ix || !isValidCandidate(context.candidate, [ix])) {
+    const ix = iterator.next(candidate.message);
+    if (!ix || !isValidCandidate(candidate, [ix])) {
       return null;
     }
-    (context.candidate.message as Mutable<CompilableTransactionMessage>) =
-      appendTransactionMessageInstructions([ix], context.candidate.message);
+    (candidate.message as Mutable<CompilableTransactionMessage>) =
+      appendTransactionMessageInstructions([ix], candidate.message);
   }
-  return context.candidate;
+  return candidate;
 }
