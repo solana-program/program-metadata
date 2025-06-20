@@ -144,15 +144,15 @@ async function traverseSequential(
   context: TraverseContext
 ): Promise<TransactionPlan | null> {
   let candidate: SingleTransactionPlan | null = null;
-  const mustEntirelyFitInCandidate =
+  const mustEntirelyFitInParentCandidate =
     context.parent &&
     (context.parent.kind === 'parallel' || !instructionPlan.divisible);
-  if (mustEntirelyFitInCandidate) {
+  if (mustEntirelyFitInParentCandidate) {
     for (const parentCandidate of context.parentCandidates) {
-      const transactionPlan = fitEntirePlanInsideCandidate(instructionPlan, {
-        kind: 'single',
-        message: { ...parentCandidate.message },
-      });
+      const transactionPlan = fitEntirePlanInsideCandidate(
+        instructionPlan,
+        parentCandidate
+      );
       if (transactionPlan) {
         (parentCandidate as Mutable<SingleTransactionPlan>).message =
           transactionPlan.message;
