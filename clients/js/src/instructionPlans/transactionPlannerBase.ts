@@ -18,6 +18,7 @@ import {
 } from './transactionHelpers';
 import {
   getAllSingleTransactionPlans,
+  singleTransactionPlan,
   SingleTransactionPlan,
   TransactionPlan,
 } from './transactionPlan';
@@ -367,7 +368,7 @@ function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
 
 function traverseWithSingleCandidate(
   instructionPlan: InstructionPlan,
-  candidate: SingleTransactionPlan | null
+  candidate: SingleTransactionPlan
 ): SingleTransactionPlan | null {
   switch (instructionPlan.kind) {
     case 'sequential':
@@ -388,67 +389,61 @@ function traverseWithSingleCandidate(
 
 function traverseSequentialWithSingleCandidate(
   instructionPlan: SequentialInstructionPlan,
-  candidate: SingleTransactionPlan | null
+  candidate: SingleTransactionPlan
 ): SingleTransactionPlan | null {
-  if (candidate === null) {
-    return null;
-  }
+  let newCandidate: SingleTransactionPlan = candidate;
   for (const plan of instructionPlan.plans) {
-    const updatedCandidate = traverseWithSingleCandidate(plan, candidate);
-    if (updatedCandidate === null) {
+    const result = traverseWithSingleCandidate(plan, newCandidate);
+    if (result === null) {
       return null;
     }
+    newCandidate = result;
   }
-  return candidate;
+  return newCandidate;
 }
 
 function traverseParallelWithSingleCandidate(
   instructionPlan: ParallelInstructionPlan,
-  candidate: SingleTransactionPlan | null
+  candidate: SingleTransactionPlan
 ): SingleTransactionPlan | null {
-  if (candidate === null) {
-    return null;
-  }
+  let newCandidate: SingleTransactionPlan = candidate;
   for (const plan of instructionPlan.plans) {
-    const updatedCandidate = traverseWithSingleCandidate(plan, candidate);
-    if (updatedCandidate === null) {
+    const result = traverseWithSingleCandidate(plan, newCandidate);
+    if (result === null) {
       return null;
     }
+    newCandidate = result;
   }
-  return candidate;
+  return newCandidate;
 }
 
 function traverseSingleWithSingleCandidate(
   instructionPlan: SingleInstructionPlan,
-  candidate: SingleTransactionPlan | null
+  candidate: SingleTransactionPlan
 ): SingleTransactionPlan | null {
-  if (candidate === null) {
-    return null;
-  }
   const ix = instructionPlan.instruction;
   if (!isValidCandidate(candidate, [ix])) {
     return null;
   }
-  (candidate.message as Mutable<CompilableTransactionMessage>) =
-    appendTransactionMessageInstructions([ix], candidate.message);
-  return candidate;
+  return singleTransactionPlan(
+    appendTransactionMessageInstructions([ix], candidate.message)
+  );
 }
 
 function traverseIterableWithSingleCandidate(
   instructionPlan: IterableInstructionPlan,
-  candidate: SingleTransactionPlan | null
+  candidate: SingleTransactionPlan
 ): SingleTransactionPlan | null {
-  if (candidate === null) {
-    return null;
-  }
   const iterator = instructionPlan.getIterator();
+  let newCandidate: SingleTransactionPlan = candidate;
   while (iterator.hasNext()) {
     const ix = iterator.next(candidate.message);
     if (!ix || !isValidCandidate(candidate, [ix])) {
       return null;
     }
-    (candidate.message as Mutable<CompilableTransactionMessage>) =
-      appendTransactionMessageInstructions([ix], candidate.message);
+    newCandidate = singleTransactionPlan(
+      appendTransactionMessageInstructions([ix], newCandidate.message)
+    );
   }
-  return candidate;
+  return newCandidate;
 }
