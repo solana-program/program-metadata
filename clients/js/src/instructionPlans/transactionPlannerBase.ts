@@ -27,16 +27,20 @@ import {
 } from './transactionPlan';
 import { TransactionPlanner } from './transactionPlanner';
 
+type CreateTransactionMessage = (config?: {
+  abortSignal?: AbortSignal;
+}) => Promise<CompilableTransactionMessage> | CompilableTransactionMessage;
+
+type OnTransactionMessageUpdated = <
+  TTransactionMessage extends CompilableTransactionMessage,
+>(
+  transactionMessage: TTransactionMessage,
+  config?: { abortSignal?: AbortSignal }
+) => Promise<TTransactionMessage> | TTransactionMessage;
+
 export type TransactionPlannerConfig = {
-  createTransactionMessage: (config?: {
-    abortSignal?: AbortSignal;
-  }) => Promise<CompilableTransactionMessage> | CompilableTransactionMessage;
-  onTransactionMessageUpdated?: <
-    TTransactionMessage extends CompilableTransactionMessage,
-  >(
-    transactionMessage: TTransactionMessage,
-    config?: { abortSignal?: AbortSignal }
-  ) => Promise<TTransactionMessage> | TTransactionMessage;
+  createTransactionMessage: CreateTransactionMessage;
+  onTransactionMessageUpdated?: OnTransactionMessageUpdated;
 };
 
 export function createBaseTransactionPlanner(
@@ -46,32 +50,13 @@ export function createBaseTransactionPlanner(
     originalInstructionPlan,
     { abortSignal } = {}
   ): Promise<TransactionPlan> => {
-    const createSingleTransactionPlan: CreateSingleTransactionPlanFunction =
-      async () => {
-        abortSignal?.throwIfAborted();
-        return {
-          kind: 'single',
-          message: await Promise.resolve(
-            config.createTransactionMessage({ abortSignal })
-          ),
-        };
-      };
-
-    const emitSingleTransactionPlanUpdated: EmitSingleTransactionPlanUpdatedFunction =
-      async (plan) => {
-        abortSignal?.throwIfAborted();
-        if (!config?.onTransactionMessageUpdated) return;
-        plan.message = await Promise.resolve(
-          config.onTransactionMessageUpdated(plan.message, { abortSignal })
-        );
-      };
-
     const plan = await traverse(originalInstructionPlan, {
       abortSignal,
       parent: null,
       parentCandidates: [],
-      createSingleTransactionPlan,
-      emitSingleTransactionPlanUpdated,
+      createTransactionMessage: config.createTransactionMessage,
+      onTransactionMessageUpdated:
+        config.onTransactionMessageUpdated ?? ((msg) => msg),
     });
 
     if (!plan) {
@@ -94,19 +79,12 @@ export function createBaseTransactionPlanner(
 type MutableTransactionPlan = Mutable<TransactionPlan>;
 type MutableSingleTransactionPlan = Mutable<SingleTransactionPlan>;
 
-type CreateSingleTransactionPlanFunction =
-  () => Promise<MutableSingleTransactionPlan>;
-
-type EmitSingleTransactionPlanUpdatedFunction = (
-  plan: MutableSingleTransactionPlan
-) => Promise<void>;
-
 type TraverseContext = {
   abortSignal?: AbortSignal;
   parent: InstructionPlan | null;
   parentCandidates: MutableSingleTransactionPlan[];
-  createSingleTransactionPlan: CreateSingleTransactionPlanFunction;
-  emitSingleTransactionPlanUpdated: EmitSingleTransactionPlanUpdatedFunction;
+  createTransactionMessage: CreateTransactionMessage;
+  onTransactionMessageUpdated: OnTransactionMessageUpdated;
 };
 
 async function traverse(
@@ -146,8 +124,12 @@ async function traverseSequential(
         parentCandidate
       );
       if (transactionPlan) {
-        parentCandidate.message = transactionPlan.message;
-        await context.emitSingleTransactionPlanUpdated(parentCandidate);
+        const message = await Promise.resolve(
+          context.onTransactionMessageUpdated(transactionPlan.message, {
+            abortSignal: context.abortSignal,
+          })
+        );
+        parentCandidate.message = message;
         return null;
       }
     }
@@ -230,19 +212,34 @@ async function traverseSingle(
   context: TraverseContext
 ): Promise<MutableTransactionPlan | null> {
   const ix = instructionPlan.instruction;
-  const candidate = selectCandidate(context.parentCandidates, [ix]);
+
+  // TODO: Get candidate and new message ???
+  const candidate = selectCandidate(context.parentCandidates, (message) =>
+    appendTransactionMessageInstructions([ix], message)
+  );
+
   if (candidate) {
-    candidate.message = appendTransactionMessageInstructions(
-      [ix],
-      candidate.message
+    candidate.message = await Promise.resolve(
+      context.onTransactionMessageUpdated(
+        appendTransactionMessageInstructions([ix], candidate.message),
+        { abortSignal: context.abortSignal }
+      )
     );
-    await context.emitSingleTransactionPlanUpdated(candidate);
     return null;
   }
-  const plan = await context.createSingleTransactionPlan();
-  plan.message = appendTransactionMessageInstructions([ix], plan.message);
-  await context.emitSingleTransactionPlanUpdated(plan);
-  return plan;
+
+  const message = await Promise.resolve(
+    context.createTransactionMessage({ abortSignal: context.abortSignal })
+  );
+  return {
+    kind: 'single',
+    message: await Promise.resolve(
+      context.onTransactionMessageUpdated(
+        appendTransactionMessageInstructions([ix], message),
+        { abortSignal: context.abortSignal }
+      )
+    ),
+  };
 }
 
 async function traverseIterable(
@@ -257,24 +254,31 @@ async function traverseIterable(
     const candidateResult = selectCandidateForIterator(candidates, iterator);
     if (candidateResult) {
       const [candidate, ix] = candidateResult;
-      candidate.message = appendTransactionMessageInstructions(
-        [ix],
-        candidate.message
+      candidate.message = await Promise.resolve(
+        context.onTransactionMessageUpdated(
+          appendTransactionMessageInstructions([ix], candidate.message),
+          { abortSignal: context.abortSignal }
+        )
       );
-      await context.emitSingleTransactionPlanUpdated(candidate);
     } else {
-      const newPlan = await context.createSingleTransactionPlan();
-      const ix = iterator.next(newPlan.message);
+      const message = await Promise.resolve(
+        context.createTransactionMessage({ abortSignal: context.abortSignal })
+      );
+      const ix = iterator.next(message);
       if (!ix) {
         throw new Error(
           'Could not fit `InterableInstructionPlan` into a transaction'
         );
       }
-      newPlan.message = appendTransactionMessageInstructions(
-        [ix],
-        newPlan.message
-      );
-      await context.emitSingleTransactionPlanUpdated(newPlan);
+      const newPlan: MutableSingleTransactionPlan = {
+        kind: 'single',
+        message: await Promise.resolve(
+          context.onTransactionMessageUpdated(
+            appendTransactionMessageInstructions([ix], message),
+            { abortSignal: context.abortSignal }
+          )
+        ),
+      };
       transactionPlans.push(newPlan);
 
       // Adding the new plan to the candidates is important for cases
@@ -333,31 +337,56 @@ function selectCandidateForIterator(
   return null;
 }
 
+// async function selectCandidateWithContext(
+//   context: Pick<TraverseContext, 'emitSingleTransactionPlanUpdated'>,
+//   candidates: MutableSingleTransactionPlan[],
+//   predicate: (
+//     message: CompilableTransactionMessage
+//   ) => CompilableTransactionMessage
+// ): Promise<MutableSingleTransactionPlan | null> {
+//   for (const candidate of candidates) {
+//     if (isValidCandidate(candidate, predicate)) {
+//       // 1. Check immutable message.
+//       // 2. Apply message to candidate.
+//       candidate.message = predicate(candidate.message);
+//       await context.emitSingleTransactionPlanUpdated(candidate);
+//       if (isValidTransactionPlan(candidate)) {
+//         return candidate;
+//       }
+//     }
+//   }
+//   return null;
+// }
+
 function selectCandidate(
   candidates: MutableSingleTransactionPlan[],
-  instructions: IInstruction[]
+  predicate: (
+    message: CompilableTransactionMessage
+  ) => CompilableTransactionMessage
 ): MutableSingleTransactionPlan | null {
   const firstValidCandidate = candidates.find((candidate) =>
-    isValidCandidate(candidate, instructions)
+    isValidCandidate(candidate, predicate)
   );
   return firstValidCandidate ?? null;
 }
 
 function isValidCandidate(
   candidate: MutableSingleTransactionPlan,
-  instructions: IInstruction[]
+  predicate: (
+    message: CompilableTransactionMessage
+  ) => CompilableTransactionMessage
 ): boolean {
-  const message = appendTransactionMessageInstructions(
-    instructions,
-    candidate.message
-  );
-  return getRemainingTransactionSize(message) >= 0;
+  const message = predicate(candidate.message);
+  return getTransactionSize(message) <= TRANSACTION_SIZE_LIMIT;
 }
 
-export function getRemainingTransactionSize(
-  message: CompilableTransactionMessage
-) {
-  return TRANSACTION_SIZE_LIMIT - getTransactionSize(message);
+function isValidCandidateWithInstructions(
+  candidate: MutableSingleTransactionPlan,
+  instructions: IInstruction[]
+): boolean {
+  return isValidCandidate(candidate, (message) =>
+    appendTransactionMessageInstructions(instructions, message)
+  );
 }
 
 function freezeTransactionPlan(plan: MutableTransactionPlan): TransactionPlan {
@@ -406,7 +435,11 @@ function fitEntirePlanInsideCandidate(
       }
       return newCandidate;
     case 'single':
-      if (!isValidCandidate(candidate, [instructionPlan.instruction])) {
+      if (
+        !isValidCandidateWithInstructions(candidate, [
+          instructionPlan.instruction,
+        ])
+      ) {
         return null;
       }
       return singleTransactionPlan(
@@ -420,7 +453,7 @@ function fitEntirePlanInsideCandidate(
       const iterator = instructionPlan.getIterator();
       while (iterator.hasNext()) {
         const ix = iterator.next(candidate.message);
-        if (!ix || !isValidCandidate(candidate, [ix])) {
+        if (!ix || !isValidCandidateWithInstructions(candidate, [ix])) {
           return null;
         }
         newCandidate = singleTransactionPlan(
