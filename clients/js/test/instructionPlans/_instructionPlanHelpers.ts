@@ -38,9 +38,9 @@ export function instructionIteratorFactory() {
         let offset = 0;
         return {
           hasNext: () => offset < totalBytes,
-          next: (tx) => {
+          next: (message) => {
             const baseTransactionSize = getTransactionSize(
-              appendTransactionMessageInstruction(baseInstruction, tx)
+              appendTransactionMessageInstruction(baseInstruction, message)
             );
             const maxLength =
               TRANSACTION_SIZE_LIMIT -
@@ -58,7 +58,7 @@ export function instructionIteratorFactory() {
 
             const instruction = getInstruction(length);
             offset += length;
-            return instruction;
+            return appendTransactionMessageInstruction(instruction, message);
           },
         };
       },

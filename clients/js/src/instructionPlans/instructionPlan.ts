@@ -32,29 +32,26 @@ export type SingleInstructionPlan<
   instruction: TInstruction;
 }>;
 
-export type IterableInstructionPlan<
-  TInstruction extends IInstruction = IInstruction,
-> = Readonly<{
+export type IterableInstructionPlan = Readonly<{
   kind: 'iterable';
   /** Get an iterator for the instructions. */
-  getIterator: () => InstructionIterator<TInstruction>;
+  getIterator: () => InstructionIterator;
 }>;
 
-export type InstructionIterator<
-  TInstruction extends IInstruction = IInstruction,
-> = Readonly<{
+export type InstructionIterator = Readonly<{
   /** Checks whether there are more instructions to retrieve. */
   hasNext: () => boolean;
   /** Get the next instruction for the given transaction message or return `null` if not possible. */
-  next: (transactionMessage: CompilableTransactionMessage) => TInstruction;
+  next: (
+    transactionMessage: CompilableTransactionMessage
+  ) => CompilableTransactionMessage;
 }>;
 
 // TODO: Make SolanaError instead.
 export class CannotIterateUsingProvidedMessageError extends Error {
   constructor() {
-    super('');
-    this.name =
-      'Cannot iterate the next instruction using the provided message';
+    super('Cannot iterate the next instruction using the provided message');
+    this.name = 'CannotIterateUsingProvidedMessageError';
   }
 }
 
@@ -111,9 +108,12 @@ export function getLinearIterableInstructionPlan({
       let offset = 0;
       return {
         hasNext: () => offset < totalBytes,
-        next: (tx: CompilableTransactionMessage) => {
+        next: (message: CompilableTransactionMessage) => {
           const baseTransactionSize = getTransactionSize(
-            appendTransactionMessageInstruction(getInstruction(offset, 0), tx)
+            appendTransactionMessageInstruction(
+              getInstruction(offset, 0),
+              message
+            )
           );
           const maxLength =
             TRANSACTION_SIZE_LIMIT -
@@ -127,7 +127,7 @@ export function getLinearIterableInstructionPlan({
           const length = Math.min(totalBytes - offset, maxLength);
           const instruction = getInstruction(offset, length);
           offset += length;
-          return instruction;
+          return appendTransactionMessageInstruction(instruction, message);
         },
       };
     },
@@ -136,21 +136,21 @@ export function getLinearIterableInstructionPlan({
 
 export function getIterableInstructionPlanFromInstructions<
   TInstruction extends IInstruction = IInstruction,
->(instructions: TInstruction[]): IterableInstructionPlan<TInstruction> {
+>(instructions: TInstruction[]): IterableInstructionPlan {
   return {
     kind: 'iterable',
     getIterator: () => {
       let instructionIndex = 0;
       return {
         hasNext: () => instructionIndex < instructions.length,
-        next: (tx: CompilableTransactionMessage) => {
+        next: (message: CompilableTransactionMessage) => {
           if (instructionIndex >= instructions.length) {
             throw new CannotIterateUsingProvidedMessageError();
           }
 
           const instruction = instructions[instructionIndex];
           const transactionSize = getTransactionSize(
-            appendTransactionMessageInstruction(instruction, tx)
+            appendTransactionMessageInstruction(instruction, message)
           );
 
           if (transactionSize > TRANSACTION_SIZE_LIMIT) {
@@ -158,7 +158,7 @@ export function getIterableInstructionPlanFromInstructions<
           }
 
           instructionIndex++;
-          return instruction;
+          return appendTransactionMessageInstruction(instruction, message);
         },
       };
     },

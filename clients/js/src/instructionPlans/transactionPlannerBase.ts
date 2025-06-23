@@ -1,7 +1,6 @@
 import {
   appendTransactionMessageInstructions,
   CompilableTransactionMessage,
-  IInstruction,
 } from '@solana/kit';
 import {
   CannotIterateUsingProvidedMessageError,
@@ -234,16 +233,13 @@ async function traverseIterable(
     const candidateResult = await selectCandidateMessage(
       context,
       candidates,
-      (message) =>
-        appendTransactionMessageInstructions([iterator.next(message)], message)
+      iterator.next
     );
     if (candidateResult) {
       const [candidate, candidateMessage] = candidateResult;
       candidate.message = candidateMessage;
     } else {
-      const message = await createNewMessage(context, (message) =>
-        appendTransactionMessageInstructions([iterator.next(message)], message)
-      );
+      const message = await createNewMessage(context, iterator.next);
       const newPlan: MutableSingleTransactionPlan = { kind: 'single', message };
       transactionPlans.push(newPlan);
 
@@ -361,25 +357,6 @@ async function createNewMessage(
   );
 }
 
-function isValidCandidate(
-  candidate: MutableSingleTransactionPlan,
-  predicate: (
-    message: CompilableTransactionMessage
-  ) => CompilableTransactionMessage
-): boolean {
-  const message = predicate(candidate.message);
-  return getTransactionSize(message) <= TRANSACTION_SIZE_LIMIT;
-}
-
-function isValidCandidateWithInstructions(
-  candidate: MutableSingleTransactionPlan,
-  instructions: IInstruction[]
-): boolean {
-  return isValidCandidate(candidate, (message) =>
-    appendTransactionMessageInstructions(instructions, message)
-  );
-}
-
 function freezeTransactionPlan(plan: MutableTransactionPlan): TransactionPlan {
   switch (plan.kind) {
     case 'single':
@@ -426,30 +403,31 @@ function fitEntirePlanInsideCandidate(
       }
       return newCandidate;
     case 'single':
-      if (
-        !isValidCandidateWithInstructions(candidate, [
-          instructionPlan.instruction,
-        ])
-      ) {
+      // eslint-disable-next-line no-case-declarations
+      const message = appendTransactionMessageInstructions(
+        [instructionPlan.instruction],
+        candidate.message
+      );
+      if (getTransactionSize(message) > TRANSACTION_SIZE_LIMIT) {
         return null;
       }
-      return singleTransactionPlan(
-        appendTransactionMessageInstructions(
-          [instructionPlan.instruction],
-          candidate.message
-        )
-      );
+      return singleTransactionPlan(message);
     case 'iterable':
       // eslint-disable-next-line no-case-declarations
       const iterator = instructionPlan.getIterator();
       while (iterator.hasNext()) {
-        const ix = iterator.next(candidate.message);
-        if (!ix || !isValidCandidateWithInstructions(candidate, [ix])) {
-          return null;
+        try {
+          const message = iterator.next(candidate.message);
+          if (getTransactionSize(message) > TRANSACTION_SIZE_LIMIT) {
+            return null;
+          }
+          newCandidate = singleTransactionPlan(message);
+        } catch (error) {
+          if (error instanceof CannotIterateUsingProvidedMessageError) {
+            return null;
+          }
+          throw error;
         }
-        newCandidate = singleTransactionPlan(
-          appendTransactionMessageInstructions([ix], newCandidate.message)
-        );
       }
       return newCandidate;
     default:
