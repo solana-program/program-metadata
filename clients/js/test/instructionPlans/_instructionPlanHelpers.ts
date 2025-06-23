@@ -8,6 +8,7 @@ import {
   IInstruction,
 } from '@solana/kit';
 import {
+  CannotIterateUsingProvidedMessageError,
   getTransactionSize,
   IterableInstructionPlan,
   TRANSACTION_SIZE_LIMIT,
@@ -47,7 +48,7 @@ export function instructionIteratorFactory() {
               1; /* Leeway for shortU16 numbers in transaction headers. */
 
             if (maxLength <= 0) {
-              return null;
+              throw new CannotIterateUsingProvidedMessageError();
             }
 
             const length = Math.min(

@@ -4,7 +4,7 @@ import {
   IInstruction,
 } from '@solana/kit';
 import {
-  InstructionIterator,
+  CannotIterateUsingProvidedMessageError,
   InstructionPlan,
   IterableInstructionPlan,
   ParallelInstructionPlan,
@@ -211,35 +211,15 @@ async function traverseSingle(
   instructionPlan: SingleInstructionPlan,
   context: TraverseContext
 ): Promise<MutableTransactionPlan | null> {
-  const ix = instructionPlan.instruction;
-
-  // TODO: Get candidate and new message ???
-  const candidate = selectCandidate(context.parentCandidates, (message) =>
-    appendTransactionMessageInstructions([ix], message)
-  );
-
-  if (candidate) {
-    candidate.message = await Promise.resolve(
-      context.onTransactionMessageUpdated(
-        appendTransactionMessageInstructions([ix], candidate.message),
-        { abortSignal: context.abortSignal }
+  return await selectCandidateOrCreateNewPlan(
+    context,
+    context.parentCandidates,
+    (message) =>
+      appendTransactionMessageInstructions(
+        [instructionPlan.instruction],
+        message
       )
-    );
-    return null;
-  }
-
-  const message = await Promise.resolve(
-    context.createTransactionMessage({ abortSignal: context.abortSignal })
   );
-  return {
-    kind: 'single',
-    message: await Promise.resolve(
-      context.onTransactionMessageUpdated(
-        appendTransactionMessageInstructions([ix], message),
-        { abortSignal: context.abortSignal }
-      )
-    ),
-  };
 }
 
 async function traverseIterable(
@@ -251,34 +231,20 @@ async function traverseIterable(
   const candidates = [...context.parentCandidates];
 
   while (iterator.hasNext()) {
-    const candidateResult = selectCandidateForIterator(candidates, iterator);
+    const candidateResult = await selectCandidateMessage(
+      context,
+      candidates,
+      (message) =>
+        appendTransactionMessageInstructions([iterator.next(message)], message)
+    );
     if (candidateResult) {
-      const [candidate, ix] = candidateResult;
-      candidate.message = await Promise.resolve(
-        context.onTransactionMessageUpdated(
-          appendTransactionMessageInstructions([ix], candidate.message),
-          { abortSignal: context.abortSignal }
-        )
-      );
+      const [candidate, candidateMessage] = candidateResult;
+      candidate.message = candidateMessage;
     } else {
-      const message = await Promise.resolve(
-        context.createTransactionMessage({ abortSignal: context.abortSignal })
+      const message = await createNewMessage(context, (message) =>
+        appendTransactionMessageInstructions([iterator.next(message)], message)
       );
-      const ix = iterator.next(message);
-      if (!ix) {
-        throw new Error(
-          'Could not fit `InterableInstructionPlan` into a transaction'
-        );
-      }
-      const newPlan: MutableSingleTransactionPlan = {
-        kind: 'single',
-        message: await Promise.resolve(
-          context.onTransactionMessageUpdated(
-            appendTransactionMessageInstructions([ix], message),
-            { abortSignal: context.abortSignal }
-          )
-        ),
-      };
+      const newPlan: MutableSingleTransactionPlan = { kind: 'single', message };
       transactionPlans.push(newPlan);
 
       // Adding the new plan to the candidates is important for cases
@@ -324,50 +290,75 @@ function getParallelCandidates(
   return getAllSingleTransactionPlans(latestPlan);
 }
 
-function selectCandidateForIterator(
+async function selectCandidateOrCreateNewPlan(
+  context: Pick<
+    TraverseContext,
+    'createTransactionMessage' | 'onTransactionMessageUpdated' | 'abortSignal'
+  >,
   candidates: MutableSingleTransactionPlan[],
-  iterator: InstructionIterator
-): [MutableSingleTransactionPlan, IInstruction] | null {
+  predicate: (
+    message: CompilableTransactionMessage
+  ) => CompilableTransactionMessage
+): Promise<MutableSingleTransactionPlan | null> {
+  const candidateResult = await selectCandidateMessage(
+    context,
+    candidates,
+    predicate
+  );
+  if (candidateResult) {
+    const [candidate, candidateMessage] = candidateResult;
+    candidate.message = candidateMessage;
+    return null;
+  }
+  const message = await createNewMessage(context, predicate);
+  return { kind: 'single', message };
+}
+
+async function selectCandidateMessage(
+  context: Pick<TraverseContext, 'onTransactionMessageUpdated' | 'abortSignal'>,
+  candidates: MutableSingleTransactionPlan[],
+  predicate: (
+    message: CompilableTransactionMessage
+  ) => CompilableTransactionMessage
+): Promise<
+  [MutableSingleTransactionPlan, CompilableTransactionMessage] | null
+> {
   for (const candidate of candidates) {
-    const ix = iterator.next(candidate.message);
-    if (ix) {
-      return [candidate, ix];
+    try {
+      const message = await Promise.resolve(
+        context.onTransactionMessageUpdated(predicate(candidate.message), {
+          abortSignal: context.abortSignal,
+        })
+      );
+      if (getTransactionSize(message) <= TRANSACTION_SIZE_LIMIT) {
+        return [candidate, message];
+      }
+    } catch (error) {
+      if (!(error instanceof CannotIterateUsingProvidedMessageError)) {
+        throw error;
+      }
     }
   }
   return null;
 }
 
-// async function selectCandidateWithContext(
-//   context: Pick<TraverseContext, 'emitSingleTransactionPlanUpdated'>,
-//   candidates: MutableSingleTransactionPlan[],
-//   predicate: (
-//     message: CompilableTransactionMessage
-//   ) => CompilableTransactionMessage
-// ): Promise<MutableSingleTransactionPlan | null> {
-//   for (const candidate of candidates) {
-//     if (isValidCandidate(candidate, predicate)) {
-//       // 1. Check immutable message.
-//       // 2. Apply message to candidate.
-//       candidate.message = predicate(candidate.message);
-//       await context.emitSingleTransactionPlanUpdated(candidate);
-//       if (isValidTransactionPlan(candidate)) {
-//         return candidate;
-//       }
-//     }
-//   }
-//   return null;
-// }
-
-function selectCandidate(
-  candidates: MutableSingleTransactionPlan[],
+async function createNewMessage(
+  context: Pick<
+    TraverseContext,
+    'createTransactionMessage' | 'onTransactionMessageUpdated' | 'abortSignal'
+  >,
   predicate: (
     message: CompilableTransactionMessage
   ) => CompilableTransactionMessage
-): MutableSingleTransactionPlan | null {
-  const firstValidCandidate = candidates.find((candidate) =>
-    isValidCandidate(candidate, predicate)
+): Promise<CompilableTransactionMessage> {
+  const message = await Promise.resolve(
+    context.createTransactionMessage({ abortSignal: context.abortSignal })
   );
-  return firstValidCandidate ?? null;
+  return await Promise.resolve(
+    context.onTransactionMessageUpdated(predicate(message), {
+      abortSignal: context.abortSignal,
+    })
+  );
 }
 
 function isValidCandidate(

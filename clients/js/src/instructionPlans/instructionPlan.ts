@@ -46,10 +46,17 @@ export type InstructionIterator<
   /** Checks whether there are more instructions to retrieve. */
   hasNext: () => boolean;
   /** Get the next instruction for the given transaction message or return `null` if not possible. */
-  next: (
-    transactionMessage: CompilableTransactionMessage
-  ) => TInstruction | null;
+  next: (transactionMessage: CompilableTransactionMessage) => TInstruction;
 }>;
+
+// TODO: Make SolanaError instead.
+export class CannotIterateUsingProvidedMessageError extends Error {
+  constructor() {
+    super('');
+    this.name =
+      'Cannot iterate the next instruction using the provided message';
+  }
+}
 
 export function parallelInstructionPlan(
   plans: (InstructionPlan | IInstruction)[]
@@ -114,7 +121,7 @@ export function getLinearIterableInstructionPlan({
             1; /* Leeway for shortU16 numbers in transaction headers. */
 
           if (maxLength <= 0) {
-            return null;
+            throw new CannotIterateUsingProvidedMessageError();
           }
 
           const length = Math.min(totalBytes - offset, maxLength);
@@ -138,7 +145,7 @@ export function getIterableInstructionPlanFromInstructions<
         hasNext: () => instructionIndex < instructions.length,
         next: (tx: CompilableTransactionMessage) => {
           if (instructionIndex >= instructions.length) {
-            return null;
+            throw new CannotIterateUsingProvidedMessageError();
           }
 
           const instruction = instructions[instructionIndex];
@@ -147,7 +154,7 @@ export function getIterableInstructionPlanFromInstructions<
           );
 
           if (transactionSize > TRANSACTION_SIZE_LIMIT) {
-            return null;
+            throw new CannotIterateUsingProvidedMessageError();
           }
 
           instructionIndex++;
