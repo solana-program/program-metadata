@@ -301,7 +301,12 @@ async function selectAndMutateCandidate(
         return candidate;
       }
     } catch (error) {
-      if (!(error instanceof CannotIterateUsingProvidedMessageError)) {
+      if (
+        error instanceof CannotIterateUsingProvidedMessageError ||
+        error instanceof CannotFitEntirePlanInsideMessageError
+      ) {
+        // Try the next candidate.
+      } else {
         throw error;
       }
     }
@@ -356,6 +361,13 @@ function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
   return transactionPlan.plans.every(isValidTransactionPlan);
 }
 
+class CannotFitEntirePlanInsideMessageError extends Error {
+  constructor() {
+    super('Cannot fit the entire instruction plan inside the provided message');
+    this.name = 'CannotFitEntirePlanInsideMessageError';
+  }
+}
+
 function fitEntirePlanInsideMessage(
   instructionPlan: InstructionPlan,
   message: CompilableTransactionMessage
@@ -376,7 +388,7 @@ function fitEntirePlanInsideMessage(
         message
       );
       if (getTransactionSize(newMessage) > TRANSACTION_SIZE_LIMIT) {
-        throw new CannotIterateUsingProvidedMessageError(); // TODO: Different error
+        throw new CannotFitEntirePlanInsideMessageError();
       }
       return newMessage;
     case 'iterable':
@@ -386,11 +398,11 @@ function fitEntirePlanInsideMessage(
         try {
           newMessage = iterator.next(message);
           if (getTransactionSize(newMessage) > TRANSACTION_SIZE_LIMIT) {
-            throw new CannotIterateUsingProvidedMessageError(); // TODO: Different error
+            throw new CannotFitEntirePlanInsideMessageError();
           }
         } catch (error) {
           if (error instanceof CannotIterateUsingProvidedMessageError) {
-            throw new CannotIterateUsingProvidedMessageError(); // TODO: Different error
+            throw new CannotFitEntirePlanInsideMessageError();
           }
           throw error;
         }
