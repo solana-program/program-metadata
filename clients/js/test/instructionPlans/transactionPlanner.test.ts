@@ -224,6 +224,43 @@ test('it simplifies nested sequential plans', async (t) => {
 });
 
 /**
+ *  [Seq] ──────────────────────▶ [Seq]
+ *   │                             │
+ *   ├── [A: 50%]                  ├── [Tx: A + B]
+ *   ├── [Seq]                     └── [Tx: C + D]
+ *   │    ├── [B: 50%]
+ *   │    └── [C: 50%]
+ *   └── [D: 50%]
+ */
+test('it simplifies sequential plans nested in the middle', async (t) => {
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
+
+  const instructionA = instruction(txPercent(50));
+  const instructionB = instruction(txPercent(50));
+  const instructionC = instruction(txPercent(50));
+  const instructionD = instruction(txPercent(50));
+
+  t.deepEqual(
+    await planner(
+      sequentialInstructionPlan([
+        singleInstructionPlan(instructionA),
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionB),
+          singleInstructionPlan(instructionC),
+        ]),
+        singleInstructionPlan(instructionD),
+      ])
+    ),
+    sequentialTransactionPlan([
+      singleTransactionPlan([instructionA, instructionB]),
+      singleTransactionPlan([instructionC, instructionD]),
+    ])
+  );
+});
+
+/**
  *  [Par] ───────────────────▶ [Tx: A + B]
  *   │
  *   ├── [A: 50%]
