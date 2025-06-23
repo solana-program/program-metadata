@@ -5,7 +5,7 @@ import {
 import {
   CannotIterateUsingProvidedMessageError,
   InstructionPlan,
-  IterableInstructionPlan,
+  MessagePackerInstructionPlan,
   ParallelInstructionPlan,
   SequentialInstructionPlan,
   SingleInstructionPlan,
@@ -98,8 +98,8 @@ async function traverse(
       return await traverseParallel(instructionPlan, context);
     case 'single':
       return await traverseSingle(instructionPlan, context);
-    case 'iterable':
-      return await traverseIterable(instructionPlan, context);
+    case 'messagePacker':
+      return await traverseMessagePacker(instructionPlan, context);
     default:
       instructionPlan satisfies never;
       throw new Error(
@@ -169,10 +169,10 @@ async function traverseParallel(
   ];
   const transactionPlans: TransactionPlan[] = [];
 
-  // Reorder children so iterable plans are last.
+  // Reorder children so message packer plans are last.
   const sortedChildren = [
-    ...instructionPlan.plans.filter((plan) => plan.kind !== 'iterable'),
-    ...instructionPlan.plans.filter((plan) => plan.kind === 'iterable'),
+    ...instructionPlan.plans.filter((plan) => plan.kind !== 'messagePacker'),
+    ...instructionPlan.plans.filter((plan) => plan.kind === 'messagePacker'),
   ];
 
   for (const plan of sortedChildren) {
@@ -220,22 +220,25 @@ async function traverseSingle(
   return { kind: 'single', message };
 }
 
-async function traverseIterable(
-  instructionPlan: IterableInstructionPlan,
+async function traverseMessagePacker(
+  instructionPlan: MessagePackerInstructionPlan,
   context: TraverseContext
 ): Promise<MutableTransactionPlan | null> {
-  const iterator = instructionPlan.getIterator();
+  const messagePacker = instructionPlan.getMessagePacker();
   const transactionPlans: SingleTransactionPlan[] = [];
   const candidates = [...context.parentCandidates];
 
-  while (iterator.hasNext()) {
+  while (messagePacker.done()) {
     const candidate = await selectAndMutateCandidate(
       context,
       candidates,
-      iterator.next
+      messagePacker.packMessage
     );
     if (!candidate) {
-      const message = await createNewMessage(context, iterator.next);
+      const message = await createNewMessage(
+        context,
+        messagePacker.packMessage
+      );
       const newPlan: MutableSingleTransactionPlan = { kind: 'single', message };
       transactionPlans.push(newPlan);
 
@@ -391,12 +394,12 @@ function fitEntirePlanInsideMessage(
         throw new CannotFitEntirePlanInsideMessageError();
       }
       return newMessage;
-    case 'iterable':
+    case 'messagePacker':
       // eslint-disable-next-line no-case-declarations
-      const iterator = instructionPlan.getIterator();
-      while (iterator.hasNext()) {
+      const messagePacker = instructionPlan.getMessagePacker();
+      while (messagePacker.done()) {
         try {
-          newMessage = iterator.next(message);
+          newMessage = messagePacker.packMessage(message);
           if (getTransactionSize(newMessage) > TRANSACTION_SIZE_LIMIT) {
             throw new CannotFitEntirePlanInsideMessageError();
           }

@@ -10,7 +10,7 @@ import {
 import {
   CannotIterateUsingProvidedMessageError,
   getTransactionSize,
-  IterableInstructionPlan,
+  MessagePackerInstructionPlan,
   TRANSACTION_SIZE_LIMIT,
 } from '../../src';
 
@@ -18,27 +18,29 @@ const MINIMUM_INSTRUCTION_SIZE = 35;
 const MINIMUM_TRANSACTION_SIZE = 136;
 const MAXIMUM_TRANSACTION_SIZE = TRANSACTION_SIZE_LIMIT - 1; // (for shortU16)
 
-export function instructionIteratorFactory() {
+export function messagePackerFactory() {
   const baseCounter = 1_000_000_000n;
-  const iteratorIncrement = 1_000_000_000n;
-  let iteratorCounter = 0n;
+  const messagePackerIncrement = 1_000_000_000n;
+  let messagePackerCounter = 0n;
   return (
     totalBytes: number
-  ): IterableInstructionPlan & {
+  ): MessagePackerInstructionPlan & {
     get: (bytes: number, index: number) => IInstruction;
   } => {
-    const getInstruction = instructionFactory(baseCounter + iteratorCounter);
-    iteratorCounter += iteratorIncrement;
+    const getInstruction = instructionFactory(
+      baseCounter + messagePackerCounter
+    );
+    messagePackerCounter += messagePackerIncrement;
     const baseInstruction = getInstruction(MINIMUM_INSTRUCTION_SIZE, 0);
 
     return {
       get: getInstruction,
-      kind: 'iterable',
-      getIterator: () => {
+      kind: 'messagePacker',
+      getMessagePacker: () => {
         let offset = 0;
         return {
-          hasNext: () => offset < totalBytes,
-          next: (message) => {
+          done: () => offset < totalBytes,
+          packMessage: (message) => {
             const baseTransactionSize = getTransactionSize(
               appendTransactionMessageInstruction(baseInstruction, message)
             );

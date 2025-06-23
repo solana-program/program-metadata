@@ -27,9 +27,9 @@ import {
   SeedArgs,
 } from './generated';
 import {
-  getLinearIterableInstructionPlan,
-  getReallocIterableInstructionPlan,
-  IterableInstructionPlan,
+  getLinearMessagePackerInstructionPlan,
+  getReallocMessagePackerInstructionPlan,
+  MessagePackerInstructionPlan,
   TransactionPlanResult,
 } from './instructionPlans';
 
@@ -176,8 +176,8 @@ export function getExtendInstructionPlan(input: {
   extraLength: number;
   program?: Address;
   programData?: Address;
-}): IterableInstructionPlan {
-  return getReallocIterableInstructionPlan({
+}): MessagePackerInstructionPlan {
+  return getReallocMessagePackerInstructionPlan({
     totalSize: input.extraLength,
     getInstruction: (size) =>
       getExtendInstruction({
@@ -194,8 +194,8 @@ export function getWriteInstructionPlan(input: {
   buffer: Address;
   authority: TransactionSigner;
   data: ReadonlyUint8Array;
-}): IterableInstructionPlan {
-  return getLinearIterableInstructionPlan({
+}): MessagePackerInstructionPlan {
+  return getLinearMessagePackerInstructionPlan({
     totalLength: input.data.length,
     getInstruction: (offset, length) =>
       getWriteInstruction({
