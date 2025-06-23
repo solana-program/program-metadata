@@ -210,15 +210,21 @@ async function traverseSingle(
   instructionPlan: SingleInstructionPlan,
   context: TraverseContext
 ): Promise<MutableTransactionPlan | null> {
-  return await selectCandidateOrCreateNewPlan(
+  const predicate = (message: CompilableTransactionMessage) =>
+    appendTransactionMessageInstructions(
+      [instructionPlan.instruction],
+      message
+    );
+  const candidate = await selectAndMutateCandidate(
     context,
     context.parentCandidates,
-    (message) =>
-      appendTransactionMessageInstructions(
-        [instructionPlan.instruction],
-        message
-      )
+    predicate
   );
+  if (candidate) {
+    return null;
+  }
+  const message = await createNewMessage(context, predicate);
+  return { kind: 'single', message };
 }
 
 async function traverseIterable(
@@ -230,15 +236,12 @@ async function traverseIterable(
   const candidates = [...context.parentCandidates];
 
   while (iterator.hasNext()) {
-    const candidateResult = await selectCandidateMessage(
+    const candidate = await selectAndMutateCandidate(
       context,
       candidates,
       iterator.next
     );
-    if (candidateResult) {
-      const [candidate, candidateMessage] = candidateResult;
-      candidate.message = candidateMessage;
-    } else {
+    if (!candidate) {
       const message = await createNewMessage(context, iterator.next);
       const newPlan: MutableSingleTransactionPlan = { kind: 'single', message };
       transactionPlans.push(newPlan);
@@ -286,39 +289,13 @@ function getParallelCandidates(
   return getAllSingleTransactionPlans(latestPlan);
 }
 
-async function selectCandidateOrCreateNewPlan(
-  context: Pick<
-    TraverseContext,
-    'createTransactionMessage' | 'onTransactionMessageUpdated' | 'abortSignal'
-  >,
-  candidates: MutableSingleTransactionPlan[],
-  predicate: (
-    message: CompilableTransactionMessage
-  ) => CompilableTransactionMessage
-): Promise<MutableSingleTransactionPlan | null> {
-  const candidateResult = await selectCandidateMessage(
-    context,
-    candidates,
-    predicate
-  );
-  if (candidateResult) {
-    const [candidate, candidateMessage] = candidateResult;
-    candidate.message = candidateMessage;
-    return null;
-  }
-  const message = await createNewMessage(context, predicate);
-  return { kind: 'single', message };
-}
-
-async function selectCandidateMessage(
+async function selectAndMutateCandidate(
   context: Pick<TraverseContext, 'onTransactionMessageUpdated' | 'abortSignal'>,
   candidates: MutableSingleTransactionPlan[],
   predicate: (
     message: CompilableTransactionMessage
   ) => CompilableTransactionMessage
-): Promise<
-  [MutableSingleTransactionPlan, CompilableTransactionMessage] | null
-> {
+): Promise<MutableSingleTransactionPlan | null> {
   for (const candidate of candidates) {
     try {
       const message = await Promise.resolve(
@@ -327,7 +304,8 @@ async function selectCandidateMessage(
         })
       );
       if (getTransactionSize(message) <= TRANSACTION_SIZE_LIMIT) {
-        return [candidate, message];
+        candidate.message = message;
+        return candidate;
       }
     } catch (error) {
       if (!(error instanceof CannotIterateUsingProvidedMessageError)) {
