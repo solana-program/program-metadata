@@ -117,20 +117,13 @@ async function traverseSequential(
     context.parent &&
     (context.parent.kind === 'parallel' || !instructionPlan.divisible);
   if (mustEntirelyFitInParentCandidate) {
-    for (const parentCandidate of context.parentCandidates) {
-      const transactionPlan = fitEntirePlanInsideCandidate(
-        instructionPlan,
-        parentCandidate
-      );
-      if (transactionPlan) {
-        const message = await Promise.resolve(
-          context.onTransactionMessageUpdated(transactionPlan.message, {
-            abortSignal: context.abortSignal,
-          })
-        );
-        parentCandidate.message = message;
-        return null;
-      }
+    const candidate = await selectAndMutateCandidate(
+      context,
+      context.parentCandidates,
+      (message) => fitEntirePlanInsideMessage(instructionPlan, message)
+    );
+    if (candidate) {
+      return null;
     }
   } else {
     candidate =
@@ -363,51 +356,46 @@ function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
   return transactionPlan.plans.every(isValidTransactionPlan);
 }
 
-function fitEntirePlanInsideCandidate(
+function fitEntirePlanInsideMessage(
   instructionPlan: InstructionPlan,
-  candidate: SingleTransactionPlan
-): SingleTransactionPlan | null {
-  let newCandidate: SingleTransactionPlan = candidate;
+  message: CompilableTransactionMessage
+): CompilableTransactionMessage {
+  let newMessage: CompilableTransactionMessage = message;
 
   switch (instructionPlan.kind) {
     case 'sequential':
     case 'parallel':
       for (const plan of instructionPlan.plans) {
-        const result = fitEntirePlanInsideCandidate(plan, newCandidate);
-        if (result === null) {
-          return null;
-        }
-        newCandidate = result;
+        newMessage = fitEntirePlanInsideMessage(plan, newMessage);
       }
-      return newCandidate;
+      return newMessage;
     case 'single':
       // eslint-disable-next-line no-case-declarations
-      const message = appendTransactionMessageInstructions(
+      newMessage = appendTransactionMessageInstructions(
         [instructionPlan.instruction],
-        candidate.message
+        message
       );
-      if (getTransactionSize(message) > TRANSACTION_SIZE_LIMIT) {
-        return null;
+      if (getTransactionSize(newMessage) > TRANSACTION_SIZE_LIMIT) {
+        throw new CannotIterateUsingProvidedMessageError(); // TODO: Different error
       }
-      return singleTransactionPlan(message);
+      return newMessage;
     case 'iterable':
       // eslint-disable-next-line no-case-declarations
       const iterator = instructionPlan.getIterator();
       while (iterator.hasNext()) {
         try {
-          const message = iterator.next(candidate.message);
-          if (getTransactionSize(message) > TRANSACTION_SIZE_LIMIT) {
-            return null;
+          newMessage = iterator.next(message);
+          if (getTransactionSize(newMessage) > TRANSACTION_SIZE_LIMIT) {
+            throw new CannotIterateUsingProvidedMessageError(); // TODO: Different error
           }
-          newCandidate = singleTransactionPlan(message);
         } catch (error) {
           if (error instanceof CannotIterateUsingProvidedMessageError) {
-            return null;
+            throw new CannotIterateUsingProvidedMessageError(); // TODO: Different error
           }
           throw error;
         }
       }
-      return newCandidate;
+      return newMessage;
     default:
       instructionPlan satisfies never;
       throw new Error(
