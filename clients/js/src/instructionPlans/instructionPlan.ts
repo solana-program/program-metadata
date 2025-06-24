@@ -12,7 +12,7 @@ export type InstructionPlan =
   | SequentialInstructionPlan
   | ParallelInstructionPlan
   | SingleInstructionPlan
-  | IterableInstructionPlan;
+  | MessagePackerInstructionPlan;
 
 export type SequentialInstructionPlan = Readonly<{
   kind: 'sequential';
@@ -32,24 +32,37 @@ export type SingleInstructionPlan<
   instruction: TInstruction;
 }>;
 
-export type IterableInstructionPlan<
-  TInstruction extends IInstruction = IInstruction,
-> = Readonly<{
-  kind: 'iterable';
-  /** Get an iterator for the instructions. */
-  getIterator: () => InstructionIterator<TInstruction>;
+export type MessagePackerInstructionPlan = Readonly<{
+  kind: 'messagePacker';
+  getMessagePacker: () => MessagePacker;
 }>;
 
-export type InstructionIterator<
-  TInstruction extends IInstruction = IInstruction,
-> = Readonly<{
+export type MessagePacker = Readonly<{
   /** Checks whether there are more instructions to retrieve. */
-  hasNext: () => boolean;
-  /** Get the next instruction for the given transaction message or return `null` if not possible. */
-  next: (
+  done: () => boolean;
+  /** Pack the provided transaction message with the next instructions or throws if not possible. */
+  packMessageToCapacity: (
     transactionMessage: CompilableTransactionMessage
-  ) => TInstruction | null;
+  ) => CompilableTransactionMessage;
 }>;
+
+// TODO: Make SolanaError instead.
+export class CannotPackUsingProvidedMessageError extends Error {
+  constructor() {
+    super('Cannot pack the next instructions using the provided message');
+    this.name = 'CannotPackUsingProvidedMessageError';
+  }
+}
+
+// TODO: Make SolanaError instead.
+export class MessagePackerIsAlreadyDoneError extends Error {
+  constructor() {
+    super(
+      'Failed to pack the next message because the message packer is already done'
+    );
+    this.name = 'MessagePackerIsAlreadyDoneError';
+  }
+}
 
 export function parallelInstructionPlan(
   plans: (InstructionPlan | IInstruction)[]
@@ -91,22 +104,25 @@ function parseSingleInstructionPlans(
   );
 }
 
-export function getLinearIterableInstructionPlan({
+export function getLinearMessagePackerInstructionPlan({
   getInstruction,
   totalLength: totalBytes,
 }: {
   getInstruction: (offset: number, length: number) => IInstruction;
   totalLength: number;
-}): IterableInstructionPlan {
+}): MessagePackerInstructionPlan {
   return {
-    kind: 'iterable',
-    getIterator: () => {
+    kind: 'messagePacker',
+    getMessagePacker: () => {
       let offset = 0;
       return {
-        hasNext: () => offset < totalBytes,
-        next: (tx: CompilableTransactionMessage) => {
+        done: () => offset < totalBytes,
+        packMessageToCapacity: (message: CompilableTransactionMessage) => {
           const baseTransactionSize = getTransactionSize(
-            appendTransactionMessageInstruction(getInstruction(offset, 0), tx)
+            appendTransactionMessageInstruction(
+              getInstruction(offset, 0),
+              message
+            )
           );
           const maxLength =
             TRANSACTION_SIZE_LIMIT -
@@ -114,44 +130,55 @@ export function getLinearIterableInstructionPlan({
             1; /* Leeway for shortU16 numbers in transaction headers. */
 
           if (maxLength <= 0) {
-            return null;
+            throw new CannotPackUsingProvidedMessageError();
           }
 
           const length = Math.min(totalBytes - offset, maxLength);
           const instruction = getInstruction(offset, length);
           offset += length;
-          return instruction;
+          return appendTransactionMessageInstruction(instruction, message);
         },
       };
     },
   };
 }
 
-export function getIterableInstructionPlanFromInstructions<
+export function getMessagePackerInstructionPlanFromInstructions<
   TInstruction extends IInstruction = IInstruction,
->(instructions: TInstruction[]): IterableInstructionPlan<TInstruction> {
+>(instructions: TInstruction[]): MessagePackerInstructionPlan {
   return {
-    kind: 'iterable',
-    getIterator: () => {
+    kind: 'messagePacker',
+    getMessagePacker: () => {
       let instructionIndex = 0;
       return {
-        hasNext: () => instructionIndex < instructions.length,
-        next: (tx: CompilableTransactionMessage) => {
+        done: () => instructionIndex < instructions.length,
+        packMessageToCapacity: (message: CompilableTransactionMessage) => {
           if (instructionIndex >= instructions.length) {
-            return null;
+            throw new MessagePackerIsAlreadyDoneError();
           }
 
-          const instruction = instructions[instructionIndex];
-          const transactionSize = getTransactionSize(
-            appendTransactionMessageInstruction(instruction, tx)
-          );
+          let updatedMessage: CompilableTransactionMessage = message;
+          for (
+            let index = instructionIndex;
+            index < instructions.length;
+            index++
+          ) {
+            updatedMessage = appendTransactionMessageInstruction(
+              instructions[index],
+              message
+            );
 
-          if (transactionSize > TRANSACTION_SIZE_LIMIT) {
-            return null;
+            if (getTransactionSize(updatedMessage) > TRANSACTION_SIZE_LIMIT) {
+              if (index === instructionIndex) {
+                throw new CannotPackUsingProvidedMessageError();
+              }
+              instructionIndex = index;
+              return updatedMessage;
+            }
           }
 
-          instructionIndex++;
-          return instruction;
+          instructionIndex = instructions.length;
+          return updatedMessage;
         },
       };
     },
@@ -160,13 +187,13 @@ export function getIterableInstructionPlanFromInstructions<
 
 const REALLOC_LIMIT = 10_240;
 
-export function getReallocIterableInstructionPlan({
+export function getReallocMessagePackerInstructionPlan({
   getInstruction,
   totalSize,
 }: {
   getInstruction: (size: number) => IInstruction;
   totalSize: number;
-}): IterableInstructionPlan {
+}): MessagePackerInstructionPlan {
   const numberOfInstructions = Math.ceil(totalSize / REALLOC_LIMIT);
   const lastInstructionSize = totalSize % REALLOC_LIMIT;
   const instructions = new Array(numberOfInstructions)
@@ -177,5 +204,5 @@ export function getReallocIterableInstructionPlan({
       )
     );
 
-  return getIterableInstructionPlanFromInstructions(instructions);
+  return getMessagePackerInstructionPlanFromInstructions(instructions);
 }

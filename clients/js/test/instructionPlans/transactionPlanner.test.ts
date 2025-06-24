@@ -1,7 +1,11 @@
-import { CompilableTransactionMessage } from '@solana/kit';
+import {
+  appendTransactionMessageInstruction,
+  CompilableTransactionMessage,
+} from '@solana/kit';
 import test from 'ava';
 import {
   createBaseTransactionPlanner,
+  FailedToFitPlanInNewMessageError,
   nonDivisibleSequentialInstructionPlan,
   nonDivisibleSequentialTransactionPlan,
   parallelInstructionPlan,
@@ -9,11 +13,10 @@ import {
   sequentialInstructionPlan,
   sequentialTransactionPlan,
   singleInstructionPlan,
-  TransactionPlan,
 } from '../../src';
 import {
   instructionFactory,
-  instructionIteratorFactory,
+  messagePackerFactory,
   transactionPercentFactory,
 } from './_instructionPlanHelpers';
 import {
@@ -32,7 +35,7 @@ function defaultFactories(
         createTransactionMessage: effectiveCreateTransactionMessage,
       }),
     instruction: instructionFactory(),
-    iterator: instructionIteratorFactory(),
+    messagePacker: messagePackerFactory(),
     txPercent: transactionPercentFactory(effectiveCreateTransactionMessage),
     singleTransactionPlan: singleTransactionPlanFactory(
       effectiveCreateTransactionMessage
@@ -60,17 +63,25 @@ test('it plans a single instruction', async (t) => {
  *  [A: 200%] ───────────────────▶ Error
  */
 test('it fail if a single instruction is too large', async (t) => {
-  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
-    defaultFactories();
+  const { createPlanner, instruction, txPercent } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(200));
   const promise = planner(singleInstructionPlan(instructionA));
 
-  const error = (await t.throwsAsync(promise)) as Error & {
-    plan: TransactionPlan;
-  };
-  t.deepEqual(error.plan, singleTransactionPlan([instructionA]));
+  const error = (await t.throwsAsync(promise, {
+    message:
+      'The provided instruction plan could not fit in a new transaction message.',
+  })) as FailedToFitPlanInNewMessageError;
+
+  t.deepEqual(error.instructionPlan, singleInstructionPlan(instructionA));
+  t.deepEqual(
+    error.transactionMessage,
+    appendTransactionMessageInstruction(
+      instructionA,
+      getMockCreateTransactionMessage()
+    )
+  );
 });
 
 /**
@@ -219,6 +230,43 @@ test('it simplifies nested sequential plans', async (t) => {
       singleTransactionPlan([instructionA]),
       singleTransactionPlan([instructionB]),
       singleTransactionPlan([instructionC]),
+    ])
+  );
+});
+
+/**
+ *  [Seq] ──────────────────────▶ [Seq]
+ *   │                             │
+ *   ├── [A: 50%]                  ├── [Tx: A + B]
+ *   ├── [Seq]                     └── [Tx: C + D]
+ *   │    ├── [B: 50%]
+ *   │    └── [C: 50%]
+ *   └── [D: 50%]
+ */
+test('it simplifies sequential plans nested in the middle', async (t) => {
+  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
+    defaultFactories();
+  const planner = createPlanner();
+
+  const instructionA = instruction(txPercent(50));
+  const instructionB = instruction(txPercent(50));
+  const instructionC = instruction(txPercent(50));
+  const instructionD = instruction(txPercent(50));
+
+  t.deepEqual(
+    await planner(
+      sequentialInstructionPlan([
+        singleInstructionPlan(instructionA),
+        sequentialInstructionPlan([
+          singleInstructionPlan(instructionB),
+          singleInstructionPlan(instructionC),
+        ]),
+        singleInstructionPlan(instructionD),
+      ])
+    ),
+    sequentialTransactionPlan([
+      singleTransactionPlan([instructionA, instructionB]),
+      singleTransactionPlan([instructionC, instructionD]),
     ])
   );
 });
@@ -1061,19 +1109,19 @@ test('it plans non-divisible sequentials plans with divisible sequential childre
  *                               ├── [Tx: A(2, 100%)]
  *                               └── [Tx: A(3, 50%)]
  */
-test('it iterate over iterable instruction plans', async (t) => {
-  const { createPlanner, txPercent, iterator, singleTransactionPlan } =
+test('it iterate over message packer instruction plans', async (t) => {
+  const { createPlanner, txPercent, messagePacker, singleTransactionPlan } =
     defaultFactories();
   const planner = createPlanner();
 
-  const iteratorIx = iterator(txPercent(250));
+  const messagePackerIx = messagePacker(txPercent(250));
 
   t.deepEqual(
-    await planner(iteratorIx),
+    await planner(messagePackerIx),
     sequentialTransactionPlan([
-      singleTransactionPlan([iteratorIx.get(txPercent(100), 0)]),
-      singleTransactionPlan([iteratorIx.get(txPercent(100), 1)]),
-      singleTransactionPlan([iteratorIx.get(txPercent(50), 2)]),
+      singleTransactionPlan([messagePackerIx.get(txPercent(100), 0)]),
+      singleTransactionPlan([messagePackerIx.get(txPercent(100), 1)]),
+      singleTransactionPlan([messagePackerIx.get(txPercent(50), 2)]),
     ])
   );
 });
@@ -1084,27 +1132,27 @@ test('it iterate over iterable instruction plans', async (t) => {
  *   ├── [A: 50%]
  *   └── [B(x, 50%)]
  */
-test('it combines single instruction plans with iterable instruction plans', async (t) => {
+test('it combines single instruction plans with message packer instruction plans', async (t) => {
   const {
     createPlanner,
     txPercent,
-    iterator,
+    messagePacker,
     instruction,
     singleTransactionPlan,
   } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(50));
-  const iteratorB = iterator(txPercent(50));
+  const messagePackerB = messagePacker(txPercent(50));
 
   t.deepEqual(
     await planner(
       sequentialInstructionPlan([
         singleInstructionPlan(instructionA),
-        iteratorB,
+        messagePackerB,
       ])
     ),
-    singleTransactionPlan([instructionA, iteratorB.get(txPercent(50), 0)])
+    singleTransactionPlan([instructionA, messagePackerB.get(txPercent(50), 0)])
   );
 });
 
@@ -1115,19 +1163,19 @@ test('it combines single instruction plans with iterable instruction plans', asy
  *                               ├── [Tx: A(2, 100%)]
  *                               └── [Tx: A(3, 50%)]
  */
-test('it can handle parallel iterable instruction plans', async (t) => {
-  const { createPlanner, txPercent, iterator, singleTransactionPlan } =
+test('it can handle parallel message packer instruction plans', async (t) => {
+  const { createPlanner, txPercent, messagePacker, singleTransactionPlan } =
     defaultFactories();
   const planner = createPlanner();
 
-  const iteratorA = iterator(txPercent(250));
+  const messagePackerA = messagePacker(txPercent(250));
 
   t.deepEqual(
-    await planner(parallelInstructionPlan([iteratorA])),
+    await planner(parallelInstructionPlan([messagePackerA])),
     parallelTransactionPlan([
-      singleTransactionPlan([iteratorA.get(txPercent(100), 0)]),
-      singleTransactionPlan([iteratorA.get(txPercent(100), 1)]),
-      singleTransactionPlan([iteratorA.get(txPercent(50), 2)]),
+      singleTransactionPlan([messagePackerA.get(txPercent(100), 0)]),
+      singleTransactionPlan([messagePackerA.get(txPercent(100), 1)]),
+      singleTransactionPlan([messagePackerA.get(txPercent(50), 2)]),
     ])
   );
 });
@@ -1139,19 +1187,19 @@ test('it can handle parallel iterable instruction plans', async (t) => {
  *                               ├── [Tx: A(2, 100%)]
  *                               └── [Tx: A(3, 50%)]
  */
-test('it can handle non-divisible sequential iterable instruction plans', async (t) => {
-  const { createPlanner, txPercent, iterator, singleTransactionPlan } =
+test('it can handle non-divisible sequential message packer instruction plans', async (t) => {
+  const { createPlanner, txPercent, messagePacker, singleTransactionPlan } =
     defaultFactories();
   const planner = createPlanner();
 
-  const iteratorA = iterator(txPercent(250));
+  const messagePackerA = messagePacker(txPercent(250));
 
   t.deepEqual(
-    await planner(nonDivisibleSequentialInstructionPlan([iteratorA])),
+    await planner(nonDivisibleSequentialInstructionPlan([messagePackerA])),
     nonDivisibleSequentialTransactionPlan([
-      singleTransactionPlan([iteratorA.get(txPercent(100), 0)]),
-      singleTransactionPlan([iteratorA.get(txPercent(100), 1)]),
-      singleTransactionPlan([iteratorA.get(txPercent(50), 2)]),
+      singleTransactionPlan([messagePackerA.get(txPercent(100), 0)]),
+      singleTransactionPlan([messagePackerA.get(txPercent(100), 1)]),
+      singleTransactionPlan([messagePackerA.get(txPercent(50), 2)]),
     ])
   );
 });
@@ -1159,16 +1207,16 @@ test('it can handle non-divisible sequential iterable instruction plans', async 
 /**
  *  [A(x, 100%)] ─────────────▶ [Tx: A(1, 100%)]
  */
-test('it simplifies iterable instruction plans that fit in a single transaction', async (t) => {
-  const { createPlanner, txPercent, iterator, singleTransactionPlan } =
+test('it simplifies message packer instruction plans that fit in a single transaction', async (t) => {
+  const { createPlanner, txPercent, messagePacker, singleTransactionPlan } =
     defaultFactories();
   const planner = createPlanner();
 
-  const iteratorA = iterator(txPercent(100));
+  const messagePackerA = messagePacker(txPercent(100));
 
   t.deepEqual(
-    await planner(iteratorA),
-    singleTransactionPlan([iteratorA.get(txPercent(100), 0)])
+    await planner(messagePackerA),
+    singleTransactionPlan([messagePackerA.get(txPercent(100), 0)])
   );
 });
 
@@ -1179,32 +1227,40 @@ test('it simplifies iterable instruction plans that fit in a single transaction'
  *   ├── [B: 50%]                 ├── [Tx: B + C(2, 50%)]
  *   └── [C(x, 125%)]             └── [Tx: C(3, 50%)]
  */
-test('it uses iterable instruction plans to fill gaps in parallel candidates', async (t) => {
+test('it uses message packer instruction plans to fill gaps in parallel candidates', async (t) => {
   const {
     createPlanner,
     txPercent,
     instruction,
-    iterator,
+    messagePacker,
     singleTransactionPlan,
   } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(75));
   const instructionB = instruction(txPercent(50));
-  const iteratorC = iterator(txPercent(25) + txPercent(50) + txPercent(50)); // 125%
+  const messagePackerC = messagePacker(
+    txPercent(25) + txPercent(50) + txPercent(50)
+  ); // 125%
 
   t.deepEqual(
     await planner(
       parallelInstructionPlan([
         singleInstructionPlan(instructionA),
         singleInstructionPlan(instructionB),
-        iteratorC,
+        messagePackerC,
       ])
     ),
     parallelTransactionPlan([
-      singleTransactionPlan([instructionA, iteratorC.get(txPercent(25), 0)]),
-      singleTransactionPlan([instructionB, iteratorC.get(txPercent(50), 1)]),
-      singleTransactionPlan([iteratorC.get(txPercent(50), 2)]),
+      singleTransactionPlan([
+        instructionA,
+        messagePackerC.get(txPercent(25), 0),
+      ]),
+      singleTransactionPlan([
+        instructionB,
+        messagePackerC.get(txPercent(50), 1),
+      ]),
+      singleTransactionPlan([messagePackerC.get(txPercent(50), 2)]),
     ])
   );
 });
@@ -1216,32 +1272,40 @@ test('it uses iterable instruction plans to fill gaps in parallel candidates', a
  *   ├── [C: 50%]                 ├── [Tx: C + A(2, 50%)]
  *   └── [B: 75%]                 └── [Tx: A(3, 50%)]
  */
-test('it handles parallel iterable instruction plans last to fill gaps in previous parallel candidates', async (t) => {
+test('it handles parallel message packer instruction plans last to fill gaps in previous parallel candidates', async (t) => {
   const {
     createPlanner,
     txPercent,
     instruction,
-    iterator,
+    messagePacker,
     singleTransactionPlan,
   } = defaultFactories();
   const planner = createPlanner();
 
-  const iteratorA = iterator(txPercent(25) + txPercent(50) + txPercent(50)); // 125%
+  const messagePackerA = messagePacker(
+    txPercent(25) + txPercent(50) + txPercent(50)
+  ); // 125%
   const instructionB = instruction(txPercent(75));
   const instructionC = instruction(txPercent(50));
 
   t.deepEqual(
     await planner(
       parallelInstructionPlan([
-        iteratorA,
+        messagePackerA,
         singleInstructionPlan(instructionB),
         singleInstructionPlan(instructionC),
       ])
     ),
     parallelTransactionPlan([
-      singleTransactionPlan([instructionB, iteratorA.get(txPercent(25), 0)]),
-      singleTransactionPlan([instructionC, iteratorA.get(txPercent(50), 1)]),
-      singleTransactionPlan([iteratorA.get(txPercent(50), 2)]),
+      singleTransactionPlan([
+        instructionB,
+        messagePackerA.get(txPercent(25), 0),
+      ]),
+      singleTransactionPlan([
+        instructionC,
+        messagePackerA.get(txPercent(50), 1),
+      ]),
+      singleTransactionPlan([messagePackerA.get(txPercent(50), 2)]),
     ])
   );
 });
@@ -1253,31 +1317,37 @@ test('it handles parallel iterable instruction plans last to fill gaps in previo
  *   ├── [B(x, 75%)]              └── [Tx: B(2, 50%) + C]
  *   └── [C: 50%]
  */
-test('it uses iterable instruction plans to fill gaps in sequential candidates', async (t) => {
+test('it uses message packer instruction plans to fill gaps in sequential candidates', async (t) => {
   const {
     createPlanner,
     txPercent,
     instruction,
-    iterator,
+    messagePacker,
     singleTransactionPlan,
   } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(75));
-  const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
+  const messagePackerB = messagePacker(txPercent(25) + txPercent(50)); // 75%
   const instructionC = instruction(txPercent(50));
 
   t.deepEqual(
     await planner(
       sequentialInstructionPlan([
         singleInstructionPlan(instructionA),
-        iteratorB,
+        messagePackerB,
         singleInstructionPlan(instructionC),
       ])
     ),
     sequentialTransactionPlan([
-      singleTransactionPlan([instructionA, iteratorB.get(txPercent(25), 0)]),
-      singleTransactionPlan([iteratorB.get(txPercent(50), 1), instructionC]),
+      singleTransactionPlan([
+        instructionA,
+        messagePackerB.get(txPercent(25), 0),
+      ]),
+      singleTransactionPlan([
+        messagePackerB.get(txPercent(50), 1),
+        instructionC,
+      ]),
     ])
   );
 });
@@ -1289,31 +1359,37 @@ test('it uses iterable instruction plans to fill gaps in sequential candidates',
  *   ├── [B(x, 75%)]              └── [Tx: B(2, 50%) + C]
  *   └── [C: 50%]
  */
-test('it uses iterable instruction plans to fill gaps in non-divisible sequential candidates', async (t) => {
+test('it uses message packer instruction plans to fill gaps in non-divisible sequential candidates', async (t) => {
   const {
     createPlanner,
     txPercent,
     instruction,
-    iterator,
+    messagePacker,
     singleTransactionPlan,
   } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(75));
-  const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
+  const messagePackerB = messagePacker(txPercent(25) + txPercent(50)); // 75%
   const instructionC = instruction(txPercent(50));
 
   t.deepEqual(
     await planner(
       nonDivisibleSequentialInstructionPlan([
         singleInstructionPlan(instructionA),
-        iteratorB,
+        messagePackerB,
         singleInstructionPlan(instructionC),
       ])
     ),
     nonDivisibleSequentialTransactionPlan([
-      singleTransactionPlan([instructionA, iteratorB.get(txPercent(25), 0)]),
-      singleTransactionPlan([iteratorB.get(txPercent(50), 1), instructionC]),
+      singleTransactionPlan([
+        instructionA,
+        messagePackerB.get(txPercent(25), 0),
+      ]),
+      singleTransactionPlan([
+        messagePackerB.get(txPercent(50), 1),
+        instructionC,
+      ]),
     ])
   );
 });
@@ -1326,18 +1402,18 @@ test('it uses iterable instruction plans to fill gaps in non-divisible sequentia
  *        ├── [B(x, 75%)]
  *        └── [C: 50%]
  */
-test('it uses parallel iterable instruction plans to fill gaps in sequential candidates', async (t) => {
+test('it uses parallel message packer instruction plans to fill gaps in sequential candidates', async (t) => {
   const {
     createPlanner,
     txPercent,
     instruction,
-    iterator,
+    messagePacker,
     singleTransactionPlan,
   } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(75));
-  const iteratorB = iterator(txPercent(25) + txPercent(50)); // 75%
+  const messagePackerB = messagePacker(txPercent(25) + txPercent(50)); // 75%
   const instructionC = instruction(txPercent(50));
 
   t.deepEqual(
@@ -1345,14 +1421,20 @@ test('it uses parallel iterable instruction plans to fill gaps in sequential can
       sequentialInstructionPlan([
         singleInstructionPlan(instructionA),
         parallelInstructionPlan([
-          iteratorB,
+          messagePackerB,
           singleInstructionPlan(instructionC),
         ]),
       ])
     ),
     sequentialTransactionPlan([
-      singleTransactionPlan([instructionA, iteratorB.get(txPercent(25), 0)]),
-      singleTransactionPlan([instructionC, iteratorB.get(txPercent(50), 1)]),
+      singleTransactionPlan([
+        instructionA,
+        messagePackerB.get(txPercent(25), 0),
+      ]),
+      singleTransactionPlan([
+        instructionC,
+        messagePackerB.get(txPercent(50), 1),
+      ]),
     ])
   );
 });
@@ -1365,18 +1447,18 @@ test('it uses parallel iterable instruction plans to fill gaps in sequential can
  *        ├── [B(x, 50%)]
  *        └── [C: 25%]
  */
-test('it uses the whole sequential iterable instruction plan when it fits in the parent parallel candidate', async (t) => {
+test('it uses the whole sequential message packer instruction plan when it fits in the parent parallel candidate', async (t) => {
   const {
     createPlanner,
     txPercent,
     instruction,
-    iterator,
+    messagePacker,
     singleTransactionPlan,
   } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(25));
-  const iteratorB = iterator(txPercent(50));
+  const messagePackerB = messagePacker(txPercent(50));
   const instructionC = instruction(txPercent(25));
 
   t.deepEqual(
@@ -1384,14 +1466,14 @@ test('it uses the whole sequential iterable instruction plan when it fits in the
       parallelInstructionPlan([
         singleInstructionPlan(instructionA),
         sequentialInstructionPlan([
-          iteratorB,
+          messagePackerB,
           singleInstructionPlan(instructionC),
         ]),
       ])
     ),
     singleTransactionPlan([
       instructionA,
-      iteratorB.get(txPercent(50), 0),
+      messagePackerB.get(txPercent(50), 0),
       instructionC,
     ])
   );
@@ -1405,18 +1487,18 @@ test('it uses the whole sequential iterable instruction plan when it fits in the
  *        ├── [B(x, 50%)]
  *        └── [C: 25%]
  */
-test('it uses the whole non-divisible sequential iterable instruction plan when it fits in the parent sequential candidate', async (t) => {
+test('it uses the whole non-divisible sequential message packer instruction plan when it fits in the parent sequential candidate', async (t) => {
   const {
     createPlanner,
     txPercent,
     instruction,
-    iterator,
+    messagePacker,
     singleTransactionPlan,
   } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(25));
-  const iteratorB = iterator(txPercent(50));
+  const messagePackerB = messagePacker(txPercent(50));
   const instructionC = instruction(txPercent(25));
 
   t.deepEqual(
@@ -1424,14 +1506,14 @@ test('it uses the whole non-divisible sequential iterable instruction plan when 
       sequentialInstructionPlan([
         singleInstructionPlan(instructionA),
         nonDivisibleSequentialInstructionPlan([
-          iteratorB,
+          messagePackerB,
           singleInstructionPlan(instructionC),
         ]),
       ])
     ),
     singleTransactionPlan([
       instructionA,
-      iteratorB.get(txPercent(50), 0),
+      messagePackerB.get(txPercent(50), 0),
       instructionC,
     ])
   );
@@ -1517,7 +1599,7 @@ test('complex example 2', async (t) => {
   const {
     createPlanner,
     instruction,
-    iterator,
+    messagePacker,
     txPercent,
     singleTransactionPlan,
   } = defaultFactories();
@@ -1527,7 +1609,7 @@ test('complex example 2', async (t) => {
   const instructionB = instruction(txPercent(20));
   const instructionC = instruction(txPercent(20));
   const instructionD = instruction(txPercent(50));
-  const iteratorE = iterator(txPercent(250));
+  const messagePackerE = messagePacker(txPercent(250));
   const instructionF = instruction(txPercent(50));
   const instructionG = instruction(txPercent(50));
 
@@ -1541,7 +1623,7 @@ test('complex example 2', async (t) => {
         ]),
         parallelInstructionPlan([
           singleInstructionPlan(instructionD),
-          iteratorE,
+          messagePackerE,
         ]),
         singleInstructionPlan(instructionF),
         singleInstructionPlan(instructionG),
@@ -1552,12 +1634,15 @@ test('complex example 2', async (t) => {
         instructionA,
         instructionB,
         instructionC,
-        iteratorE.get(txPercent(40) - 3, 0),
+        messagePackerE.get(txPercent(40) - 3, 0),
       ]),
       parallelTransactionPlan([
-        singleTransactionPlan([instructionD, iteratorE.get(txPercent(50), 1)]),
-        singleTransactionPlan([iteratorE.get(txPercent(100), 2)]),
-        singleTransactionPlan([iteratorE.get(txPercent(60) + 3, 3)]),
+        singleTransactionPlan([
+          instructionD,
+          messagePackerE.get(txPercent(50), 1),
+        ]),
+        singleTransactionPlan([messagePackerE.get(txPercent(100), 2)]),
+        singleTransactionPlan([messagePackerE.get(txPercent(60) + 3, 3)]),
       ]),
       singleTransactionPlan([instructionF, instructionG]),
     ])

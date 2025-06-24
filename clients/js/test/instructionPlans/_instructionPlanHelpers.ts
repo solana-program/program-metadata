@@ -8,8 +8,9 @@ import {
   IInstruction,
 } from '@solana/kit';
 import {
+  CannotPackUsingProvidedMessageError,
   getTransactionSize,
-  IterableInstructionPlan,
+  MessagePackerInstructionPlan,
   TRANSACTION_SIZE_LIMIT,
 } from '../../src';
 
@@ -17,29 +18,31 @@ const MINIMUM_INSTRUCTION_SIZE = 35;
 const MINIMUM_TRANSACTION_SIZE = 136;
 const MAXIMUM_TRANSACTION_SIZE = TRANSACTION_SIZE_LIMIT - 1; // (for shortU16)
 
-export function instructionIteratorFactory() {
+export function messagePackerFactory() {
   const baseCounter = 1_000_000_000n;
-  const iteratorIncrement = 1_000_000_000n;
-  let iteratorCounter = 0n;
+  const messagePackerIncrement = 1_000_000_000n;
+  let messagePackerCounter = 0n;
   return (
     totalBytes: number
-  ): IterableInstructionPlan & {
+  ): MessagePackerInstructionPlan & {
     get: (bytes: number, index: number) => IInstruction;
   } => {
-    const getInstruction = instructionFactory(baseCounter + iteratorCounter);
-    iteratorCounter += iteratorIncrement;
+    const getInstruction = instructionFactory(
+      baseCounter + messagePackerCounter
+    );
+    messagePackerCounter += messagePackerIncrement;
     const baseInstruction = getInstruction(MINIMUM_INSTRUCTION_SIZE, 0);
 
     return {
       get: getInstruction,
-      kind: 'iterable',
-      getIterator: () => {
+      kind: 'messagePacker',
+      getMessagePacker: () => {
         let offset = 0;
         return {
-          hasNext: () => offset < totalBytes,
-          next: (tx) => {
+          done: () => offset < totalBytes,
+          packMessageToCapacity: (message) => {
             const baseTransactionSize = getTransactionSize(
-              appendTransactionMessageInstruction(baseInstruction, tx)
+              appendTransactionMessageInstruction(baseInstruction, message)
             );
             const maxLength =
               TRANSACTION_SIZE_LIMIT -
@@ -47,7 +50,7 @@ export function instructionIteratorFactory() {
               1; /* Leeway for shortU16 numbers in transaction headers. */
 
             if (maxLength <= 0) {
-              return null;
+              throw new CannotPackUsingProvidedMessageError();
             }
 
             const length = Math.min(
@@ -57,7 +60,7 @@ export function instructionIteratorFactory() {
 
             const instruction = getInstruction(length);
             offset += length;
-            return instruction;
+            return appendTransactionMessageInstruction(instruction, message);
           },
         };
       },
