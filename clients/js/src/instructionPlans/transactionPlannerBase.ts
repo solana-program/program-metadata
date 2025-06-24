@@ -1,9 +1,10 @@
 import {
   appendTransactionMessageInstructions,
   CompilableTransactionMessage,
+  TransactionMessage,
 } from '@solana/kit';
 import {
-  CannotIterateUsingProvidedMessageError,
+  CannotPackUsingProvidedMessageError as CannotPackUsingProvidedMessageError,
   InstructionPlan,
   MessagePackerInstructionPlan,
   ParallelInstructionPlan,
@@ -46,10 +47,10 @@ export function createBaseTransactionPlanner(
   config: TransactionPlannerConfig
 ): TransactionPlanner {
   return async (
-    originalInstructionPlan,
+    instructionPlan,
     { abortSignal } = {}
   ): Promise<TransactionPlan> => {
-    const plan = await traverse(originalInstructionPlan, {
+    const plan = await traverse(instructionPlan, {
       abortSignal,
       parent: null,
       parentCandidates: [],
@@ -59,16 +60,7 @@ export function createBaseTransactionPlanner(
     });
 
     if (!plan) {
-      throw new Error('No instructions were found in the instruction plan.');
-    }
-
-    if (!isValidTransactionPlan(plan)) {
-      // TODO: Coded error.
-      const error = new Error(
-        'Instruction plan results in invalid transaction plan'
-      ) as Error & { plan: TransactionPlan };
-      error.plan = plan;
-      throw error;
+      throw new NoInstructionsFoundInInstructionPlanError();
     }
 
     return freezeTransactionPlan(plan);
@@ -113,19 +105,28 @@ async function traverseSequential(
   context: TraverseContext
 ): Promise<MutableTransactionPlan | null> {
   let candidate: MutableSingleTransactionPlan | null = null;
+
+  // Check if the sequential plan must fit entirely in its parent candidates
+  // due to constraints like being inside a parallel plan or not being divisible.
   const mustEntirelyFitInParentCandidate =
     context.parent &&
     (context.parent.kind === 'parallel' || !instructionPlan.divisible);
+
+  // If so, try to fit the entire plan inside one of the parent candidates.
   if (mustEntirelyFitInParentCandidate) {
     const candidate = await selectAndMutateCandidate(
       context,
       context.parentCandidates,
       (message) => fitEntirePlanInsideMessage(instructionPlan, message)
     );
+    // If that's possible, we the candidate is mutated and we can return null.
+    // Otherwise, we proceed with the normal traversal and no parent candidate.
     if (candidate) {
       return null;
     }
   } else {
+    // Otherwise, we can use the first parent candidate, if any,
+    // since we know it must be a divisible sequential plan.
     candidate =
       context.parentCandidates.length > 0 ? context.parentCandidates[0] : null;
   }
@@ -147,6 +148,8 @@ async function traverseSequential(
       transactionPlans.push(...newPlans);
     }
   }
+
+  // Wrap in a sequential plan or simplify.
   if (transactionPlans.length === 1) {
     return transactionPlans[0];
   }
@@ -190,6 +193,8 @@ async function traverseParallel(
       transactionPlans.push(...newPlans);
     }
   }
+
+  // Wrap in a parallel plan or simplify.
   if (transactionPlans.length === 1) {
     return transactionPlans[0];
   }
@@ -216,7 +221,7 @@ async function traverseSingle(
   if (candidate) {
     return null;
   }
-  const message = await createNewMessage(context, predicate);
+  const message = await createNewMessage(context, instructionPlan, predicate);
   return { kind: 'single', message };
 }
 
@@ -237,6 +242,7 @@ async function traverseMessagePacker(
     if (!candidate) {
       const message = await createNewMessage(
         context,
+        instructionPlan,
         messagePacker.packMessage
       );
       const newPlan: MutableSingleTransactionPlan = { kind: 'single', message };
@@ -305,7 +311,7 @@ async function selectAndMutateCandidate(
       }
     } catch (error) {
       if (
-        error instanceof CannotIterateUsingProvidedMessageError ||
+        error instanceof CannotPackUsingProvidedMessageError ||
         error instanceof CannotFitEntirePlanInsideMessageError
       ) {
         // Try the next candidate.
@@ -322,18 +328,23 @@ async function createNewMessage(
     TraverseContext,
     'createTransactionMessage' | 'onTransactionMessageUpdated' | 'abortSignal'
   >,
+  instructionPlan: InstructionPlan,
   predicate: (
     message: CompilableTransactionMessage
   ) => CompilableTransactionMessage
 ): Promise<CompilableTransactionMessage> {
-  const message = await Promise.resolve(
+  const newMessage = await Promise.resolve(
     context.createTransactionMessage({ abortSignal: context.abortSignal })
   );
-  return await Promise.resolve(
-    context.onTransactionMessageUpdated(predicate(message), {
+  const updatedMessage = await Promise.resolve(
+    context.onTransactionMessageUpdated(predicate(newMessage), {
       abortSignal: context.abortSignal,
     })
   );
+  if (getTransactionSize(updatedMessage) > TRANSACTION_SIZE_LIMIT) {
+    throw new FailedToFitPlanInNewMessageError(instructionPlan, updatedMessage);
+  }
+  return updatedMessage;
 }
 
 function freezeTransactionPlan(plan: MutableTransactionPlan): TransactionPlan {
@@ -353,21 +364,6 @@ function freezeTransactionPlan(plan: MutableTransactionPlan): TransactionPlan {
       throw new Error(
         `Unknown transaction plan kind: ${(plan as { kind: string }).kind}`
       );
-  }
-}
-
-function isValidTransactionPlan(transactionPlan: TransactionPlan): boolean {
-  if (transactionPlan.kind === 'single') {
-    const transactionSize = getTransactionSize(transactionPlan.message);
-    return transactionSize <= TRANSACTION_SIZE_LIMIT;
-  }
-  return transactionPlan.plans.every(isValidTransactionPlan);
-}
-
-class CannotFitEntirePlanInsideMessageError extends Error {
-  constructor() {
-    super('Cannot fit the entire instruction plan inside the provided message');
-    this.name = 'CannotFitEntirePlanInsideMessageError';
   }
 }
 
@@ -404,7 +400,7 @@ function fitEntirePlanInsideMessage(
             throw new CannotFitEntirePlanInsideMessageError();
           }
         } catch (error) {
-          if (error instanceof CannotIterateUsingProvidedMessageError) {
+          if (error instanceof CannotPackUsingProvidedMessageError) {
             throw new CannotFitEntirePlanInsideMessageError();
           }
           throw error;
@@ -416,5 +412,33 @@ function fitEntirePlanInsideMessage(
       throw new Error(
         `Unknown instruction plan kind: ${(instructionPlan as { kind: string }).kind}`
       );
+  }
+}
+
+// TODO: Below should be SolanaErrors.
+
+export class FailedToFitPlanInNewMessageError extends Error {
+  constructor(
+    public readonly instructionPlan: InstructionPlan,
+    public readonly transactionMessage: TransactionMessage
+  ) {
+    super(
+      `The provided instruction plan could not fit in a new transaction message.`
+    );
+    this.name = 'FailedToFitPlanInNewMessageError';
+  }
+}
+
+class NoInstructionsFoundInInstructionPlanError extends Error {
+  constructor() {
+    super('No instructions were found in the provided instruction plan.');
+    this.name = 'NoInstructionsFoundInInstructionPlanError';
+  }
+}
+
+class CannotFitEntirePlanInsideMessageError extends Error {
+  constructor() {
+    super('Cannot fit the entire instruction plan inside the provided message');
+    this.name = 'CannotFitEntirePlanInsideMessageError';
   }
 }

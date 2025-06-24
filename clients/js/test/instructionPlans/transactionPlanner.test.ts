@@ -1,7 +1,11 @@
-import { CompilableTransactionMessage } from '@solana/kit';
+import {
+  appendTransactionMessageInstruction,
+  CompilableTransactionMessage,
+} from '@solana/kit';
 import test from 'ava';
 import {
   createBaseTransactionPlanner,
+  FailedToFitPlanInNewMessageError,
   nonDivisibleSequentialInstructionPlan,
   nonDivisibleSequentialTransactionPlan,
   parallelInstructionPlan,
@@ -9,7 +13,6 @@ import {
   sequentialInstructionPlan,
   sequentialTransactionPlan,
   singleInstructionPlan,
-  TransactionPlan,
 } from '../../src';
 import {
   instructionFactory,
@@ -60,17 +63,25 @@ test('it plans a single instruction', async (t) => {
  *  [A: 200%] ───────────────────▶ Error
  */
 test('it fail if a single instruction is too large', async (t) => {
-  const { createPlanner, instruction, txPercent, singleTransactionPlan } =
-    defaultFactories();
+  const { createPlanner, instruction, txPercent } = defaultFactories();
   const planner = createPlanner();
 
   const instructionA = instruction(txPercent(200));
   const promise = planner(singleInstructionPlan(instructionA));
 
-  const error = (await t.throwsAsync(promise)) as Error & {
-    plan: TransactionPlan;
-  };
-  t.deepEqual(error.plan, singleTransactionPlan([instructionA]));
+  const error = (await t.throwsAsync(promise, {
+    message:
+      'The provided instruction plan could not fit in a new transaction message.',
+  })) as FailedToFitPlanInNewMessageError;
+
+  t.deepEqual(error.instructionPlan, singleInstructionPlan(instructionA));
+  t.deepEqual(
+    error.transactionMessage,
+    appendTransactionMessageInstruction(
+      instructionA,
+      getMockCreateTransactionMessage()
+    )
+  );
 });
 
 /**

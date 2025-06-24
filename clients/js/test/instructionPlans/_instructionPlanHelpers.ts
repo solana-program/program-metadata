@@ -8,7 +8,7 @@ import {
   IInstruction,
 } from '@solana/kit';
 import {
-  CannotIterateUsingProvidedMessageError,
+  CannotPackUsingProvidedMessageError,
   getTransactionSize,
   MessagePackerInstructionPlan,
   TRANSACTION_SIZE_LIMIT,
@@ -50,7 +50,7 @@ export function messagePackerFactory() {
               1; /* Leeway for shortU16 numbers in transaction headers. */
 
             if (maxLength <= 0) {
-              throw new CannotIterateUsingProvidedMessageError();
+              throw new CannotPackUsingProvidedMessageError();
             }
 
             const length = Math.min(
