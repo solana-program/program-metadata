@@ -40,7 +40,7 @@ export function messagePackerFactory() {
         let offset = 0;
         return {
           done: () => offset < totalBytes,
-          packMessage: (message) => {
+          packMessageToCapacity: (message) => {
             const baseTransactionSize = getTransactionSize(
               appendTransactionMessageInstruction(baseInstruction, message)
             );

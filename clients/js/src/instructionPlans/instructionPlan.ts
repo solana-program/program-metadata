@@ -41,7 +41,7 @@ export type MessagePacker = Readonly<{
   /** Checks whether there are more instructions to retrieve. */
   done: () => boolean;
   /** Pack the provided transaction message with the next instructions or throws if not possible. */
-  packMessage: (
+  packMessageToCapacity: (
     transactionMessage: CompilableTransactionMessage
   ) => CompilableTransactionMessage;
 }>;
@@ -117,7 +117,7 @@ export function getLinearMessagePackerInstructionPlan({
       let offset = 0;
       return {
         done: () => offset < totalBytes,
-        packMessage: (message: CompilableTransactionMessage) => {
+        packMessageToCapacity: (message: CompilableTransactionMessage) => {
           const baseTransactionSize = getTransactionSize(
             appendTransactionMessageInstruction(
               getInstruction(offset, 0),
@@ -152,22 +152,32 @@ export function getMessagePackerInstructionPlanFromInstructions<
       let instructionIndex = 0;
       return {
         done: () => instructionIndex < instructions.length,
-        packMessage: (message: CompilableTransactionMessage) => {
+        packMessageToCapacity: (message: CompilableTransactionMessage) => {
           if (instructionIndex >= instructions.length) {
             throw new MessagePackerIsAlreadyDoneError();
           }
 
-          const instruction = instructions[instructionIndex];
-          const updatedMessage = appendTransactionMessageInstruction(
-            instruction,
-            message
-          );
+          let updatedMessage: CompilableTransactionMessage = message;
+          for (
+            let index = instructionIndex;
+            index < instructions.length;
+            index++
+          ) {
+            updatedMessage = appendTransactionMessageInstruction(
+              instructions[index],
+              message
+            );
 
-          if (getTransactionSize(updatedMessage) > TRANSACTION_SIZE_LIMIT) {
-            throw new CannotPackUsingProvidedMessageError();
+            if (getTransactionSize(updatedMessage) > TRANSACTION_SIZE_LIMIT) {
+              if (index === instructionIndex) {
+                throw new CannotPackUsingProvidedMessageError();
+              }
+              instructionIndex = index;
+              return updatedMessage;
+            }
           }
 
-          instructionIndex++;
+          instructionIndex = instructions.length;
           return updatedMessage;
         },
       };

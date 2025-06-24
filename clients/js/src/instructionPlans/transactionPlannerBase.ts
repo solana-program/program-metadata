@@ -237,20 +237,16 @@ async function traverseMessagePacker(
     const candidate = await selectAndMutateCandidate(
       context,
       candidates,
-      messagePacker.packMessage
+      messagePacker.packMessageToCapacity
     );
     if (!candidate) {
       const message = await createNewMessage(
         context,
         instructionPlan,
-        messagePacker.packMessage
+        messagePacker.packMessageToCapacity
       );
       const newPlan: MutableSingleTransactionPlan = { kind: 'single', message };
       transactionPlans.push(newPlan);
-
-      // Adding the new plan to the candidates is important for cases
-      // where the next instruction doesn't fill the entire transaction.
-      candidates.push(newPlan);
     }
   }
 
@@ -395,7 +391,7 @@ function fitEntirePlanInsideMessage(
       const messagePacker = instructionPlan.getMessagePacker();
       while (messagePacker.done()) {
         try {
-          newMessage = messagePacker.packMessage(message);
+          newMessage = messagePacker.packMessageToCapacity(message);
           if (getTransactionSize(newMessage) > TRANSACTION_SIZE_LIMIT) {
             throw new CannotFitEntirePlanInsideMessageError();
           }
