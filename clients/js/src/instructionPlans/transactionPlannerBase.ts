@@ -296,10 +296,9 @@ async function selectAndMutateCandidate(
 ): Promise<MutableSingleTransactionPlan | null> {
   for (const candidate of candidates) {
     try {
-      const message = await Promise.resolve(
-        context.onTransactionMessageUpdated(predicate(candidate.message), {
-          abortSignal: context.abortSignal,
-        })
+      const message = await context.onTransactionMessageUpdated(
+        predicate(candidate.message),
+        { abortSignal: context.abortSignal }
       );
       if (getTransactionSize(message) <= TRANSACTION_SIZE_LIMIT) {
         candidate.message = message;
@@ -329,13 +328,12 @@ async function createNewMessage(
     message: CompilableTransactionMessage
   ) => CompilableTransactionMessage
 ): Promise<CompilableTransactionMessage> {
-  const newMessage = await Promise.resolve(
-    context.createTransactionMessage({ abortSignal: context.abortSignal })
-  );
-  const updatedMessage = await Promise.resolve(
-    context.onTransactionMessageUpdated(predicate(newMessage), {
-      abortSignal: context.abortSignal,
-    })
+  const newMessage = await context.createTransactionMessage({
+    abortSignal: context.abortSignal,
+  });
+  const updatedMessage = await context.onTransactionMessageUpdated(
+    predicate(newMessage),
+    { abortSignal: context.abortSignal }
   );
   if (getTransactionSize(updatedMessage) > TRANSACTION_SIZE_LIMIT) {
     throw new FailedToFitPlanInNewMessageError(instructionPlan, updatedMessage);
