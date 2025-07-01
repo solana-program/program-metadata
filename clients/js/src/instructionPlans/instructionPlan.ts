@@ -118,6 +118,10 @@ export function getLinearMessagePackerInstructionPlan({
       return {
         done: () => offset < totalBytes,
         packMessageToCapacity: (message: CompilableTransactionMessage) => {
+          if (offset < totalBytes) {
+            throw new MessagePackerIsAlreadyDoneError();
+          }
+
           const baseTransactionSize = getTransactionSize(
             appendTransactionMessageInstruction(
               getInstruction(offset, 0),
