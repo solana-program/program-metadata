@@ -16,8 +16,7 @@ There are two types of metadata accounts:
 - canonical: these are metadata accounts created by the program upgrade authority. They are derived from `[program key, seed]`.
 - non-canonical (a.k.a. _third-party_): these are metadata account created by any authority. They are derived from `[program key, authority key, seed]`.
 
-While there can only be a single canonical metadata account for a pair _(program, seed)_, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.
-The canonical metadata accounts are very easy to find by using the ProgramId and the seed.
+While there can only be a single canonical metadata account for a pair _(program, seed)_, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.The canonical metadata accounts are very easy to find by using the ProgramId and the seed.
 The metadata is either saved on chain in an account or it can be saved to a URL or another account.
 
 ## Quick Start
@@ -68,10 +67,10 @@ Create a new metadata account for a program (either creates or updates if it alr
 npx @solana-program/program-metadata write <seed> <program-id> <file> [options]
 ```
 
-- `<seed>`: e.g. "idl", "scurity" as standard or anything else you want to use for other data
+- `<seed>`: e.g. "idl", "security" as standard or anything else you want to use for other data
 - `<program-id>`: The program's address
 - `<file>`: Path to the metadata or IDL file (JSON, YAML, TOML, etc.)
-- `<url>`: Optionally point to a URL containing the metadat 
+- `<url>`: Optionally point to a URL containing the metadata
 - `<account>`: Optionally point to an account address to upload (creates an "external" data source). See also: --`account-offset` and `--account-length`
 
 #### Fetch Metadata
@@ -87,7 +86,7 @@ npx @solana-program/program-metadata fetch <seed> <program-id> [options]
 
 #### Authority and Account Management
 
-By default your keypair that creates the metadata account will be its authority. You can change the authority by using the `set-authority` command. This can be usefull when you don't want to update the metadata using the program authority going forward or if you use a multisig to create the metadata account for example. (Multisig instructions see further down)
+By default your keypair that creates the metadata account will be its authority. You can change the authority by using the `set-authority` command. This can be useful when you don't want to update the metadata using the program authority going forward or if you use a multisig to create the metadata account for example. (Multisig instructions see further down)
 
 - Set a new authority:  
   `npx @solana-program/program-metadata set-authority <seed> <program-id> --new-authority <pubkey>`
@@ -104,7 +103,7 @@ By default your keypair that creates the metadata account will be its authority.
 
 #### Buffer Management
 
-Using a buffer account you can split the metadata update into the uploading of the data part and then assign the buffer to the program in a later trans.
+Using a buffer account you can split the metadata update into the uploading of the data part and then assign the buffer to the program in a later transaction.
 
 - Create/update/fetch/close buffer accounts:  
   `npx @solana-program/program-metadata create-buffer|update-buffer|fetch-buffer|close-buffer ...`
@@ -124,7 +123,7 @@ Using a buffer account you can split the metadata update into the uploading of t
 
 You can also use the program metadata program as a multisig.
 All commands in the CLI can also be exported as transactions in various formats using the `--export` flag.
-For updating a metadata account of a program that is managed by a Squads multisig you need to create a buffe first and then export a transaction that you can then import and sign in Squads or any other multisig of your choosing.
+For updating a metadata account of a program that is managed by a Squads multisig you need to create a buffer first and then export a transaction that you can then import and sign in Squads or any other multisig of your choosing.
 
 1. Transfer the program authority to the squad using the squads dashboard [here](https://app.squads.so/squads)
 2. Create the buffer account and transfer ownership to the squad
@@ -176,7 +175,7 @@ npx @solana-program/program-metadata close idl <program-id>
 
 ## Security.txt File Format
 
-You can also use the program metadata program to upload a `security.txt` file to your program without having it as part of the binary file. This is useful to show name, desciption and icon of your program in the Solana Explorer and also gives security researchers a place to report issues and contact you. You can also add a link to your webapp which makes it easier for users to find and interact with your program.
+You can also use the program metadata program to upload a `security.txt` file to your program without having it as part of the binary file. This is useful to show name, description and icon of your program in the Solana Explorer and also gives security researchers a place to report issues and contact you. You can also add a link to your web app which makes it easier for users to find and interact with your program.
 
 For that you just create a json file containing the security.txt data and upload it to the program metadata account using "security" as seed instead of "idl".
 
@@ -212,18 +211,18 @@ Then use the same commands as for the IDL to upload the security.txt file:
 npx @solana-program/program-metadata write security <program-id> ./security.json
 ```
 
-### How the data is formated and saved
+### How the data is formatted and saved
 
 By default the metadata is compressed and encoded in `utf8` and saved on chain in an account.
 To save space you can also point the metadata in the account to a URL using the `--url` flag or to another account using the `--account <address>` flag. When using the `--account` flag you can also specify the offset in the account where the data starts using the `--account-offset <number>` and `--account-length <number>` flags.
 
-Like this you can for examples have multiple programs point to the same metadata account or you can save your IDL in your github repository and let the metadata account just point to it.
+Like this you can for example have multiple programs point to the same metadata account or you can save your IDL in your github repository and let the metadata account just point to it.
 
-- **Seeds:** The `<seed>` argument is a string like "idl" or "security". Use different seeds for different types of metadata. You can attach any data to programs as you like. If you have a certain standard in mind please open a discusson on this repository. The program could for example also enable verioned IDLs or you could think of adding attestations to programs that make it more trustworthy. Something like an auditedBy metadata could be interesting as well.
+- **Seeds:** The `<seed>` argument is a string like "idl" or "security". Use different seeds for different types of metadata. You can attach any data to programs as you like. If you have a certain standard in mind please open a discussion on this repository. The program could for example also enable versioned IDLs or you could think of adding attestations to programs to make them more trustworthy. Something like an auditedBy metadata could be interesting as well.
 - **Canonical vs. Non-Canonical:** By default, the upgrade authority creates canonical metadata. Use `--non-canonical <pubkey>` to create third-party metadata accounts. This could for example be useful for already frozen programs which do not have access to their upgrade authority anymore.
 - **File Types:** The CLI auto-detects JSON, YAML, or TOML.
 - **Compression:** By default all metadata is compressed in the `zlib` format to save on chain space. You can override this by using the `--compression` flag and change it to `none` or `gzip`.
-- **Encoding:** By default all metadata is encoded in `utf8`. You can override this by using the `--encoding` flag and change it to `none`, `base58`or`base64`.
+- **Encoding:** By default all metadata is encoded in `utf8`. You can override this by using the `--encoding` flag and change it to `none`, `base58` or `base64`.
 
 ## Building
 
