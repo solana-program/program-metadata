@@ -86,7 +86,7 @@ npx @solana-program/program-metadata fetch <seed> <program-id> [options]
 
 #### Authority and Account Management
 
-By default your keypair that creates the metadata account will be its authority. You can change the authority by using the `set-authority` command. This can be useful when you don't want to update the metadata using the program authority going forward or if you use a multisig to create the metadata account for example. (Multisig instructions see further down)
+By default your keypair that creates the metadata account will be its authority. You can change the authority by using the `set-authority` command. This can be useful when you don't want to update the metadata using the program authority going forward or if you use a multisig to create the metadata account for example. (Multisig instructions see further down) For canonical metadata accounts the upgrade authority can always claim back the metadata account if it is not immutable. For non-canonical metadata accounts the authority can not be changed because the PDA is derived from that authority.
 
 - Set a new authority:  
   `npx @solana-program/program-metadata set-authority <seed> <program-id> --new-authority <pubkey>`
@@ -115,9 +115,12 @@ Using a buffer account you can split the metadata update into the uploading of t
 ### Options
 
 - `--keypair <path>`: Path to keypair file (defaults to Solana config)
-- `--url <string>`: Custom RPC URL
-- `--non-canonical <pubkey>`: Use a non-canonical (third-party) metadata account, derived with your authority pubkey as an extra seed
-- `--priority-fees <number>`: Priority fees per compute unit
+- `--payer <path>`: Path to keypair file of transaction fee and storage payer (defaults to keypair)
+- `--priority-fees <number>`: Priority fees in micro-lamports per compute unit (default: 100000)
+- `--rpc <string>`: Custom RPC URL
+- `--export [address]`: Export transactions instead of running them. Optionally specify an override authority address.
+- `--export-encoding <encoding>`: How to encode exported transactions. Choices: none, utf8, base58, base64 (default: base64)
+- `-h, --help`: Show help for command
 
 #### Squads Multisig
 
@@ -218,7 +221,7 @@ To save space you can also point the metadata in the account to a URL using the 
 
 Like this you can for example have multiple programs point to the same metadata account or you can save your IDL in your github repository and let the metadata account just point to it.
 
-- **Seeds:** The `<seed>` argument is a string like "idl" or "security". Use different seeds for different types of metadata. You can attach any data to programs that you like. If you have a certain standard in mind please open a discussion on this repository. The program could for example also enable versioned IDLs or you could think of adding attestations to programs to make them more trustworthy. Something like an auditedBy metadata could be interesting for example.
+- **Seeds:** The `<seed>` argument is a string like "idl" or "security" that determines the type of metadata. It is used to derive the address of the metadata account for your program. Use different seeds for different types of metadata. You can attach any data to programs that you like. If you have a certain standard in mind please open a discussion on this repository. The program could for example also enable versioned IDLs or you could think of adding attestations to programs to make them more trustworthy. Something like an auditedBy metadata could be interesting for example.
 - **Canonical vs. Non-Canonical:** By default, the upgrade authority creates canonical metadata. Use `--non-canonical <pubkey>` to create third-party metadata accounts. This could for example be useful for already frozen programs which do not have access to their upgrade authority anymore.
 - **File Types:** The CLI auto-detects JSON, YAML, or TOML.
 - **Compression:** By default all metadata is compressed in the `zlib` format to save on chain space. You can override this by using the `--compression` flag and change it to `none` or `gzip`.
