@@ -71,7 +71,7 @@ npx @solana-program/program-metadata write <seed> <program-id> <file> [options]
 - `<program-id>`: The program's address
 - `<file>`: Path to the metadata or IDL file (JSON, YAML, TOML, etc.)
 - `<url>`: Optionally point to a URL containing the metadata
-- `<account>`: Optionally point to an account address to upload (creates an "external" data source). See also: --`account-offset` and `--account-length`
+- `<account>`: Optionally point to an account address that contains the metadata. When using this option you also need to set offset and account length: `--account-offset` and `--account-length`
 
 #### Fetch Metadata
 
@@ -125,7 +125,7 @@ You can also use the program metadata program as a multisig.
 All commands in the CLI can also be exported as transactions in various formats using the `--export` flag.
 For updating a metadata account of a program that is managed by a Squads multisig you need to create a buffer first and then export a transaction that you can then import and sign in Squads or any other multisig of your choosing.
 
-1. Transfer the program authority to the squad using the squads dashboard [here](https://app.squads.so/squads)
+1. Transfer the program authority to the squad using the [squads dashboard](https://app.squads.so/squads)
 2. Create the buffer account and transfer ownership to the squad
 
 ```bash
@@ -158,13 +158,13 @@ npx @solana-program/program-metadata write idl <program-id> ./metadata.json --no
 **Fetch canonical metadata:**
 
 ```sh
-npx @solana-program/program-metadata fetch idl <program-id> --output ./metadata.json
+npx @solana-program/program-metadata fetch idl <program-id> --output ./idl.json
 ```
 
 **Fetch non-canonical metadata:**
 
 ```sh
-npx @solana-program/program-metadata fetch idl <program-id> --non-canonical <pubkey> --output ./metadata.json
+npx @solana-program/program-metadata fetch idl <program-id> --non-canonical <pubkey> --output ./idl.json
 ```
 
 **Close a metadata account:**
@@ -175,7 +175,7 @@ npx @solana-program/program-metadata close idl <program-id>
 
 ## Security.txt File Format
 
-You can also use the program metadata program to upload a `security.txt` file to your program without having it as part of the binary file. This is useful to show name, description and icon of your program in the Solana Explorer and also gives security researchers a place to report issues and contact you. You can also add a link to your web app which makes it easier for users to find and interact with your program.
+You can also use the program metadata program to upload a `security.txt` file to your program without having it as part of the binary file like the original [security.txt](https://github.com/neodyme-labs/solana-security-txt) format. This is useful to show name, description and icon of your program in the Solana Explorer and also gives security researchers a place to report issues and contact you. You can also add a link to your web app which makes it easier for users to find and interact with your program.
 
 For that you just create a json file containing the security.txt data and upload it to the program metadata account using "security" as seed instead of "idl".
 
@@ -213,12 +213,12 @@ npx @solana-program/program-metadata write security <program-id> ./security.json
 
 ### How the data is formatted and saved
 
-By default the metadata is compressed and encoded in `utf8` and saved on chain in an account.
+By default the metadata is `zlib` compressed and encoded in `utf8` and saved on chain in an account.
 To save space you can also point the metadata in the account to a URL using the `--url` flag or to another account using the `--account <address>` flag. When using the `--account` flag you can also specify the offset in the account where the data starts using the `--account-offset <number>` and `--account-length <number>` flags.
 
 Like this you can for example have multiple programs point to the same metadata account or you can save your IDL in your github repository and let the metadata account just point to it.
 
-- **Seeds:** The `<seed>` argument is a string like "idl" or "security". Use different seeds for different types of metadata. You can attach any data to programs as you like. If you have a certain standard in mind please open a discussion on this repository. The program could for example also enable versioned IDLs or you could think of adding attestations to programs to make them more trustworthy. Something like an auditedBy metadata could be interesting as well.
+- **Seeds:** The `<seed>` argument is a string like "idl" or "security". Use different seeds for different types of metadata. You can attach any data to programs that you like. If you have a certain standard in mind please open a discussion on this repository. The program could for example also enable versioned IDLs or you could think of adding attestations to programs to make them more trustworthy. Something like an auditedBy metadata could be interesting for example.
 - **Canonical vs. Non-Canonical:** By default, the upgrade authority creates canonical metadata. Use `--non-canonical <pubkey>` to create third-party metadata accounts. This could for example be useful for already frozen programs which do not have access to their upgrade authority anymore.
 - **File Types:** The CLI auto-detects JSON, YAML, or TOML.
 - **Compression:** By default all metadata is compressed in the `zlib` format to save on chain space. You can override this by using the `--compression` flag and change it to `none` or `gzip`.
