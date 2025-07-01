@@ -233,7 +233,7 @@ async function traverseMessagePacker(
   const transactionPlans: SingleTransactionPlan[] = [];
   const candidates = [...context.parentCandidates];
 
-  while (messagePacker.done()) {
+  while (!messagePacker.done()) {
     const candidate = await selectAndMutateCandidate(
       context,
       candidates,
@@ -387,7 +387,7 @@ function fitEntirePlanInsideMessage(
     case 'messagePacker':
       // eslint-disable-next-line no-case-declarations
       const messagePacker = instructionPlan.getMessagePacker();
-      while (messagePacker.done()) {
+      while (!messagePacker.done()) {
         try {
           newMessage = messagePacker.packMessageToCapacity(message);
           if (getTransactionSize(newMessage) > TRANSACTION_SIZE_LIMIT) {

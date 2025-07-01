@@ -116,9 +116,9 @@ export function getLinearMessagePackerInstructionPlan({
     getMessagePacker: () => {
       let offset = 0;
       return {
-        done: () => offset < totalBytes,
+        done: () => offset >= totalBytes,
         packMessageToCapacity: (message: CompilableTransactionMessage) => {
-          if (offset < totalBytes) {
+          if (offset >= totalBytes) {
             throw new MessagePackerIsAlreadyDoneError();
           }
 
@@ -155,7 +155,7 @@ export function getMessagePackerInstructionPlanFromInstructions<
     getMessagePacker: () => {
       let instructionIndex = 0;
       return {
-        done: () => instructionIndex < instructions.length,
+        done: () => instructionIndex >= instructions.length,
         packMessageToCapacity: (message: CompilableTransactionMessage) => {
           if (instructionIndex >= instructions.length) {
             throw new MessagePackerIsAlreadyDoneError();

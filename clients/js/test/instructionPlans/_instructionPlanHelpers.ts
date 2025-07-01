@@ -11,6 +11,7 @@ import {
   CannotPackUsingProvidedMessageError,
   getTransactionSize,
   MessagePackerInstructionPlan,
+  MessagePackerIsAlreadyDoneError,
   TRANSACTION_SIZE_LIMIT,
 } from '../../src';
 
@@ -39,8 +40,12 @@ export function messagePackerFactory() {
       getMessagePacker: () => {
         let offset = 0;
         return {
-          done: () => offset < totalBytes,
+          done: () => offset >= totalBytes,
           packMessageToCapacity: (message) => {
+            if (offset >= totalBytes) {
+              throw new MessagePackerIsAlreadyDoneError();
+            }
+
             const baseTransactionSize = getTransactionSize(
               appendTransactionMessageInstruction(baseInstruction, message)
             );
