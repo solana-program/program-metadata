@@ -12,18 +12,229 @@ Attach custom data to any program.
 The Program Metadata provides the ability to attach metadata information to any program. The information is represented by a PDA account with a pre-defined derivation, e.g., it can be used to add the IDL of a program, with a PDA derived using the `"idl"` string.
 
 There are two types of metadata accounts:
-* canonical: these are metadata accounts created by the program upgrade authority. They are derived from `[program key, seed]`.
-* non-canonical (a.k.a. *third-party*): these are metadata account created by any authority. They are derived from `[program key, authority key, seed]`.
 
-While there can only be a single canonical metadata account for a pair *(program, seed)*, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.
+- canonical: these are metadata accounts created by the program upgrade authority. They are derived from `[program key, seed]`.
+- non-canonical (a.k.a. _third-party_): these are metadata account created by any authority. They are derived from `[program key, authority key, seed]`.
+
+While there can only be a single canonical metadata account for a pair _(program, seed)_, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.
+The canonical metadata accounts are very easy to find by using the ProgramId and the seed.
+The metadata is either saved on chain in an account or it can be saved to a URL or another account.
+
+## Quick Start
+
+Upload an IDL or security.txt file to your program in one command:
+
+```sh
+# Upload IDL (as upgrade authority using the default CLI keypair)
+npx @solana-program/program-metadata write idl <program-id> ./idl.json
+
+# Upload metadata with additional information about your program similar to security.txt
+npx @solana-program/program-metadata write security <program-id> ./security.json
+```
+
+At the moment the Solana explorer only reads Codama IDLs that are uploaded as canonical metadata accounts. But soon it will also support security files and Anchor IDLs.
+
+## Usage
+
+The CLI supports both canonical (program upgrade authority) and non-canonical (third-party) metadata accounts, using a seed-based approach (e.g. "idl", "security").
+
+### Installation
+
+You can run the CLI directly with npx (no install required):
+
+```sh
+npx @solana-program/program-metadata <command> [options]
+```
+
+Or install globally:
+
+```sh
+npm install -g @solana-program/program-metadata
+```
+
+See all the commands:
+
+```sh
+npx @solana-program/program-metadata --help
+```
+
+### Commands
+
+#### Create a Metadata Account
+
+Create a new metadata account for a program (either creates or updates if it already exists):
+
+```sh
+npx @solana-program/program-metadata write <seed> <program-id> <file> [options]
+```
+
+- `<seed>`: e.g. "idl", "scurity" as standard or anything else you want to use for other data
+- `<program-id>`: The program's address
+- `<file>`: Path to the metadata or IDL file (JSON, YAML, TOML, etc.)
+- `<url>`: Optionally point to a URL containing the metadat 
+- `<account>`: Optionally point to an account address to upload (creates an "external" data source). See also: --`account-offset` and `--account-length`
+
+#### Fetch Metadata
+
+Download metadata to a file or print to stdout:
+
+```sh
+npx @solana-program/program-metadata fetch <seed> <program-id> [options]
+```
+
+- `--output <file>`: Save to file
+- `--raw`: Output raw data in hex
+
+#### Authority and Account Management
+
+By default your keypair that creates the metadata account will be its authority. You can change the authority by using the `set-authority` command. This can be usefull when you don't want to update the metadata using the program authority going forward or if you use a multisig to create the metadata account for example. (Multisig instructions see further down)
+
+- Set a new authority:  
+  `npx @solana-program/program-metadata set-authority <seed> <program-id> --new-authority <pubkey>`
+  Note that the program upgrade authority can always claim back the metadata account if it is not immutable.
+- Remove authority:  
+  `npx @solana-program/program-metadata remove-authority <seed> <program-id>`
+  This will leave only the upgrade authority as the authority of the metadata account.
+- Make metadata immutable:  
+  `npx @solana-program/program-metadata set-immutable <seed> <program-id>`
+  This will make the metadata account immutable and cannot be updated anymore, even for the update authority.
+- Close metadata account:  
+  `npx @solana-program/program-metadata close <seed> <program-id>`
+  This will close the account and you can reclaim the rent.
+
+#### Buffer Management
+
+Using a buffer account you can split the metadata update into the uploading of the data part and then assign the buffer to the program in a later trans.
+
+- Create/update/fetch/close buffer accounts:  
+  `npx @solana-program/program-metadata create-buffer|update-buffer|fetch-buffer|close-buffer ...`
+- List all buffer accounts for an authority:  
+  `npx @solana-program/program-metadata list-buffers [authority]`
+- Update a metadata account with a buffer:  
+  `npx @solana-program/program-metadata write <seed> <program-id> --buffer <buffer-address>`
+
+### Options
+
+- `--keypair <path>`: Path to keypair file (defaults to Solana config)
+- `--url <string>`: Custom RPC URL
+- `--non-canonical <pubkey>`: Use a non-canonical (third-party) metadata account, derived with your authority pubkey as an extra seed
+- `--priority-fees <number>`: Priority fees per compute unit
+
+#### Squads Multisig
+
+You can also use the program metadata program as a multisig.
+All commands in the CLI can also be exported as transactions in various formats using the `--export` flag.
+For updating a metadata account of a program that is managed by a Squads multisig you need to create a buffe first and then export a transaction that you can then import and sign in Squads or any other multisig of your choosing.
+
+1. Transfer the program authority to the squad using the squads dashboard [here](https://app.squads.so/squads)
+2. Create the buffer account and transfer ownership to the squad
+
+```bash
+npx @solana-program/program-metadata create-buffer ./target/idl/let_me_buy.json
+npx @solana-program/program-metadata set-buffer-authority <buffer-address> --new-authority <multisig-address>
+```
+
+3. Export the transaction as base58 and then import it into your multisig under `developers/txBuilder/createTransaction/addInstruction/ImportAsBase58`
+
+```bash
+npx @solana-program/program-metadata write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back>
+```
+
+4. Sign the transaction in your multisig and send it
+
+### Examples
+
+**Upload IDL as canonical (upgrade authority):**
+
+```sh
+npx @solana-program/program-metadata write idl <program-id> ./idl.json --keypair <authority-keypair>
+```
+
+**Upload metadata as third-party (non-canonical):**
+
+```sh
+npx @solana-program/program-metadata write idl <program-id> ./metadata.json --non-canonical <your-pubkey>
+```
+
+**Fetch canonical metadata:**
+
+```sh
+npx @solana-program/program-metadata fetch idl <program-id> --output ./metadata.json
+```
+
+**Fetch non-canonical metadata:**
+
+```sh
+npx @solana-program/program-metadata fetch idl <program-id> --non-canonical <pubkey> --output ./metadata.json
+```
+
+**Close a metadata account:**
+
+```sh
+npx @solana-program/program-metadata close idl <program-id>
+```
+
+## Security.txt File Format
+
+You can also use the program metadata program to upload a `security.txt` file to your program without having it as part of the binary file. This is useful to show name, desciption and icon of your program in the Solana Explorer and also gives security researchers a place to report issues and contact you. You can also add a link to your webapp which makes it easier for users to find and interact with your program.
+
+For that you just create a json file containing the security.txt data and upload it to the program metadata account using "security" as seed instead of "idl".
+
+```json
+{
+  "name": "MyProgramName",
+  "logo": "https://upload.wikimedia.org/wikipedia/en/b/b9/Solana_logo.png",
+  "description": "Example program for meta data",
+  "notification": "On the first of january we will release a new version! Please update your SDKS!!!!",
+  "sdk": "https://github.com/solana-program/program-metadata",
+  "project_url": "https://github.com/solana-developers/",
+  "contacts": [
+    "email:security@example.com",
+    "discord:MyProgram#1234",
+    "twitter:@MyProgram"
+  ],
+  "policy": "https://example.com/security-policy",
+  "preferred_languages": ["en", "de"],
+  "encryption": "https://example.com/pgp-key",
+  "source_code": "https://github.com/solana-developers/",
+  "source_release": "v0.1.0",
+  "source_revision": "abc123def456",
+  "auditors": ["Audit Firm A", "Security Researcher B"],
+  "acknowledgements": "https://example.com/security-acknowledgements",
+  "expiry": "2024-12-31",
+  "version": "0.1.0"
+}
+```
+
+Then use the same commands as for the IDL to upload the security.txt file:
+
+```sh
+npx @solana-program/program-metadata write security <program-id> ./security.json
+```
+
+### How the data is formated and saved
+
+By default the metadata is compressed and encoded in `utf8` and saved on chain in an account.
+To save space you can also point the metadata in the account to a URL using the `--url` flag or to another account using the `--account <address>` flag. When using the `--account` flag you can also specify the offset in the account where the data starts using the `--account-offset <number>` and `--account-length <number>` flags.
+
+Like this you can for examples have multiple programs point to the same metadata account or you can save your IDL in your github repository and let the metadata account just point to it.
+
+- **Seeds:** The `<seed>` argument is a string like "idl" or "security". Use different seeds for different types of metadata. You can attach any data to programs as you like. If you have a certain standard in mind please open a discusson on this repository. The program could for example also enable verioned IDLs or you could think of adding attestations to programs that make it more trustworthy. Something like an auditedBy metadata could be interesting as well.
+- **Canonical vs. Non-Canonical:** By default, the upgrade authority creates canonical metadata. Use `--non-canonical <pubkey>` to create third-party metadata accounts. This could for example be useful for already frozen programs which do not have access to their upgrade authority anymore.
+- **File Types:** The CLI auto-detects JSON, YAML, or TOML.
+- **Compression:** By default all metadata is compressed in the `zlib` format to save on chain space. You can override this by using the `--compression` flag and change it to `none` or `gzip`.
+- **Encoding:** By default all metadata is encoded in `utf8`. You can override this by using the `--encoding` flag and change it to `none`, `base58`or`base64`.
 
 ## Building
 
 To build the program locally, first install the required packages using:
+
 ```sh
 pnpm install
 ```
+
 and then run:
+
 ```sh
 pnpm programs:build
 ```
@@ -33,11 +244,13 @@ pnpm programs:build
 The repository includes two types of tests: program tests and JS client tests.
 
 To run the program tests:
+
 ```sh
 pnpm programs:test
 ```
 
 To run the JS tests:
+
 ```sh
 pnpm clients:js:test
 ```
