@@ -9,14 +9,14 @@ Attach custom data to any program.
 
 ## Overview
 
-The Program Metadata provides the ability to attach metadata information to any program. The information is represented by a PDA account with a pre-defined derivation, e.g., it can be used to add the IDL of a program, with a PDA derived using the `"idl"` string.
+The Program Metadata provides the ability to attach metadata information to any program. The information is represented by a PDA account with a pre-defined derivation, e.g., it can be used to add the IDL of a program, with a PDA derived using the `"idl"` string. This string that identifies the metadata [PDA account](https://solana.com/de/docs/core/pda) is called a seed.
 
 There are two types of metadata accounts:
 
 - canonical: these are metadata accounts created by the program upgrade authority. They are derived from `[program key, seed]`.
 - non-canonical (a.k.a. _third-party_): these are metadata account created by any authority. They are derived from `[program key, authority key, seed]`.
 
-While there can only be a single canonical metadata account for a pair _(program, seed)_, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.The canonical metadata accounts are very easy to find by using the ProgramId and the seed.
+While there can only be a single canonical metadata account for a pair _(program, seed)_, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.
 The metadata is either saved on chain in an account or it can be saved to a URL or another account.
 
 ## Quick Start
@@ -49,6 +49,7 @@ Or install globally:
 
 ```sh
 npm install -g @solana-program/program-metadata
+program-metadata <command> [options]
 ```
 
 See all the commands:
@@ -213,6 +214,49 @@ Then use the same commands as for the IDL to upload the security.txt file:
 ```sh
 npx @solana-program/program-metadata write security <program-id> ./security.json
 ```
+
+## Fetching IDL or Security Metadata with the JavaScript SDK
+
+Instead of the CLI you can also use the client JavaScript SDK. Then you can fetch the on-chain IDL or security.txt metadata for any program using JavaScript. This is useful if you want to integrate metadata fetching into your own tools or scripts.
+
+**Note:** The SDK requires a Solana RPC object from `@solana/kit` (not a `@solana/web3.js` Connection).
+
+### Example: Fetching the IDL
+
+```js file:fetch-metadata.mjs
+import { fetchAndParseMetadataContent } from '@solana-program/program-metadata';
+import { createSolanaRpc } from '@solana/kit';
+
+const rpc = createSolanaRpc('https://api.mainnet-beta.solana.com'); // or devnet/testnet
+const programId = 'YOUR_PROGRAM_ID';
+
+async function main() {
+  const idl = await fetchAndParseMetadataContent(rpc, programId, 'idl');
+  console.log(idl);
+}
+
+main();
+```
+
+### Example: Fetching security.txt
+
+```js
+const security = await fetchAndParseMetadataContent(rpc, programId, 'security');
+console.log(security);
+```
+
+You can use any seed (e.g., `'idl'`, `'security'`, or your own custom seed) to fetch the corresponding metadata for a program.
+
+How to run it:
+
+```sh
+npm i @solana/kit
+npm i @solana-program/program-metadata
+node fetch-metadata.mjs
+```
+
+You can use the Program Metadata program id for example if you want to test it out:
+[ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S](https://explorer.solana.com/address/ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S)
 
 ### How the data is formatted and saved
 
