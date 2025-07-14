@@ -17,7 +17,7 @@ num-derive = "^0.4"
 num-traits = "^0.2"
 serde = { version = "^1.0", features = ["derive"], optional = true }
 serde_with = { version = "^3.0", optional = true }
-solana-client = { version = "^2.2", optional = true }
+solana-client = { version = "^2.3", optional = true }
 solana-program = "^2.2"
 solana-sdk = { version = "^2.2", optional = true }
 thiserror = "^1.0"
