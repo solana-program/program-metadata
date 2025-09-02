@@ -21,6 +21,7 @@ export type CanonicalSeeds = {
   seed: SeedArgs;
 };
 
+/** The canonical derivation for metadata accounts managed by the program authority itself. */
 export async function findCanonicalPda(
   seeds: CanonicalSeeds,
   config: { programAddress?: Address | undefined } = {}

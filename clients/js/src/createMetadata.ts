@@ -2,10 +2,15 @@ import { getTransferSolInstruction } from '@solana-program/system';
 import {
   Account,
   Address,
+  GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
+  InstructionPlan,
   Lamports,
+  parallelInstructionPlan,
   ReadonlyUint8Array,
   Rpc,
+  sequentialInstructionPlan,
+  TransactionPlanner,
   TransactionSigner,
 } from '@solana/kit';
 import {
@@ -19,16 +24,9 @@ import {
   PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
 import {
-  createDefaultTransactionPlanExecutor,
-  InstructionPlan,
-  isValidInstructionPlan,
-  parallelInstructionPlan,
-  sequentialInstructionPlan,
-  TransactionPlanner,
-} from './instructionPlans';
-import {
-  getDefaultTransactionPlannerAndExecutor,
+  createDefaultTransactionPlannerAndExecutor,
   getPdaDetails,
+  isValidInstructionPlan,
   REALLOC_LIMIT,
 } from './internals';
 import {
@@ -41,14 +39,15 @@ import {
 
 export async function createMetadata(
   input: MetadataInput & {
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi> &
-      Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
+    rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi> &
+      Parameters<typeof createDefaultTransactionPlannerAndExecutor>[0]['rpc'];
     rpcSubscriptions: Parameters<
-      typeof createDefaultTransactionPlanExecutor
+      typeof createDefaultTransactionPlannerAndExecutor
     >[0]['rpcSubscriptions'];
   }
 ): Promise<MetadataResponse> {
-  const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
+  const { planner, executor } =
+    createDefaultTransactionPlannerAndExecutor(input);
   const [{ programData, isCanonical, metadata }, buffer] = await Promise.all([
     getPdaDetails(input),
     input.buffer

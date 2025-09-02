@@ -1,5 +1,6 @@
 import {
   Address,
+  Base64EncodedBytes,
   getAddressEncoder,
   getBase64Decoder,
   GetProgramAccountsMemcmpFilter,
@@ -74,7 +75,7 @@ function getDiscriminatorFilter(): GetProgramAccountsMemcmpFilter {
         AccountDiscriminator.Buffer,
         getAccountDiscriminatorEncoder().encode,
         getBase64Decoder().decode
-      ),
+      ) as Base64EncodedBytes,
       encoding: 'base64',
       offset: DISCRIMINATOR_OFFSET,
     },
@@ -90,7 +91,7 @@ function getAuthorityFilter(
         authority,
         getAddressEncoder().encode,
         getBase64Decoder().decode
-      ),
+      ) as Base64EncodedBytes,
       encoding: 'base64',
       offset: AUTHORITY_OFFSET,
     },

@@ -10,9 +10,9 @@ import {
   combineCodec,
   getEnumDecoder,
   getEnumEncoder,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from '@solana/kit';
 
 export enum Format {
@@ -24,14 +24,14 @@ export enum Format {
 
 export type FormatArgs = Format;
 
-export function getFormatEncoder(): Encoder<FormatArgs> {
+export function getFormatEncoder(): FixedSizeEncoder<FormatArgs> {
   return getEnumEncoder(Format);
 }
 
-export function getFormatDecoder(): Decoder<Format> {
+export function getFormatDecoder(): FixedSizeDecoder<Format> {
   return getEnumDecoder(Format);
 }
 
-export function getFormatCodec(): Codec<FormatArgs, Format> {
+export function getFormatCodec(): FixedSizeCodec<FormatArgs, Format> {
   return combineCodec(getFormatEncoder(), getFormatDecoder());
 }

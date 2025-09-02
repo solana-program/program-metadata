@@ -1,6 +1,5 @@
-import { Address } from '@solana/kit';
+import { Address, sequentialInstructionPlan } from '@solana/kit';
 import { fetchMaybeBuffer, getCloseInstruction } from '../../generated';
-import { sequentialInstructionPlan } from '../../instructionPlans';
 import { bufferArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions } from '../options';

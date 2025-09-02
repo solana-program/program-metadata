@@ -10,9 +10,9 @@ import {
   combineCodec,
   getEnumDecoder,
   getEnumEncoder,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from '@solana/kit';
 
 export enum DataSource {
@@ -23,14 +23,17 @@ export enum DataSource {
 
 export type DataSourceArgs = DataSource;
 
-export function getDataSourceEncoder(): Encoder<DataSourceArgs> {
+export function getDataSourceEncoder(): FixedSizeEncoder<DataSourceArgs> {
   return getEnumEncoder(DataSource);
 }
 
-export function getDataSourceDecoder(): Decoder<DataSource> {
+export function getDataSourceDecoder(): FixedSizeDecoder<DataSource> {
   return getEnumDecoder(DataSource);
 }
 
-export function getDataSourceCodec(): Codec<DataSourceArgs, DataSource> {
+export function getDataSourceCodec(): FixedSizeCodec<
+  DataSourceArgs,
+  DataSource
+> {
   return combineCodec(getDataSourceEncoder(), getDataSourceDecoder());
 }

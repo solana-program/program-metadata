@@ -1,17 +1,14 @@
 import {
   GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
+  InstructionPlan,
   MaybeAccount,
   Rpc,
 } from '@solana/kit';
 import { getCreateMetadataInstructionPlan } from './createMetadata';
 import { fetchBuffer, fetchMaybeMetadata, Metadata } from './generated';
 import {
-  createDefaultTransactionPlanExecutor,
-  InstructionPlan,
-} from './instructionPlans';
-import {
-  getDefaultTransactionPlannerAndExecutor,
+  createDefaultTransactionPlannerAndExecutor,
   getPdaDetails,
 } from './internals';
 import { getUpdateMetadataInstructionPlan } from './updateMetadata';
@@ -20,13 +17,14 @@ import { MetadataInput, MetadataResponse } from './utils';
 export async function writeMetadata(
   input: MetadataInput & {
     rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi> &
-      Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
+      Parameters<typeof createDefaultTransactionPlannerAndExecutor>[0]['rpc'];
     rpcSubscriptions: Parameters<
-      typeof createDefaultTransactionPlanExecutor
+      typeof createDefaultTransactionPlannerAndExecutor
     >[0]['rpcSubscriptions'];
   }
 ): Promise<MetadataResponse> {
-  const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
+  const { planner, executor } =
+    createDefaultTransactionPlannerAndExecutor(input);
   const { programData, isCanonical, metadata } = await getPdaDetails(input);
   const [metadataAccount, buffer] = await Promise.all([
     fetchMaybeMetadata(input.rpc, metadata),

@@ -6,14 +6,16 @@ import {
   Account,
   Address,
   address,
+  BaseTransactionMessage,
   Commitment,
-  CompilableTransactionMessage,
   compileTransaction,
   createKeyPairSignerFromBytes,
   createNoopSigner,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  getAllSingleTransactionPlans,
   getTransactionEncoder,
+  InstructionPlan,
   MessageSigner,
   pipe,
   Rpc,
@@ -21,6 +23,10 @@ import {
   setTransactionMessageLifetimeUsingBlockhash,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
+  TransactionMessageWithFeePayer,
+  TransactionPlan,
+  TransactionPlanExecutor,
+  TransactionPlanner,
   TransactionSigner,
 } from '@solana/kit';
 import { Command } from 'commander';
@@ -28,16 +34,10 @@ import picocolors from 'picocolors';
 import { parse as parseYaml } from 'yaml';
 import { Buffer, DataSource, fetchBuffer, Format, Seed } from '../generated';
 import {
-  createDefaultTransactionPlanExecutor,
-  createDefaultTransactionPlanner,
-  getAllSingleTransactionPlans,
-  getSetComputeUnitLimitInstructionIndex,
-  InstructionPlan,
-  TransactionPlan,
-  TransactionPlanExecutor,
-  TransactionPlanner,
-} from '../instructionPlans';
-import { getPdaDetails, PdaDetails } from '../internals';
+  createDefaultTransactionPlannerAndExecutor,
+  getPdaDetails,
+  PdaDetails,
+} from '../internals';
 import {
   decodeData,
   packDirectData,
@@ -85,11 +85,9 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
     options,
     readonlyClient.configs
   );
-  const planner = createDefaultTransactionPlanner({
-    feePayer: payer,
+  const { planner, executor } = createDefaultTransactionPlannerAndExecutor({
     computeUnitPrice: options.priorityFees,
-  });
-  const executor = createDefaultTransactionPlanExecutor({
+    payer,
     rpc: readonlyClient.rpc,
     rpcSubscriptions: readonlyClient.rpcSubscriptions,
     parallelChunkSize: 5,
@@ -129,8 +127,8 @@ async function exportTransactionPlan(
   for (let i = 0; i < singleTransactions.length; i++) {
     const transaction = pipe(
       singleTransactions[i].message,
-      (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-      removeComputeUnitLimitInstruction,
+      (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+      (m) => removeComputeUnitLimitInstruction(m),
       compileTransaction
     );
     const encodedTransaction = decodeData(
@@ -143,7 +141,8 @@ async function exportTransactionPlan(
 }
 
 function removeComputeUnitLimitInstruction<
-  TTransactionMessage extends CompilableTransactionMessage,
+  TTransactionMessage extends BaseTransactionMessage &
+    TransactionMessageWithFeePayer,
 >(message: TTransactionMessage): TTransactionMessage {
   const index = getSetComputeUnitLimitInstructionIndex(message);
   if (index === -1) return message;

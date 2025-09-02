@@ -10,9 +10,9 @@ import {
   combineCodec,
   getEnumDecoder,
   getEnumEncoder,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from '@solana/kit';
 
 export enum Compression {
@@ -23,14 +23,17 @@ export enum Compression {
 
 export type CompressionArgs = Compression;
 
-export function getCompressionEncoder(): Encoder<CompressionArgs> {
+export function getCompressionEncoder(): FixedSizeEncoder<CompressionArgs> {
   return getEnumEncoder(Compression);
 }
 
-export function getCompressionDecoder(): Decoder<Compression> {
+export function getCompressionDecoder(): FixedSizeDecoder<Compression> {
   return getEnumDecoder(Compression);
 }
 
-export function getCompressionCodec(): Codec<CompressionArgs, Compression> {
+export function getCompressionCodec(): FixedSizeCodec<
+  CompressionArgs,
+  Compression
+> {
   return combineCodec(getCompressionEncoder(), getCompressionDecoder());
 }

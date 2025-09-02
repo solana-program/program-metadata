@@ -10,9 +10,9 @@ import {
   combineCodec,
   getEnumDecoder,
   getEnumEncoder,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from '@solana/kit';
 
 export enum AccountDiscriminator {
@@ -23,15 +23,15 @@ export enum AccountDiscriminator {
 
 export type AccountDiscriminatorArgs = AccountDiscriminator;
 
-export function getAccountDiscriminatorEncoder(): Encoder<AccountDiscriminatorArgs> {
+export function getAccountDiscriminatorEncoder(): FixedSizeEncoder<AccountDiscriminatorArgs> {
   return getEnumEncoder(AccountDiscriminator);
 }
 
-export function getAccountDiscriminatorDecoder(): Decoder<AccountDiscriminator> {
+export function getAccountDiscriminatorDecoder(): FixedSizeDecoder<AccountDiscriminator> {
   return getEnumDecoder(AccountDiscriminator);
 }
 
-export function getAccountDiscriminatorCodec(): Codec<
+export function getAccountDiscriminatorCodec(): FixedSizeCodec<
   AccountDiscriminatorArgs,
   AccountDiscriminator
 > {

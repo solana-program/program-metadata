@@ -6,14 +6,18 @@ import {
   GetAccountInfoApi,
   getAddressDecoder,
   getAddressEncoder,
+  getLinearMessagePackerInstructionPlan,
   getOptionDecoder,
   getProgramDerivedAddress,
+  getReallocMessagePackerInstructionPlan,
   getStructDecoder,
   getU32Decoder,
   getU64Decoder,
+  MessagePackerInstructionPlan,
   MicroLamports,
   ReadonlyUint8Array,
   Rpc,
+  TransactionPlanResult,
   TransactionSigner,
   unwrapOption,
 } from '@solana/kit';
@@ -26,12 +30,6 @@ import {
   getWriteInstruction,
   SeedArgs,
 } from './generated';
-import {
-  getLinearMessagePackerInstructionPlan,
-  getReallocMessagePackerInstructionPlan,
-  MessagePackerInstructionPlan,
-  TransactionPlanResult,
-} from './instructionPlans';
 
 export const ACCOUNT_HEADER_LENGTH = 96;
 

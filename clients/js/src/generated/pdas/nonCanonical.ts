@@ -23,6 +23,7 @@ export type NonCanonicalSeeds = {
   seed: SeedArgs;
 };
 
+/** The derivation for metadata accounts managed by third-party authorities. */
 export async function findNonCanonicalPda(
   seeds: NonCanonicalSeeds,
   config: { programAddress?: Address | undefined } = {}

@@ -7,16 +7,17 @@ import {
   airdropFactory,
   appendTransactionMessageInstruction,
   appendTransactionMessageInstructions,
+  assertIsSendableTransaction,
   BASE_ACCOUNT_SIZE,
+  BaseTransactionMessage,
   Commitment,
-  CompilableTransactionMessage,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
   createTransactionMessage,
   generateKeyPairSigner,
   getBase64Encoder,
   getSignatureFromTransaction,
-  IInstruction,
+  Instruction,
   isOption,
   KeyPairSigner,
   lamports,
@@ -32,6 +33,7 @@ import {
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
   TransactionMessageWithBlockhashLifetime,
+  TransactionMessageWithFeePayer,
   TransactionSigner,
   unwrapOption,
 } from '@solana/kit';
@@ -100,13 +102,15 @@ export const createDefaultTransaction = async (
 
 export const signAndSendTransaction = async (
   client: Client,
-  transactionMessage: CompilableTransactionMessage &
+  transactionMessage: BaseTransactionMessage &
+    TransactionMessageWithFeePayer &
     TransactionMessageWithBlockhashLifetime,
   commitment: Commitment = 'confirmed'
 ) => {
   const signedTransaction =
     await signTransactionMessageWithSigners(transactionMessage);
   const signature = getSignatureFromTransaction(signedTransaction);
+  assertIsSendableTransaction(signedTransaction);
   await sendAndConfirmTransactionFactory(client)(signedTransaction, {
     commitment,
   });
@@ -234,7 +238,7 @@ export async function createBuffer(
     programData,
     seed,
   });
-  const instructions: IInstruction[] = [preFundIx, allocateIx];
+  const instructions: Instruction[] = [preFundIx, allocateIx];
   if (dataLenth >= REALLOC_LIMIT) {
     let offset = 0;
     while (offset < dataLenth) {
