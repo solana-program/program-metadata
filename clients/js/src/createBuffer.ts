@@ -3,7 +3,9 @@ import {
   Account,
   Address,
   Lamports,
+  parallelInstructionPlan,
   ReadonlyUint8Array,
+  sequentialInstructionPlan,
   TransactionSigner,
 } from '@solana/kit';
 import {
@@ -14,10 +16,6 @@ import {
   getWriteInstruction,
   PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
-import {
-  parallelInstructionPlan,
-  sequentialInstructionPlan,
-} from './instructionPlans';
 import { getAccountSize, getWriteInstructionPlan } from './utils';
 
 export function getCreateBufferInstructionPlan(input: {

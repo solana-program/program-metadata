@@ -3,7 +3,9 @@ import {
   Account,
   Address,
   Lamports,
+  parallelInstructionPlan,
   ReadonlyUint8Array,
+  sequentialInstructionPlan,
   TransactionSigner,
 } from '@solana/kit';
 import {
@@ -12,10 +14,6 @@ import {
   getTrimInstruction,
   getWriteInstruction,
 } from './generated';
-import {
-  parallelInstructionPlan,
-  sequentialInstructionPlan,
-} from './instructionPlans';
 import { REALLOC_LIMIT } from './internals';
 import { getExtendInstructionPlan, getWriteInstructionPlan } from './utils';
 

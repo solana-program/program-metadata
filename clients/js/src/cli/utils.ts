@@ -6,14 +6,16 @@ import {
   Account,
   Address,
   address,
+  BaseTransactionMessage,
   Commitment,
-  CompilableTransactionMessage,
   compileTransaction,
   createKeyPairSignerFromBytes,
   createNoopSigner,
   createSolanaRpc,
   createSolanaRpcSubscriptions,
+  getAllSingleTransactionPlans,
   getTransactionEncoder,
+  InstructionPlan,
   MessageSigner,
   pipe,
   Rpc,
@@ -21,6 +23,10 @@ import {
   setTransactionMessageLifetimeUsingBlockhash,
   SolanaRpcApi,
   SolanaRpcSubscriptionsApi,
+  TransactionMessageWithFeePayer,
+  TransactionPlan,
+  TransactionPlanExecutor,
+  TransactionPlanner,
   TransactionSigner,
 } from '@solana/kit';
 import { Command } from 'commander';
@@ -28,16 +34,10 @@ import picocolors from 'picocolors';
 import { parse as parseYaml } from 'yaml';
 import { Buffer, DataSource, fetchBuffer, Format, Seed } from '../generated';
 import {
-  createDefaultTransactionPlanExecutor,
-  createDefaultTransactionPlanner,
-  getAllSingleTransactionPlans,
-  getSetComputeUnitLimitInstructionIndex,
-  InstructionPlan,
-  TransactionPlan,
-  TransactionPlanExecutor,
-  TransactionPlanner,
-} from '../instructionPlans';
-import { getPdaDetails, PdaDetails } from '../internals';
+  createDefaultTransactionPlannerAndExecutor,
+  getPdaDetails,
+  PdaDetails,
+} from '../internals';
 import {
   decodeData,
   packDirectData,
@@ -55,6 +55,11 @@ import {
   RpcOption,
   WriteOptions,
 } from './options';
+import {
+  COMPUTE_BUDGET_PROGRAM_ADDRESS,
+  ComputeBudgetInstruction,
+  identifyComputeBudgetInstruction,
+} from '@solana-program/compute-budget';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const DATA_SOURCE_OPTIONS =
@@ -85,14 +90,12 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
     options,
     readonlyClient.configs
   );
-  const planner = createDefaultTransactionPlanner({
-    feePayer: payer,
-    computeUnitPrice: options.priorityFees,
-  });
-  const executor = createDefaultTransactionPlanExecutor({
+  const { planner, executor } = createDefaultTransactionPlannerAndExecutor({
+    priorityFees: options.priorityFees,
+    payer,
     rpc: readonlyClient.rpc,
     rpcSubscriptions: readonlyClient.rpcSubscriptions,
-    parallelChunkSize: 5,
+    concurrency: 5,
   });
   const planAndExecute = async (instructionPlan: InstructionPlan) => {
     const transactionPlan = await planner(instructionPlan);
@@ -129,8 +132,8 @@ async function exportTransactionPlan(
   for (let i = 0; i < singleTransactions.length; i++) {
     const transaction = pipe(
       singleTransactions[i].message,
-      (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-      removeComputeUnitLimitInstruction,
+      (m) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+      (m) => removeComputeUnitLimitInstruction(m),
       compileTransaction
     );
     const encodedTransaction = decodeData(
@@ -143,7 +146,8 @@ async function exportTransactionPlan(
 }
 
 function removeComputeUnitLimitInstruction<
-  TTransactionMessage extends CompilableTransactionMessage,
+  TTransactionMessage extends BaseTransactionMessage &
+    TransactionMessageWithFeePayer,
 >(message: TTransactionMessage): TTransactionMessage {
   const index = getSetComputeUnitLimitInstructionIndex(message);
   if (index === -1) return message;
@@ -151,6 +155,18 @@ function removeComputeUnitLimitInstruction<
     ...message,
     instructions: message.instructions.filter((_, i) => i !== index),
   };
+}
+
+export function getSetComputeUnitLimitInstructionIndex(
+  transactionMessage: BaseTransactionMessage
+) {
+  return transactionMessage.instructions.findIndex((ix) => {
+    return (
+      ix.programAddress === COMPUTE_BUDGET_PROGRAM_ADDRESS &&
+      identifyComputeBudgetInstruction(ix.data as Uint8Array) ===
+        ComputeBudgetInstruction.SetComputeUnitLimit
+    );
+  });
 }
 
 async function executeTransactionPlan(

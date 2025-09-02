@@ -1,6 +1,5 @@
-import { Address } from '@solana/kit';
+import { Address, sequentialInstructionPlan } from '@solana/kit';
 import { getSetAuthorityInstruction } from '../../generated';
-import { sequentialInstructionPlan } from '../../instructionPlans';
 import { bufferArgument } from '../arguments';
 import { logCommand } from '../logs';
 import {

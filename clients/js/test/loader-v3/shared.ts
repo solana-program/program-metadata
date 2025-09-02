@@ -3,8 +3,8 @@ import {
   isProgramDerivedAddress,
   isTransactionSigner as web3JsIsTransactionSigner,
   type Address,
-  type IAccountMeta,
-  type IAccountSignerMeta,
+  type AccountMeta,
+  type AccountSignerMeta,
   type ProgramDerivedAddress,
   type TransactionSigner,
   upgradeRoleToSigner,
@@ -105,7 +105,7 @@ export type ResolvedAccount<
  * Defines an instruction that stores additional bytes on-chain.
  * @internal
  */
-export type IInstructionWithByteDelta = {
+export type InstructionWithByteDelta = {
   byteDelta: number;
 };
 
@@ -119,7 +119,7 @@ export function getAccountMetaFactory(
 ) {
   return (
     account: ResolvedAccount
-  ): IAccountMeta | IAccountSignerMeta | undefined => {
+  ): AccountMeta | AccountSignerMeta | undefined => {
     if (!account.value) {
       if (optionalAccountStrategy === 'omitted') return;
       return Object.freeze({

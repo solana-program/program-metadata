@@ -25,6 +25,7 @@ export type MetadataSeeds = {
   seed: SeedArgs;
 };
 
+/** The derivation for metadata accounts, canonical or not, depending if an authority is provided. */
 export async function findMetadataPda(
   seeds: MetadataSeeds,
   config: { programAddress?: Address | undefined } = {}

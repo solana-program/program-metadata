@@ -9,10 +9,10 @@ import {
   type Codec,
   type Decoder,
   type Encoder,
-  type IAccountMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type AccountMeta,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type WritableAccount,
 } from '@solana/kit';
@@ -27,12 +27,12 @@ export function getInitializeBufferDiscriminatorBytes() {
 
 export type InitializeBufferInstruction<
   TProgram extends string = typeof LOADER_V3_PROGRAM_ADDRESS,
-  TAccountSourceAccount extends string | IAccountMeta<string> = string,
-  TAccountBufferAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+  TAccountSourceAccount extends string | AccountMeta<string> = string,
+  TAccountBufferAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<Uint8Array> &
+  InstructionWithAccounts<
     [
       TAccountSourceAccount extends string
         ? WritableAccount<TAccountSourceAccount>
@@ -124,7 +124,7 @@ export function getInitializeBufferInstruction<
 
 export type ParsedInitializeBufferInstruction<
   TProgram extends string = typeof LOADER_V3_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -138,11 +138,11 @@ export type ParsedInitializeBufferInstruction<
 
 export function parseInitializeBufferInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<Uint8Array>
 ): ParsedInitializeBufferInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 2) {
     // TODO: Coded error.

@@ -12,23 +12,23 @@ import {
   fixEncoderSize,
   getUtf8Decoder,
   getUtf8Encoder,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
 } from '@solana/kit';
 
 export type Seed = string;
 
 export type SeedArgs = Seed;
 
-export function getSeedEncoder(): Encoder<SeedArgs> {
+export function getSeedEncoder(): FixedSizeEncoder<SeedArgs> {
   return fixEncoderSize(getUtf8Encoder(), 16);
 }
 
-export function getSeedDecoder(): Decoder<Seed> {
+export function getSeedDecoder(): FixedSizeDecoder<Seed> {
   return fixDecoderSize(getUtf8Decoder(), 16);
 }
 
-export function getSeedCodec(): Codec<SeedArgs, Seed> {
+export function getSeedCodec(): FixedSizeCodec<SeedArgs, Seed> {
   return combineCodec(getSeedEncoder(), getSeedDecoder());
 }

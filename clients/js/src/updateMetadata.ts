@@ -5,10 +5,13 @@ import {
   generateKeyPairSigner,
   GetAccountInfoApi,
   GetMinimumBalanceForRentExemptionApi,
+  InstructionPlan,
   lamports,
   Lamports,
   ReadonlyUint8Array,
   Rpc,
+  sequentialInstructionPlan,
+  TransactionPlanner,
   TransactionSigner,
 } from '@solana/kit';
 import { getCreateBufferInstructionPlan } from './createBuffer';
@@ -23,15 +26,9 @@ import {
   SetDataInput,
 } from './generated';
 import {
-  createDefaultTransactionPlanExecutor,
-  InstructionPlan,
-  isValidInstructionPlan,
-  sequentialInstructionPlan,
-  TransactionPlanner,
-} from './instructionPlans';
-import {
-  getDefaultTransactionPlannerAndExecutor,
+  createDefaultTransactionPlannerAndExecutor,
   getPdaDetails,
+  isValidInstructionPlan,
   REALLOC_LIMIT,
 } from './internals';
 import {
@@ -44,13 +41,14 @@ import {
 export async function updateMetadata(
   input: MetadataInput & {
     rpc: Rpc<GetAccountInfoApi & GetMinimumBalanceForRentExemptionApi> &
-      Parameters<typeof createDefaultTransactionPlanExecutor>[0]['rpc'];
+      Parameters<typeof createDefaultTransactionPlannerAndExecutor>[0]['rpc'];
     rpcSubscriptions: Parameters<
-      typeof createDefaultTransactionPlanExecutor
+      typeof createDefaultTransactionPlannerAndExecutor
     >[0]['rpcSubscriptions'];
   }
 ): Promise<MetadataResponse> {
-  const { planner, executor } = getDefaultTransactionPlannerAndExecutor(input);
+  const { planner, executor } =
+    createDefaultTransactionPlannerAndExecutor(input);
   const { programData, isCanonical, metadata } = await getPdaDetails(input);
   const [metadataAccount, buffer] = await Promise.all([
     fetchMetadata(input.rpc, metadata),

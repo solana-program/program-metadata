@@ -17,9 +17,9 @@ import {
   getU32Decoder,
   getU32Encoder,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Option,
   type OptionOrNullable,
 } from '@solana/kit';
@@ -36,7 +36,7 @@ export type ExternalDataArgs = {
   length: OptionOrNullable<number>;
 };
 
-export function getExternalDataEncoder(): Encoder<ExternalDataArgs> {
+export function getExternalDataEncoder(): FixedSizeEncoder<ExternalDataArgs> {
   return getStructEncoder([
     ['address', getAddressEncoder()],
     ['offset', getU32Encoder()],
@@ -47,7 +47,7 @@ export function getExternalDataEncoder(): Encoder<ExternalDataArgs> {
   ]);
 }
 
-export function getExternalDataDecoder(): Decoder<ExternalData> {
+export function getExternalDataDecoder(): FixedSizeDecoder<ExternalData> {
   return getStructDecoder([
     ['address', getAddressDecoder()],
     ['offset', getU32Decoder()],
@@ -58,6 +58,9 @@ export function getExternalDataDecoder(): Decoder<ExternalData> {
   ]);
 }
 
-export function getExternalDataCodec(): Codec<ExternalDataArgs, ExternalData> {
+export function getExternalDataCodec(): FixedSizeCodec<
+  ExternalDataArgs,
+  ExternalData
+> {
   return combineCodec(getExternalDataEncoder(), getExternalDataDecoder());
 }

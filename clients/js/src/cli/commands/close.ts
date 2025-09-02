@@ -1,6 +1,5 @@
-import { Address } from '@solana/kit';
+import { Address, sequentialInstructionPlan } from '@solana/kit';
 import { getCloseInstruction, Seed } from '../../generated';
-import { sequentialInstructionPlan } from '../../instructionPlans';
 import { programArgument, seedArgument } from '../arguments';
 import {
   GlobalOptions,

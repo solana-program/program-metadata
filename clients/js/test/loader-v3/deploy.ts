@@ -11,11 +11,11 @@ import {
   type Codec,
   type Decoder,
   type Encoder,
-  type IAccountMeta,
-  type IAccountSignerMeta,
-  type IInstruction,
-  type IInstructionWithAccounts,
-  type IInstructionWithData,
+  type AccountMeta,
+  type AccountSignerMeta,
+  type Instruction,
+  type InstructionWithAccounts,
+  type InstructionWithData,
   type ReadonlyAccount,
   type ReadonlySignerAccount,
   type TransactionSigner,
@@ -33,28 +33,28 @@ export function getDeployWithMaxDataLenDiscriminatorBytes() {
 
 export type DeployWithMaxDataLenInstruction<
   TProgram extends string = typeof LOADER_V3_PROGRAM_ADDRESS,
-  TAccountPayerAccount extends string | IAccountMeta<string> = string,
-  TAccountProgramDataAccount extends string | IAccountMeta<string> = string,
-  TAccountProgramAccount extends string | IAccountMeta<string> = string,
-  TAccountBufferAccount extends string | IAccountMeta<string> = string,
+  TAccountPayerAccount extends string | AccountMeta<string> = string,
+  TAccountProgramDataAccount extends string | AccountMeta<string> = string,
+  TAccountProgramAccount extends string | AccountMeta<string> = string,
+  TAccountBufferAccount extends string | AccountMeta<string> = string,
   TAccountRentSysvar extends
     | string
-    | IAccountMeta<string> = 'SysvarRent111111111111111111111111111111111',
+    | AccountMeta<string> = 'SysvarRent111111111111111111111111111111111',
   TAccountClockSysvar extends
     | string
-    | IAccountMeta<string> = 'SysvarC1ock11111111111111111111111111111111',
+    | AccountMeta<string> = 'SysvarC1ock11111111111111111111111111111111',
   TAccountSystemProgram extends
     | string
-    | IAccountMeta<string> = '11111111111111111111111111111111',
-  TAccountAuthority extends string | IAccountMeta<string> = string,
-  TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
-> = IInstruction<TProgram> &
-  IInstructionWithData<Uint8Array> &
-  IInstructionWithAccounts<
+    | AccountMeta<string> = '11111111111111111111111111111111',
+  TAccountAuthority extends string | AccountMeta<string> = string,
+  TRemainingAccounts extends readonly AccountMeta<string>[] = [],
+> = Instruction<TProgram> &
+  InstructionWithData<Uint8Array> &
+  InstructionWithAccounts<
     [
       TAccountPayerAccount extends string
         ? WritableSignerAccount<TAccountPayerAccount> &
-            IAccountSignerMeta<TAccountPayerAccount>
+            AccountSignerMeta<TAccountPayerAccount>
         : TAccountPayerAccount,
       TAccountProgramDataAccount extends string
         ? WritableAccount<TAccountProgramDataAccount>
@@ -76,7 +76,7 @@ export type DeployWithMaxDataLenInstruction<
         : TAccountSystemProgram,
       TAccountAuthority extends string
         ? ReadonlySignerAccount<TAccountAuthority> &
-            IAccountSignerMeta<TAccountAuthority>
+            AccountSignerMeta<TAccountAuthority>
         : TAccountAuthority,
       ...TRemainingAccounts,
     ]
@@ -253,7 +253,7 @@ export function getDeployWithMaxDataLenInstruction<
 
 export type ParsedDeployWithMaxDataLenInstruction<
   TProgram extends string = typeof LOADER_V3_PROGRAM_ADDRESS,
-  TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
@@ -279,11 +279,11 @@ export type ParsedDeployWithMaxDataLenInstruction<
 
 export function parseDeployWithMaxDataLenInstruction<
   TProgram extends string,
-  TAccountMetas extends readonly IAccountMeta[],
+  TAccountMetas extends readonly AccountMeta[],
 >(
-  instruction: IInstruction<TProgram> &
-    IInstructionWithAccounts<TAccountMetas> &
-    IInstructionWithData<Uint8Array>
+  instruction: Instruction<TProgram> &
+    InstructionWithAccounts<TAccountMetas> &
+    InstructionWithData<Uint8Array>
 ): ParsedDeployWithMaxDataLenInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 8) {
     // TODO: Coded error.
