@@ -55,6 +55,11 @@ import {
   RpcOption,
   WriteOptions,
 } from './options';
+import {
+  COMPUTE_BUDGET_PROGRAM_ADDRESS,
+  ComputeBudgetInstruction,
+  identifyComputeBudgetInstruction,
+} from '@solana-program/compute-budget';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const DATA_SOURCE_OPTIONS =
@@ -86,11 +91,11 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
     readonlyClient.configs
   );
   const { planner, executor } = createDefaultTransactionPlannerAndExecutor({
-    computeUnitPrice: options.priorityFees,
+    priorityFees: options.priorityFees,
     payer,
     rpc: readonlyClient.rpc,
     rpcSubscriptions: readonlyClient.rpcSubscriptions,
-    parallelChunkSize: 5,
+    concurrency: 5,
   });
   const planAndExecute = async (instructionPlan: InstructionPlan) => {
     const transactionPlan = await planner(instructionPlan);
@@ -150,6 +155,18 @@ function removeComputeUnitLimitInstruction<
     ...message,
     instructions: message.instructions.filter((_, i) => i !== index),
   };
+}
+
+export function getSetComputeUnitLimitInstructionIndex(
+  transactionMessage: BaseTransactionMessage
+) {
+  return transactionMessage.instructions.findIndex((ix) => {
+    return (
+      ix.programAddress === COMPUTE_BUDGET_PROGRAM_ADDRESS &&
+      identifyComputeBudgetInstruction(ix.data as Uint8Array) ===
+        ComputeBudgetInstruction.SetComputeUnitLimit
+    );
+  });
 }
 
 async function executeTransactionPlan(
