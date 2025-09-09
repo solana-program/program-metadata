@@ -24,7 +24,6 @@ import {
   TransactionPlanner,
   TransactionSigner,
 } from '@solana/kit';
-import { limitFunction } from 'p-limit';
 import { findMetadataPda, SeedArgs } from './generated';
 import { getProgramAuthority } from './utils';
 
@@ -88,25 +87,22 @@ export function createDefaultTransactionPlannerAndExecutor(input: {
   });
 
   const executor = createTransactionPlanExecutor({
-    executeTransactionMessage: limitFunction(
-      async (message, config) => {
-        const { value: latestBlockhash } = await input.rpc
-          .getLatestBlockhash()
-          .send();
-        const transaction = await pipe(
-          setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message),
-          async (m) => await estimateAndSetCULimit(m, config),
-          async (m) => await signTransactionMessageWithSigners(await m, config)
-        );
-        assertIsSendableTransaction(transaction);
-        await sendAndConfirmTransaction(transaction, {
-          ...config,
-          commitment: 'confirmed',
-        });
-        return { transaction };
-      },
-      { concurrency: input.concurrency ?? 5 }
-    ),
+    executeTransactionMessage: limitFunction(async (message, config) => {
+      const { value: latestBlockhash } = await input.rpc
+        .getLatestBlockhash()
+        .send();
+      const transaction = await pipe(
+        setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, message),
+        async (m) => await estimateAndSetCULimit(m, config),
+        async (m) => await signTransactionMessageWithSigners(await m, config)
+      );
+      assertIsSendableTransaction(transaction);
+      await sendAndConfirmTransaction(transaction, {
+        ...config,
+        commitment: 'confirmed',
+      });
+      return { transaction };
+    }, input.concurrency ?? 5),
   });
 
   return { planner, executor };
@@ -122,4 +118,40 @@ export async function isValidInstructionPlan(
   } catch {
     return false;
   }
+}
+
+function limitFunction<TArguments extends unknown[], TReturnType>(
+  fn: (...args: TArguments) => PromiseLike<TReturnType>,
+  concurrency: number
+): (...args: TArguments) => Promise<TReturnType> {
+  let running = 0;
+  const queue: Array<{
+    args: TArguments;
+    resolve: (value: TReturnType) => void;
+    reject: (reason?: unknown) => void;
+  }> = [];
+
+  function process() {
+    // Do nothing if we're still running at max concurrency
+    // or if there's nothing left to process.
+    if (running >= concurrency || queue.length === 0) return;
+
+    running++;
+    const { args, resolve, reject } = queue.shift()!;
+
+    Promise.resolve(fn(...args))
+      .then(resolve)
+      .catch(reject)
+      .finally(() => {
+        running--;
+        process();
+      });
+  }
+
+  return function (...args) {
+    return new Promise((resolve, reject) => {
+      queue.push({ args, resolve, reject });
+      process();
+    });
+  };
 }
