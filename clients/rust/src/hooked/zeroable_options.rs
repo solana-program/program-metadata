@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::pubkey::Pubkey;
+use solana_pubkey::Pubkey;
 
 pub type ZeroableOptionOffset = ZeroableOption<u32>;
 pub type ZeroableOptionPubkey = ZeroableOption<Pubkey>;
