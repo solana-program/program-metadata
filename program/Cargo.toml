@@ -16,7 +16,7 @@ program-dependencies = []
 account-dependencies = []
 
 [lib]
-name = "program_metadata"
+name = "spl_program_metadata"
 # TODO: split into program and interface crates
 crate-type = ["cdylib", "lib"]
 
