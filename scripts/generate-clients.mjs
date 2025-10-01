@@ -92,6 +92,7 @@ codama.accept(
   renderRustVisitor(path.join(rustClient, 'src', 'generated'), {
     formatCode: true,
     crateFolder: rustClient,
+    toolchain: '+nightly-2025-02-16',
     anchorTraits: false,
     linkOverrides: {
       definedTypes: {
