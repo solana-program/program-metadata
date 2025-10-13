@@ -45,12 +45,12 @@
   "homepage": "https://github.com/solana-program/program-metadata#readme",
   "license": "MIT",
   "peerDependencies": {
-    "@solana/kit": "^3.0"
+    "@solana/kit": "^4.0"
   },
   "dependencies": {
     "@iarna/toml": "^2.2.5",
-    "@solana-program/compute-budget": "^0.9.0",
-    "@solana-program/system": "^0.8.0",
+    "@solana-program/compute-budget": "^0.10.0",
+    "@solana-program/system": "^0.9.0",
     "commander": "^13.0.0",
     "pako": "^2.1.0",
     "picocolors": "^1.1.1",
@@ -59,7 +59,7 @@
   "devDependencies": {
     "@ava/typescript": "^4.1.0",
     "@solana/eslint-config-solana": "^3.0.3",
-    "@solana/kit": "^3.0",
+    "@solana/kit": "^4.0",
     "@types/node": "^24",
     "@types/pako": "^2.0.3",
     "@typescript-eslint/eslint-plugin": "^7.16.1",
