@@ -7,6 +7,7 @@ import {
 import {
   Address,
   assertIsSendableTransaction,
+  assertIsTransactionWithBlockhashLifetime,
   createTransactionMessage,
   createTransactionPlanExecutor,
   createTransactionPlanner,
@@ -97,6 +98,7 @@ export function createDefaultTransactionPlannerAndExecutor(input: {
         async (m) => await signTransactionMessageWithSigners(await m, config)
       );
       assertIsSendableTransaction(transaction);
+      assertIsTransactionWithBlockhashLifetime(transaction);
       await sendAndConfirmTransaction(transaction, {
         ...config,
         commitment: 'confirmed',
