@@ -25,10 +25,10 @@ Upload an IDL or security.txt file to your program in one command:
 
 ```sh
 # Upload IDL (as upgrade authority using the default CLI keypair)
-npx @solana-program/program-metadata write idl <program-id> ./idl.json
+npx @solana-program/program-metadata@latest write idl <program-id> ./idl.json
 
 # Upload metadata with additional information about your program similar to security.txt
-npx @solana-program/program-metadata write security <program-id> ./security.json
+npx @solana-program/program-metadata@latest write security <program-id> ./security.json
 ```
 
 At the moment the Solana explorer only reads Codama IDLs that are uploaded as canonical metadata accounts. But soon it will also support security files and Anchor IDLs.
@@ -42,7 +42,7 @@ The CLI supports both canonical (program upgrade authority) and non-canonical (t
 You can run the CLI directly with npx (no install required):
 
 ```sh
-npx @solana-program/program-metadata <command> [options]
+npx @solana-program/program-metadata@latest <command> [options]
 ```
 
 Or install globally:
@@ -55,7 +55,7 @@ program-metadata <command> [options]
 See all the commands:
 
 ```sh
-npx @solana-program/program-metadata --help
+npx @solana-program/program-metadata@latest --help
 ```
 
 ### Commands
@@ -65,7 +65,7 @@ npx @solana-program/program-metadata --help
 Create a new metadata account for a program (either creates or updates if it already exists):
 
 ```sh
-npx @solana-program/program-metadata write <seed> <program-id> <file> [options]
+npx @solana-program/program-metadata@latest write <seed> <program-id> <file> [options]
 ```
 
 - `<seed>`: e.g. "idl", "security" as standard or anything else you want to use for other data
@@ -79,7 +79,7 @@ npx @solana-program/program-metadata write <seed> <program-id> <file> [options]
 Download metadata to a file or print to stdout:
 
 ```sh
-npx @solana-program/program-metadata fetch <seed> <program-id> [options]
+npx @solana-program/program-metadata@latest fetch <seed> <program-id> [options]
 ```
 
 - `--output <file>`: Save to file
@@ -90,16 +90,16 @@ npx @solana-program/program-metadata fetch <seed> <program-id> [options]
 By default your keypair that creates the metadata account will be its authority. You can change the authority by using the `set-authority` command. This can be useful when you don't want to update the metadata using the program authority going forward or if you use a multisig to create the metadata account for example. (Multisig instructions see further down) For canonical metadata accounts the upgrade authority can always claim back the metadata account if it is not immutable. For non-canonical metadata accounts the authority can not be changed because the PDA is derived from that authority.
 
 - Set a new authority:  
-  `npx @solana-program/program-metadata set-authority <seed> <program-id> --new-authority <pubkey>`
+  `npx @solana-program/program-metadata@latest set-authority <seed> <program-id> --new-authority <pubkey>`
   Note that the program upgrade authority can always claim back the metadata account if it is not immutable.
 - Remove authority:  
-  `npx @solana-program/program-metadata remove-authority <seed> <program-id>`
+  `npx @solana-program/program-metadata@latest remove-authority <seed> <program-id>`
   This will leave only the upgrade authority as the authority of the metadata account.
 - Make metadata immutable:  
-  `npx @solana-program/program-metadata set-immutable <seed> <program-id>`
+  `npx @solana-program/program-metadata@latest set-immutable <seed> <program-id>`
   This will make the metadata account immutable and cannot be updated anymore, even for the update authority.
 - Close metadata account:  
-  `npx @solana-program/program-metadata close <seed> <program-id>`
+  `npx @solana-program/program-metadata@latest close <seed> <program-id>`
   This will close the account and you can reclaim the rent.
 
 #### Buffer Management
@@ -107,11 +107,11 @@ By default your keypair that creates the metadata account will be its authority.
 Using a buffer account you can split the metadata update into the uploading of the data part and then assign the buffer to the program in a later transaction.
 
 - Create/update/fetch/close buffer accounts:  
-  `npx @solana-program/program-metadata create-buffer|update-buffer|fetch-buffer|close-buffer ...`
+  `npx @solana-program/program-metadata@latest create-buffer|update-buffer|fetch-buffer|close-buffer ...`
 - List all buffer accounts for an authority:  
-  `npx @solana-program/program-metadata list-buffers [authority]`
+  `npx @solana-program/program-metadata@latest list-buffers [authority]`
 - Update a metadata account with a buffer:  
-  `npx @solana-program/program-metadata write <seed> <program-id> --buffer <buffer-address>`
+  `npx @solana-program/program-metadata@latest write <seed> <program-id> --buffer <buffer-address>`
 
 ### Options
 
@@ -133,14 +133,14 @@ For updating a metadata account of a program that is managed by a Squads multisi
 2. Create the buffer account and transfer ownership to the squad
 
 ```bash
-npx @solana-program/program-metadata create-buffer ./target/idl/let_me_buy.json
-npx @solana-program/program-metadata set-buffer-authority <buffer-address> --new-authority <multisig-address>
+npx @solana-program/program-metadata@latest create-buffer ./target/idl/let_me_buy.json
+npx @solana-program/program-metadata@latest set-buffer-authority <buffer-address> --new-authority <multisig-address>
 ```
 
 3. Export the transaction as base58 and then import it into your multisig under `developers/txBuilder/createTransaction/addInstruction/ImportAsBase58`
 
 ```bash
-npx @solana-program/program-metadata write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back>
+npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back>
 ```
 
 4. Sign the transaction in your multisig and send it
@@ -150,31 +150,31 @@ npx @solana-program/program-metadata write idl <program-address> --buffer <buffe
 **Upload IDL as canonical (upgrade authority):**
 
 ```sh
-npx @solana-program/program-metadata write idl <program-id> ./idl.json --keypair <authority-keypair>
+npx @solana-program/program-metadata@latest write idl <program-id> ./idl.json --keypair <authority-keypair>
 ```
 
 **Upload metadata as third-party (non-canonical):**
 
 ```sh
-npx @solana-program/program-metadata write idl <program-id> ./metadata.json --non-canonical <your-pubkey>
+npx @solana-program/program-metadata@latest write idl <program-id> ./metadata.json --non-canonical <your-pubkey>
 ```
 
 **Fetch canonical metadata:**
 
 ```sh
-npx @solana-program/program-metadata fetch idl <program-id> --output ./idl.json
+npx @solana-program/program-metadata@latest fetch idl <program-id> --output ./idl.json
 ```
 
 **Fetch non-canonical metadata:**
 
 ```sh
-npx @solana-program/program-metadata fetch idl <program-id> --non-canonical <pubkey> --output ./idl.json
+npx @solana-program/program-metadata@latest fetch idl <program-id> --non-canonical <pubkey> --output ./idl.json
 ```
 
 **Close a metadata account:**
 
 ```sh
-npx @solana-program/program-metadata close idl <program-id>
+npx @solana-program/program-metadata@latest close idl <program-id>
 ```
 
 ## Security.txt File Format
@@ -212,7 +212,7 @@ For that you just create a json file containing the security.txt data and upload
 Then use the same commands as for the IDL to upload the security.txt file:
 
 ```sh
-npx @solana-program/program-metadata write security <program-id> ./security.json
+npx @solana-program/program-metadata@latest write security <program-id> ./security.json
 ```
 
 ## Fetching IDL or Security Metadata with the JavaScript SDK
