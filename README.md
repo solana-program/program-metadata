@@ -14,7 +14,7 @@ The Program Metadata provides the ability to attach metadata information to any 
 There are two types of metadata accounts:
 
 - canonical: these are metadata accounts created by the program upgrade authority. They are derived from `[program key, seed]`.
-- non-canonical (a.k.a. _third-party_): these are metadata account created by any authority. They are derived from `[program key, authority key, seed]`.
+- non-canonical (a.k.a. _third-party_): these are metadata accounts created by any authority. They are derived from `[program key, authority key, seed]`.
 
 While there can only be a single canonical metadata account for a pair _(program, seed)_, there can be any number of non-canonical metadata accounts. The rationale is to allow anyone to add additional metadata to any program, but also provide a mechanism to differentiate metadata information added by the program upgrade authority.
 The metadata is either saved on chain in an account or it can be saved to a URL or another account.
@@ -187,8 +187,8 @@ For that you just create a json file containing the security.txt data and upload
 {
   "name": "MyProgramName",
   "logo": "https://upload.wikimedia.org/wikipedia/en/b/b9/Solana_logo.png",
-  "description": "Example program for meta data",
-  "notification": "On the first of january we will release a new version! Please update your SDKS!!!!",
+  "description": "Example program for metadata",
+  "notification": "On the first of January we will release a new version! Please update your SDKs!!!!",
   "sdk": "https://github.com/solana-program/program-metadata",
   "project_url": "https://github.com/solana-developers/",
   "contacts": [
