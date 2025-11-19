@@ -1,7 +1,10 @@
 import {
+  Account,
   Address,
   assertAccountExists,
+  assertAccountsExist,
   fetchEncodedAccount,
+  fetchEncodedAccounts,
   GetAccountInfoApi,
   getBase16Decoder,
   getBase16Encoder,
@@ -9,6 +12,7 @@ import {
   getBase58Encoder,
   getBase64Decoder,
   getBase64Encoder,
+  GetMultipleAccountsApi,
   getUtf8Decoder,
   getUtf8Encoder,
   pipe,
@@ -23,6 +27,7 @@ import {
   Encoding,
   getExternalDataDecoder,
   getExternalDataEncoder,
+  Metadata,
 } from './generated';
 
 export type PackedData = {
@@ -30,6 +35,12 @@ export type PackedData = {
   encoding: Encoding;
   dataSource: DataSource;
   data: ReadonlyUint8Array;
+};
+
+export type UnpackedData = {
+  address: Address;
+  offset?: number;
+  length?: number;
 };
 
 export function packDirectData(input: {
@@ -120,11 +131,7 @@ export async function unpackAndFetchUrlData(
   return await response.text();
 }
 
-export function unpackExternalData(data: ReadonlyUint8Array): {
-  address: Address;
-  offset?: number;
-  length?: number;
-} {
+export function unpackExternalData(data: ReadonlyUint8Array): UnpackedData {
   const externalData = getExternalDataDecoder().decode(data);
   return {
     address: externalData.address,
@@ -133,27 +140,47 @@ export function unpackExternalData(data: ReadonlyUint8Array): {
   };
 }
 
-export async function unpackAndFetchExternalData(
-  input: Omit<PackedData, 'dataSource'> & { rpc: Rpc<GetAccountInfoApi> }
-): Promise<string> {
-  const externalData = unpackExternalData(input.data);
-  const account = await fetchEncodedAccount(input.rpc, externalData.address);
-  assertAccountExists(account);
+export function uncompressAndDecodeExternalData({
+  compression,
+  encoding,
+  account,
+  unpackedExternalData,
+}: Pick<PackedData, 'compression' | 'encoding'> & {
+  account: Account<Uint8Array>;
+  unpackedExternalData: UnpackedData;
+}): string {
   let data = account.data;
-  if (externalData.offset !== undefined) {
-    data = data.slice(externalData.offset);
+  if (unpackedExternalData.offset !== undefined) {
+    data = data.slice(unpackedExternalData.offset);
   }
-  if (externalData.length !== undefined) {
-    data = data.slice(0, externalData.length);
+  if (unpackedExternalData.length !== undefined) {
+    data = data.slice(0, unpackedExternalData.length);
   }
   if (data.length === 0) {
     return '';
   }
   return pipe(
     data,
-    (d) => uncompressData(d, input.compression),
-    (d) => decodeData(d, input.encoding)
+    (d) => uncompressData(d, compression),
+    (d) => decodeData(d, encoding)
   );
+}
+
+export async function unpackAndFetchExternalData(
+  input: Omit<PackedData, 'dataSource'> & { rpc: Rpc<GetAccountInfoApi> }
+): Promise<string> {
+  const unpackedExternalData = unpackExternalData(input.data);
+  const account = await fetchEncodedAccount(
+    input.rpc,
+    unpackedExternalData.address
+  );
+  assertAccountExists(account);
+  return uncompressAndDecodeExternalData({
+    compression: input.compression,
+    encoding: input.encoding,
+    account,
+    unpackedExternalData,
+  });
 }
 
 export async function unpackAndFetchData(
@@ -169,6 +196,50 @@ export async function unpackAndFetchData(
     default:
       throw new Error('Unsupported data source');
   }
+}
+
+export async function unpackAndFetchAllData({
+  accounts,
+  rpc,
+}: {
+  accounts: Account<Metadata>[];
+  rpc: Rpc<GetMultipleAccountsApi>;
+}) {
+  const unpackedExternalAccounts = accounts
+    .filter((account) => account.data.dataSource === DataSource.External)
+    .map((account) => ({
+      address: account.address,
+      unpacked: unpackExternalData(account.data.data),
+    }));
+
+  const fetchedExternalAccounts = await fetchEncodedAccounts(
+    rpc,
+    unpackedExternalAccounts.map((account) => account.unpacked.address)
+  );
+  assertAccountsExist(fetchedExternalAccounts);
+
+  return Promise.all(
+    accounts.map(async (account) => {
+      switch (account.data.dataSource) {
+        case DataSource.Direct:
+          return unpackDirectData(account.data);
+        case DataSource.Url:
+          return await unpackAndFetchUrlData(account.data);
+        case DataSource.External: {
+          const accountIndex = unpackedExternalAccounts.findIndex(
+            (acc) => acc.address === account.address
+          );
+          return uncompressAndDecodeExternalData({
+            compression: account.data.compression,
+            encoding: account.data.encoding,
+            account: fetchedExternalAccounts[accountIndex],
+            unpackedExternalData:
+              unpackedExternalAccounts[accountIndex].unpacked,
+          });
+        }
+      }
+    })
+  );
 }
 
 export function compressData(
