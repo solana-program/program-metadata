@@ -90,8 +90,8 @@ export async function fetchAndParseAllMetadataContent(
       return address;
     })
   );
-  const accounts = await fetchAllMaybeMetadata(rpc, addresses);
-  assertAccountsExist(accounts);
+  const maybeAccounts = await fetchAllMaybeMetadata(rpc, addresses);
+  const accounts = maybeAccounts.filter((acc) => acc.exists);
   const unpacked = await unpackAndFetchAllData({ rpc, accounts });
   return unpacked.map((content, index) => {
     switch (accounts[index].data.format) {
