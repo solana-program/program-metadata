@@ -52,6 +52,20 @@ export async function fetchAllMetadataContent(
   return await unpackAndFetchAllData({ rpc, accounts });
 }
 
+function parseContent(format: Format, content: string) {
+  switch (format) {
+    case Format.Json:
+      return JSON.parse(content);
+    case Format.Yaml:
+      return parseYaml(content);
+    case Format.Toml:
+      return parseToml(content);
+    case Format.None:
+    default:
+      return content;
+  }
+}
+
 export async function fetchAndParseMetadataContent(
   rpc: Rpc<GetAccountInfoApi>,
   program: Address,
@@ -64,17 +78,7 @@ export async function fetchAndParseMetadataContent(
     seed,
   });
   const content = await unpackAndFetchData({ rpc, ...account.data });
-  switch (account.data.format) {
-    case Format.Json:
-      return JSON.parse(content);
-    case Format.Yaml:
-      return parseYaml(content);
-    case Format.Toml:
-      return parseToml(content);
-    case Format.None:
-    default:
-      return content;
-  }
+  return parseContent(account.data.format, content);
 }
 
 type FetchAndParseAllMetadataContentInput = FetchAllMetadataContentInput;
@@ -94,16 +98,6 @@ export async function fetchAndParseAllMetadataContent(
   const accounts = maybeAccounts.filter((acc) => acc.exists);
   const unpacked = await unpackAndFetchAllData({ rpc, accounts });
   return unpacked.map((content, index) => {
-    switch (accounts[index].data.format) {
-      case Format.Json:
-        return JSON.parse(content);
-      case Format.Yaml:
-        return parseYaml(content);
-      case Format.Toml:
-        return parseToml(content);
-      case Format.None:
-      default:
-        return content;
-    }
+    return parseContent(accounts[index].data.format, content);
   });
 }

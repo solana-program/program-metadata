@@ -37,7 +37,7 @@ export type PackedData = {
   data: ReadonlyUint8Array;
 };
 
-export type UnpackedData = {
+type UnpackedExternalData = {
   address: Address;
   offset?: number;
   length?: number;
@@ -131,7 +131,9 @@ export async function unpackAndFetchUrlData(
   return await response.text();
 }
 
-export function unpackExternalData(data: ReadonlyUint8Array): UnpackedData {
+export function unpackExternalData(
+  data: ReadonlyUint8Array
+): UnpackedExternalData {
   const externalData = getExternalDataDecoder().decode(data);
   return {
     address: externalData.address,
@@ -140,14 +142,14 @@ export function unpackExternalData(data: ReadonlyUint8Array): UnpackedData {
   };
 }
 
-export function uncompressAndDecodeExternalData({
+export function unpackFetchedExternalData({
   compression,
   encoding,
   account,
   unpackedExternalData,
 }: Pick<PackedData, 'compression' | 'encoding'> & {
   account: Account<Uint8Array>;
-  unpackedExternalData: UnpackedData;
+  unpackedExternalData: UnpackedExternalData;
 }): string {
   let data = account.data;
   if (unpackedExternalData.offset !== undefined) {
@@ -175,7 +177,7 @@ export async function unpackAndFetchExternalData(
     unpackedExternalData.address
   );
   assertAccountExists(account);
-  return uncompressAndDecodeExternalData({
+  return unpackFetchedExternalData({
     compression: input.compression,
     encoding: input.encoding,
     account,
@@ -218,7 +220,7 @@ export async function unpackAndFetchAllData({
   );
   assertAccountsExist(fetchedExternalAccounts);
 
-  return Promise.all(
+  return await Promise.all(
     accounts.map(async (account) => {
       switch (account.data.dataSource) {
         case DataSource.Direct:
@@ -229,7 +231,7 @@ export async function unpackAndFetchAllData({
           const accountIndex = unpackedExternalAccounts.findIndex(
             (acc) => acc.address === account.address
           );
-          return uncompressAndDecodeExternalData({
+          return unpackFetchedExternalData({
             compression: account.data.compression,
             encoding: account.data.encoding,
             account: fetchedExternalAccounts[accountIndex],
