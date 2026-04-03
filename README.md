@@ -185,8 +185,9 @@ For that you just create a json file containing the security.txt data and upload
 
 ```json
 {
-    "name": "MyProgramName",
-    "logo": "https://upload.wikimedia.org/wikipedia/en/b/b9/Solana_logo.png",
+    "name": "wattley",
+
+logo":"https://upload.wikimedia.org/wikipedia/en/b/b9/Solana_logo.png",
     "description": "Example program for metadata",
     "notification": "On the first of January we will release a new version! Please update your SDKs!!!!",
     "sdk": "https://github.com/solana-program/program-metadata",
