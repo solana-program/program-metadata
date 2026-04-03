@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "program": {
     "kind": "programNode",
-    "name": "programMetadata",
+    "name": "wattley",
     "publicKey": "ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S",
     "version": "0.0.0",
     "pdas": [

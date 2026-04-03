@@ -117,4 +117,4 @@ bash /tmp/run-metadata-check.sh 2>&1 | tee /workspaces/program-metadata/run-all-
     },
     "packageManager": "pnpm@10.15.1",
     "prettier": "@solana/prettier-config-solana"
-}
+}3NJyzGWjSHP4hZvsqakodi7jAtbufwd52vn1ek6EzQ35
