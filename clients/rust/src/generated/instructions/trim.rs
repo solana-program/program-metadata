@@ -5,494 +5,518 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
+use borsh::BorshDeserialize;
 
 pub const TRIM_DISCRIMINATOR: u8 = 5;
 
 /// Accounts.
 #[derive(Debug)]
 pub struct Trim {
-    /// Buffer or metadata account.
-    pub account: solana_pubkey::Pubkey,
-    /// Authority account.
-    pub authority: solana_pubkey::Pubkey,
-    /// Program account.
-    pub program: Option<solana_pubkey::Pubkey>,
-    /// Program data account.
-    pub program_data: Option<solana_pubkey::Pubkey>,
-    /// Destination account.
-    pub destination: solana_pubkey::Pubkey,
-    /// Rent sysvar account.
-    pub rent: solana_pubkey::Pubkey,
-}
+            /// Buffer or metadata account.
+
+    
+              
+          pub account: solana_pubkey::Pubkey,
+                /// Authority account.
+
+    
+              
+          pub authority: solana_pubkey::Pubkey,
+                /// Program account.
+
+    
+              
+          pub program: Option<solana_pubkey::Pubkey>,
+                /// Program data account.
+
+    
+              
+          pub program_data: Option<solana_pubkey::Pubkey>,
+                /// Destination account.
+
+    
+              
+          pub destination: solana_pubkey::Pubkey,
+                /// Rent sysvar account.
+
+    
+              
+          pub rent: solana_pubkey::Pubkey,
+      }
 
 impl Trim {
-    pub fn instruction(&self) -> solana_instruction::Instruction {
-        self.instruction_with_remaining_accounts(&[])
-    }
-    #[allow(clippy::arithmetic_side_effects)]
-    #[allow(clippy::vec_init_then_push)]
-    pub fn instruction_with_remaining_accounts(
-        &self,
-        remaining_accounts: &[solana_instruction::AccountMeta],
-    ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(self.account, false));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
+  pub fn instruction(&self) -> solana_instruction::Instruction {
+    self.instruction_with_remaining_accounts(&[])
+  }
+  #[allow(clippy::arithmetic_side_effects)]
+  #[allow(clippy::vec_init_then_push)]
+  pub fn instruction_with_remaining_accounts(&self, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
+    let mut accounts = Vec::with_capacity(6+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new(
+            self.account,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.authority,
-            true,
-        ));
-        if let Some(program) = self.program {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
-                program, false,
-            ));
-        } else {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
+            true
+          ));
+                                                      if let Some(program) = self.program {
+              accounts.push(solana_instruction::AccountMeta::new_readonly(
+                program,
+                false,
+              ));
+            } else {
+              accounts.push(solana_instruction::AccountMeta::new_readonly(
                 crate::PROGRAM_METADATA_ID,
                 false,
-            ));
-        }
-        if let Some(program_data) = self.program_data {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
+              ));
+            }
+                                                                if let Some(program_data) = self.program_data {
+              accounts.push(solana_instruction::AccountMeta::new_readonly(
                 program_data,
                 false,
-            ));
-        } else {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
+              ));
+            } else {
+              accounts.push(solana_instruction::AccountMeta::new_readonly(
                 crate::PROGRAM_METADATA_ID,
                 false,
-            ));
-        }
-        accounts.push(solana_instruction::AccountMeta::new(
+              ));
+            }
+                                                    accounts.push(solana_instruction::AccountMeta::new(
             self.destination,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
-            self.rent, false,
-        ));
-        accounts.extend_from_slice(remaining_accounts);
-        let data = TrimInstructionData::new().try_to_vec().unwrap();
-
-        solana_instruction::Instruction {
-            program_id: crate::PROGRAM_METADATA_ID,
-            accounts,
-            data,
-        }
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
+            self.rent,
+            false
+          ));
+                      accounts.extend_from_slice(remaining_accounts);
+    let data = TrimInstructionData::new().try_to_vec().unwrap();
+    
+    solana_instruction::Instruction {
+      program_id: crate::PROGRAM_METADATA_ID,
+      accounts,
+      data,
     }
+  }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct TrimInstructionData {
-    discriminator: u8,
-}
+ pub struct TrimInstructionData {
+            discriminator: u8,
+      }
 
 impl TrimInstructionData {
-    pub fn new() -> Self {
-        Self { discriminator: 5 }
-    }
+  pub fn new() -> Self {
+    Self {
+                        discriminator: 5,
+                  }
+  }
 
     pub(crate) fn try_to_vec(&self) -> Result<Vec<u8>, std::io::Error> {
-        borsh::to_vec(self)
-    }
-}
+    borsh::to_vec(self)
+  }
+  }
 
 impl Default for TrimInstructionData {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }
+
+
 
 /// Instruction builder for `Trim`.
 ///
 /// ### Accounts:
 ///
-///   0. `[writable]` account
-///   1. `[signer]` authority
-///   2. `[optional]` program
-///   3. `[optional]` program_data
-///   4. `[writable]` destination
-///   5. `[optional]` rent (default to `SysvarRent111111111111111111111111111111111`)
+                ///   0. `[writable]` account
+                ///   1. `[signer]` authority
+                ///   2. `[optional]` program
+                ///   3. `[optional]` program_data
+                ///   4. `[writable]` destination
+                ///   5. `[optional]` rent (default to `SysvarRent111111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct TrimBuilder {
-    account: Option<solana_pubkey::Pubkey>,
-    authority: Option<solana_pubkey::Pubkey>,
-    program: Option<solana_pubkey::Pubkey>,
-    program_data: Option<solana_pubkey::Pubkey>,
-    destination: Option<solana_pubkey::Pubkey>,
-    rent: Option<solana_pubkey::Pubkey>,
-    __remaining_accounts: Vec<solana_instruction::AccountMeta>,
+            account: Option<solana_pubkey::Pubkey>,
+                authority: Option<solana_pubkey::Pubkey>,
+                program: Option<solana_pubkey::Pubkey>,
+                program_data: Option<solana_pubkey::Pubkey>,
+                destination: Option<solana_pubkey::Pubkey>,
+                rent: Option<solana_pubkey::Pubkey>,
+                __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
 impl TrimBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    /// Buffer or metadata account.
-    #[inline(always)]
+  pub fn new() -> Self {
+    Self::default()
+  }
+            /// Buffer or metadata account.
+#[inline(always)]
     pub fn account(&mut self, account: solana_pubkey::Pubkey) -> &mut Self {
-        self.account = Some(account);
-        self
+                        self.account = Some(account);
+                    self
     }
-    /// Authority account.
-    #[inline(always)]
+            /// Authority account.
+#[inline(always)]
     pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
-        self.authority = Some(authority);
-        self
+                        self.authority = Some(authority);
+                    self
     }
-    /// `[optional account]`
-    /// Program account.
-    #[inline(always)]
+            /// `[optional account]`
+/// Program account.
+#[inline(always)]
     pub fn program(&mut self, program: Option<solana_pubkey::Pubkey>) -> &mut Self {
-        self.program = program;
-        self
+                        self.program = program;
+                    self
     }
-    /// `[optional account]`
-    /// Program data account.
-    #[inline(always)]
+            /// `[optional account]`
+/// Program data account.
+#[inline(always)]
     pub fn program_data(&mut self, program_data: Option<solana_pubkey::Pubkey>) -> &mut Self {
-        self.program_data = program_data;
-        self
+                        self.program_data = program_data;
+                    self
     }
-    /// Destination account.
-    #[inline(always)]
+            /// Destination account.
+#[inline(always)]
     pub fn destination(&mut self, destination: solana_pubkey::Pubkey) -> &mut Self {
-        self.destination = Some(destination);
-        self
+                        self.destination = Some(destination);
+                    self
     }
-    /// `[optional account, default to 'SysvarRent111111111111111111111111111111111']`
-    /// Rent sysvar account.
-    #[inline(always)]
+            /// `[optional account, default to 'SysvarRent111111111111111111111111111111111']`
+/// Rent sysvar account.
+#[inline(always)]
     pub fn rent(&mut self, rent: solana_pubkey::Pubkey) -> &mut Self {
-        self.rent = Some(rent);
-        self
+                        self.rent = Some(rent);
+                    self
     }
-    /// Add an additional account to the instruction.
-    #[inline(always)]
-    pub fn add_remaining_account(&mut self, account: solana_instruction::AccountMeta) -> &mut Self {
-        self.__remaining_accounts.push(account);
-        self
-    }
-    /// Add additional accounts to the instruction.
-    #[inline(always)]
-    pub fn add_remaining_accounts(
-        &mut self,
-        accounts: &[solana_instruction::AccountMeta],
-    ) -> &mut Self {
-        self.__remaining_accounts.extend_from_slice(accounts);
-        self
-    }
-    #[allow(clippy::clone_on_copy)]
-    pub fn instruction(&self) -> solana_instruction::Instruction {
-        let accounts = Trim {
-            account: self.account.expect("account is not set"),
-            authority: self.authority.expect("authority is not set"),
-            program: self.program,
-            program_data: self.program_data,
-            destination: self.destination.expect("destination is not set"),
-            rent: self.rent.unwrap_or(solana_pubkey::pubkey!(
-                "SysvarRent111111111111111111111111111111111"
-            )),
-        };
-
-        accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
-    }
+            /// Add an additional account to the instruction.
+  #[inline(always)]
+  pub fn add_remaining_account(&mut self, account: solana_instruction::AccountMeta) -> &mut Self {
+    self.__remaining_accounts.push(account);
+    self
+  }
+  /// Add additional accounts to the instruction.
+  #[inline(always)]
+  pub fn add_remaining_accounts(&mut self, accounts: &[solana_instruction::AccountMeta]) -> &mut Self {
+    self.__remaining_accounts.extend_from_slice(accounts);
+    self
+  }
+  #[allow(clippy::clone_on_copy)]
+  pub fn instruction(&self) -> solana_instruction::Instruction {
+    let accounts = Trim {
+                              account: self.account.expect("account is not set"),
+                                        authority: self.authority.expect("authority is not set"),
+                                        program: self.program,
+                                        program_data: self.program_data,
+                                        destination: self.destination.expect("destination is not set"),
+                                        rent: self.rent.unwrap_or(solana_pubkey::pubkey!("SysvarRent111111111111111111111111111111111")),
+                      };
+    
+    accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
+  }
 }
 
-/// `trim` CPI accounts.
-pub struct TrimCpiAccounts<'a, 'b> {
-    /// Buffer or metadata account.
-    pub account: &'b solana_account_info::AccountInfo<'a>,
-    /// Authority account.
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
-    /// Program account.
-    pub program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    /// Program data account.
-    pub program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-    /// Destination account.
-    pub destination: &'b solana_account_info::AccountInfo<'a>,
-    /// Rent sysvar account.
-    pub rent: &'b solana_account_info::AccountInfo<'a>,
-}
+  /// `trim` CPI accounts.
+  pub struct TrimCpiAccounts<'a, 'b> {
+                  /// Buffer or metadata account.
+
+      
+                    
+              pub account: &'b solana_account_info::AccountInfo<'a>,
+                        /// Authority account.
+
+      
+                    
+              pub authority: &'b solana_account_info::AccountInfo<'a>,
+                        /// Program account.
+
+      
+                    
+              pub program: Option<&'b solana_account_info::AccountInfo<'a>>,
+                        /// Program data account.
+
+      
+                    
+              pub program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
+                        /// Destination account.
+
+      
+                    
+              pub destination: &'b solana_account_info::AccountInfo<'a>,
+                        /// Rent sysvar account.
+
+      
+                    
+              pub rent: &'b solana_account_info::AccountInfo<'a>,
+            }
 
 /// `trim` CPI instruction.
 pub struct TrimCpi<'a, 'b> {
-    /// The program to invoke.
-    pub __program: &'b solana_account_info::AccountInfo<'a>,
-    /// Buffer or metadata account.
-    pub account: &'b solana_account_info::AccountInfo<'a>,
-    /// Authority account.
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
-    /// Program account.
-    pub program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    /// Program data account.
-    pub program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-    /// Destination account.
-    pub destination: &'b solana_account_info::AccountInfo<'a>,
-    /// Rent sysvar account.
-    pub rent: &'b solana_account_info::AccountInfo<'a>,
-}
+  /// The program to invoke.
+  pub __program: &'b solana_account_info::AccountInfo<'a>,
+            /// Buffer or metadata account.
+
+    
+              
+          pub account: &'b solana_account_info::AccountInfo<'a>,
+                /// Authority account.
+
+    
+              
+          pub authority: &'b solana_account_info::AccountInfo<'a>,
+                /// Program account.
+
+    
+              
+          pub program: Option<&'b solana_account_info::AccountInfo<'a>>,
+                /// Program data account.
+
+    
+              
+          pub program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
+                /// Destination account.
+
+    
+              
+          pub destination: &'b solana_account_info::AccountInfo<'a>,
+                /// Rent sysvar account.
+
+    
+              
+          pub rent: &'b solana_account_info::AccountInfo<'a>,
+        }
 
 impl<'a, 'b> TrimCpi<'a, 'b> {
-    pub fn new(
-        program: &'b solana_account_info::AccountInfo<'a>,
-        accounts: TrimCpiAccounts<'a, 'b>,
-    ) -> Self {
-        Self {
-            __program: program,
-            account: accounts.account,
-            authority: accounts.authority,
-            program: accounts.program,
-            program_data: accounts.program_data,
-            destination: accounts.destination,
-            rent: accounts.rent,
-        }
-    }
-    #[inline(always)]
-    pub fn invoke(&self) -> solana_program_error::ProgramResult {
-        self.invoke_signed_with_remaining_accounts(&[], &[])
-    }
-    #[inline(always)]
-    pub fn invoke_with_remaining_accounts(
-        &self,
-        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> solana_program_error::ProgramResult {
-        self.invoke_signed_with_remaining_accounts(&[], remaining_accounts)
-    }
-    #[inline(always)]
-    pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
-        self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
-    }
-    #[allow(clippy::arithmetic_side_effects)]
-    #[allow(clippy::clone_on_copy)]
-    #[allow(clippy::vec_init_then_push)]
-    pub fn invoke_signed_with_remaining_accounts(
-        &self,
-        signers_seeds: &[&[&[u8]]],
-        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(
+  pub fn new(
+    program: &'b solana_account_info::AccountInfo<'a>,
+          accounts: TrimCpiAccounts<'a, 'b>,
+          ) -> Self {
+    Self {
+      __program: program,
+              account: accounts.account,
+              authority: accounts.authority,
+              program: accounts.program,
+              program_data: accounts.program_data,
+              destination: accounts.destination,
+              rent: accounts.rent,
+                }
+  }
+  #[inline(always)]
+  pub fn invoke(&self) -> solana_program_error::ProgramResult {
+    self.invoke_signed_with_remaining_accounts(&[], &[])
+  }
+  #[inline(always)]
+  pub fn invoke_with_remaining_accounts(&self, remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]) -> solana_program_error::ProgramResult {
+    self.invoke_signed_with_remaining_accounts(&[], remaining_accounts)
+  }
+  #[inline(always)]
+  pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
+    self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
+  }
+  #[allow(clippy::arithmetic_side_effects)]
+  #[allow(clippy::clone_on_copy)]
+  #[allow(clippy::vec_init_then_push)]
+  pub fn invoke_signed_with_remaining_accounts(
+    &self,
+    signers_seeds: &[&[&[u8]]],
+    remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
+  ) -> solana_program_error::ProgramResult {
+    let mut accounts = Vec::with_capacity(6+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new(
             *self.account.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.authority.key,
-            true,
-        ));
-        if let Some(program) = self.program {
+            true
+          ));
+                                          if let Some(program) = self.program {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
-                *program.key,
-                false,
+              *program.key,
+              false,
             ));
-        } else {
+          } else {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
-                crate::PROGRAM_METADATA_ID,
-                false,
+              crate::PROGRAM_METADATA_ID,
+              false,
             ));
-        }
-        if let Some(program_data) = self.program_data {
+          }
+                                          if let Some(program_data) = self.program_data {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
-                *program_data.key,
-                false,
+              *program_data.key,
+              false,
             ));
-        } else {
+          } else {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
-                crate::PROGRAM_METADATA_ID,
-                false,
+              crate::PROGRAM_METADATA_ID,
+              false,
             ));
-        }
-        accounts.push(solana_instruction::AccountMeta::new(
+          }
+                                          accounts.push(solana_instruction::AccountMeta::new(
             *self.destination.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.rent.key,
-            false,
-        ));
-        remaining_accounts.iter().for_each(|remaining_account| {
-            accounts.push(solana_instruction::AccountMeta {
-                pubkey: *remaining_account.0.key,
-                is_signer: remaining_account.1,
-                is_writable: remaining_account.2,
-            })
-        });
-        let data = TrimInstructionData::new().try_to_vec().unwrap();
+            false
+          ));
+                      remaining_accounts.iter().for_each(|remaining_account| {
+      accounts.push(solana_instruction::AccountMeta {
+          pubkey: *remaining_account.0.key,
+          is_signer: remaining_account.1,
+          is_writable: remaining_account.2,
+      })
+    });
+    let data = TrimInstructionData::new().try_to_vec().unwrap();
+    
+    let instruction = solana_instruction::Instruction {
+      program_id: crate::PROGRAM_METADATA_ID,
+      accounts,
+      data,
+    };
+    let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
+    account_infos.push(self.__program.clone());
+                  account_infos.push(self.account.clone());
+                        account_infos.push(self.authority.clone());
+                        if let Some(program) = self.program {
+          account_infos.push(program.clone());
+        }
+                        if let Some(program_data) = self.program_data {
+          account_infos.push(program_data.clone());
+        }
+                        account_infos.push(self.destination.clone());
+                        account_infos.push(self.rent.clone());
+              remaining_accounts.iter().for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
-        let instruction = solana_instruction::Instruction {
-            program_id: crate::PROGRAM_METADATA_ID,
-            accounts,
-            data,
-        };
-        let mut account_infos = Vec::with_capacity(7 + remaining_accounts.len());
-        account_infos.push(self.__program.clone());
-        account_infos.push(self.account.clone());
-        account_infos.push(self.authority.clone());
-        if let Some(program) = self.program {
-            account_infos.push(program.clone());
-        }
-        if let Some(program_data) = self.program_data {
-            account_infos.push(program_data.clone());
-        }
-        account_infos.push(self.destination.clone());
-        account_infos.push(self.rent.clone());
-        remaining_accounts
-            .iter()
-            .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
-
-        if signers_seeds.is_empty() {
-            solana_cpi::invoke(&instruction, &account_infos)
-        } else {
-            solana_cpi::invoke_signed(&instruction, &account_infos, signers_seeds)
-        }
+    if signers_seeds.is_empty() {
+      solana_cpi::invoke(&instruction, &account_infos)
+    } else {
+      solana_cpi::invoke_signed(&instruction, &account_infos, signers_seeds)
     }
+  }
 }
 
 /// Instruction builder for `Trim` via CPI.
 ///
 /// ### Accounts:
 ///
-///   0. `[writable]` account
-///   1. `[signer]` authority
-///   2. `[optional]` program
-///   3. `[optional]` program_data
-///   4. `[writable]` destination
-///   5. `[]` rent
+                ///   0. `[writable]` account
+                ///   1. `[signer]` authority
+                ///   2. `[optional]` program
+                ///   3. `[optional]` program_data
+                ///   4. `[writable]` destination
+          ///   5. `[]` rent
 #[derive(Clone, Debug)]
 pub struct TrimCpiBuilder<'a, 'b> {
-    instruction: Box<TrimCpiBuilderInstruction<'a, 'b>>,
+  instruction: Box<TrimCpiBuilderInstruction<'a, 'b>>,
 }
 
 impl<'a, 'b> TrimCpiBuilder<'a, 'b> {
-    pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(TrimCpiBuilderInstruction {
-            __program: program,
-            account: None,
-            authority: None,
-            program: None,
-            program_data: None,
-            destination: None,
-            rent: None,
-            __remaining_accounts: Vec::new(),
-        });
-        Self { instruction }
-    }
-    /// Buffer or metadata account.
-    #[inline(always)]
+  pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
+    let instruction = Box::new(TrimCpiBuilderInstruction {
+      __program: program,
+              account: None,
+              authority: None,
+              program: None,
+              program_data: None,
+              destination: None,
+              rent: None,
+                                __remaining_accounts: Vec::new(),
+    });
+    Self { instruction }
+  }
+      /// Buffer or metadata account.
+#[inline(always)]
     pub fn account(&mut self, account: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.account = Some(account);
-        self
+                        self.instruction.account = Some(account);
+                    self
     }
-    /// Authority account.
-    #[inline(always)]
+      /// Authority account.
+#[inline(always)]
     pub fn authority(&mut self, authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.authority = Some(authority);
-        self
+                        self.instruction.authority = Some(authority);
+                    self
     }
-    /// `[optional account]`
-    /// Program account.
-    #[inline(always)]
-    pub fn program(
-        &mut self,
-        program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    ) -> &mut Self {
-        self.instruction.program = program;
-        self
+      /// `[optional account]`
+/// Program account.
+#[inline(always)]
+    pub fn program(&mut self, program: Option<&'b solana_account_info::AccountInfo<'a>>) -> &mut Self {
+                        self.instruction.program = program;
+                    self
     }
-    /// `[optional account]`
-    /// Program data account.
-    #[inline(always)]
-    pub fn program_data(
-        &mut self,
-        program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-    ) -> &mut Self {
-        self.instruction.program_data = program_data;
-        self
+      /// `[optional account]`
+/// Program data account.
+#[inline(always)]
+    pub fn program_data(&mut self, program_data: Option<&'b solana_account_info::AccountInfo<'a>>) -> &mut Self {
+                        self.instruction.program_data = program_data;
+                    self
     }
-    /// Destination account.
-    #[inline(always)]
-    pub fn destination(
-        &mut self,
-        destination: &'b solana_account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.destination = Some(destination);
-        self
+      /// Destination account.
+#[inline(always)]
+    pub fn destination(&mut self, destination: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
+                        self.instruction.destination = Some(destination);
+                    self
     }
-    /// Rent sysvar account.
-    #[inline(always)]
+      /// Rent sysvar account.
+#[inline(always)]
     pub fn rent(&mut self, rent: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.rent = Some(rent);
-        self
+                        self.instruction.rent = Some(rent);
+                    self
     }
-    /// Add an additional account to the instruction.
-    #[inline(always)]
-    pub fn add_remaining_account(
-        &mut self,
-        account: &'b solana_account_info::AccountInfo<'a>,
-        is_writable: bool,
-        is_signer: bool,
-    ) -> &mut Self {
-        self.instruction
-            .__remaining_accounts
-            .push((account, is_writable, is_signer));
-        self
-    }
-    /// Add additional accounts to the instruction.
-    ///
-    /// Each account is represented by a tuple of the `AccountInfo`, a `bool` indicating whether the account is writable or not,
-    /// and a `bool` indicating whether the account is a signer or not.
-    #[inline(always)]
-    pub fn add_remaining_accounts(
-        &mut self,
-        accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> &mut Self {
-        self.instruction
-            .__remaining_accounts
-            .extend_from_slice(accounts);
-        self
-    }
-    #[inline(always)]
-    pub fn invoke(&self) -> solana_program_error::ProgramResult {
-        self.invoke_signed(&[])
-    }
-    #[allow(clippy::clone_on_copy)]
-    #[allow(clippy::vec_init_then_push)]
-    pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
+            /// Add an additional account to the instruction.
+  #[inline(always)]
+  pub fn add_remaining_account(&mut self, account: &'b solana_account_info::AccountInfo<'a>, is_writable: bool, is_signer: bool) -> &mut Self {
+    self.instruction.__remaining_accounts.push((account, is_writable, is_signer));
+    self
+  }
+  /// Add additional accounts to the instruction.
+  ///
+  /// Each account is represented by a tuple of the `AccountInfo`, a `bool` indicating whether the account is writable or not,
+  /// and a `bool` indicating whether the account is a signer or not.
+  #[inline(always)]
+  pub fn add_remaining_accounts(&mut self, accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]) -> &mut Self {
+    self.instruction.__remaining_accounts.extend_from_slice(accounts);
+    self
+  }
+  #[inline(always)]
+  pub fn invoke(&self) -> solana_program_error::ProgramResult {
+    self.invoke_signed(&[])
+  }
+  #[allow(clippy::clone_on_copy)]
+  #[allow(clippy::vec_init_then_push)]
+  pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
         let instruction = TrimCpi {
-            __program: self.instruction.__program,
-
-            account: self.instruction.account.expect("account is not set"),
-
-            authority: self.instruction.authority.expect("authority is not set"),
-
-            program: self.instruction.program,
-
-            program_data: self.instruction.program_data,
-
-            destination: self
-                .instruction
-                .destination
-                .expect("destination is not set"),
-
-            rent: self.instruction.rent.expect("rent is not set"),
-        };
-        instruction.invoke_signed_with_remaining_accounts(
-            signers_seeds,
-            &self.instruction.__remaining_accounts,
-        )
-    }
+        __program: self.instruction.__program,
+                  
+          account: self.instruction.account.expect("account is not set"),
+                  
+          authority: self.instruction.authority.expect("authority is not set"),
+                  
+          program: self.instruction.program,
+                  
+          program_data: self.instruction.program_data,
+                  
+          destination: self.instruction.destination.expect("destination is not set"),
+                  
+          rent: self.instruction.rent.expect("rent is not set"),
+                    };
+    instruction.invoke_signed_with_remaining_accounts(signers_seeds, &self.instruction.__remaining_accounts)
+  }
 }
 
 #[derive(Clone, Debug)]
 struct TrimCpiBuilderInstruction<'a, 'b> {
-    __program: &'b solana_account_info::AccountInfo<'a>,
-    account: Option<&'b solana_account_info::AccountInfo<'a>>,
-    authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-    destination: Option<&'b solana_account_info::AccountInfo<'a>>,
-    rent: Option<&'b solana_account_info::AccountInfo<'a>>,
-    /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
-    __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
+  __program: &'b solana_account_info::AccountInfo<'a>,
+            account: Option<&'b solana_account_info::AccountInfo<'a>>,
+                authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+                program: Option<&'b solana_account_info::AccountInfo<'a>>,
+                program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
+                destination: Option<&'b solana_account_info::AccountInfo<'a>>,
+                rent: Option<&'b solana_account_info::AccountInfo<'a>>,
+                /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
+  __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }
+

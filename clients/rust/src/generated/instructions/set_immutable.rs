@@ -5,414 +5,427 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
+use borsh::BorshDeserialize;
 
 pub const SET_IMMUTABLE_DISCRIMINATOR: u8 = 4;
 
 /// Accounts.
 #[derive(Debug)]
 pub struct SetImmutable {
-    /// Metadata account.
-    pub metadata: solana_pubkey::Pubkey,
-    /// Authority account.
-    pub authority: solana_pubkey::Pubkey,
-    /// Program account.
-    pub program: Option<solana_pubkey::Pubkey>,
-    /// Program data account.
-    pub program_data: Option<solana_pubkey::Pubkey>,
-}
+            /// Metadata account.
+
+    
+              
+          pub metadata: solana_pubkey::Pubkey,
+                /// Authority account.
+
+    
+              
+          pub authority: solana_pubkey::Pubkey,
+                /// Program account.
+
+    
+              
+          pub program: Option<solana_pubkey::Pubkey>,
+                /// Program data account.
+
+    
+              
+          pub program_data: Option<solana_pubkey::Pubkey>,
+      }
 
 impl SetImmutable {
-    pub fn instruction(&self) -> solana_instruction::Instruction {
-        self.instruction_with_remaining_accounts(&[])
-    }
-    #[allow(clippy::arithmetic_side_effects)]
-    #[allow(clippy::vec_init_then_push)]
-    pub fn instruction_with_remaining_accounts(
-        &self,
-        remaining_accounts: &[solana_instruction::AccountMeta],
-    ) -> solana_instruction::Instruction {
-        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(self.metadata, false));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
+  pub fn instruction(&self) -> solana_instruction::Instruction {
+    self.instruction_with_remaining_accounts(&[])
+  }
+  #[allow(clippy::arithmetic_side_effects)]
+  #[allow(clippy::vec_init_then_push)]
+  pub fn instruction_with_remaining_accounts(&self, remaining_accounts: &[solana_instruction::AccountMeta]) -> solana_instruction::Instruction {
+    let mut accounts = Vec::with_capacity(4+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new(
+            self.metadata,
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
             self.authority,
-            true,
-        ));
-        if let Some(program) = self.program {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
-                program, false,
-            ));
-        } else {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
+            true
+          ));
+                                                      if let Some(program) = self.program {
+              accounts.push(solana_instruction::AccountMeta::new_readonly(
+                program,
+                false,
+              ));
+            } else {
+              accounts.push(solana_instruction::AccountMeta::new_readonly(
                 crate::PROGRAM_METADATA_ID,
                 false,
-            ));
-        }
-        if let Some(program_data) = self.program_data {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
+              ));
+            }
+                                                                if let Some(program_data) = self.program_data {
+              accounts.push(solana_instruction::AccountMeta::new_readonly(
                 program_data,
                 false,
-            ));
-        } else {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
+              ));
+            } else {
+              accounts.push(solana_instruction::AccountMeta::new_readonly(
                 crate::PROGRAM_METADATA_ID,
                 false,
-            ));
-        }
-        accounts.extend_from_slice(remaining_accounts);
-        let data = SetImmutableInstructionData::new().try_to_vec().unwrap();
-
-        solana_instruction::Instruction {
-            program_id: crate::PROGRAM_METADATA_ID,
-            accounts,
-            data,
-        }
+              ));
+            }
+                                accounts.extend_from_slice(remaining_accounts);
+    let data = SetImmutableInstructionData::new().try_to_vec().unwrap();
+    
+    solana_instruction::Instruction {
+      program_id: crate::PROGRAM_METADATA_ID,
+      accounts,
+      data,
     }
+  }
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct SetImmutableInstructionData {
-    discriminator: u8,
-}
+ pub struct SetImmutableInstructionData {
+            discriminator: u8,
+      }
 
 impl SetImmutableInstructionData {
-    pub fn new() -> Self {
-        Self { discriminator: 4 }
-    }
+  pub fn new() -> Self {
+    Self {
+                        discriminator: 4,
+                  }
+  }
 
     pub(crate) fn try_to_vec(&self) -> Result<Vec<u8>, std::io::Error> {
-        borsh::to_vec(self)
-    }
-}
+    borsh::to_vec(self)
+  }
+  }
 
 impl Default for SetImmutableInstructionData {
-    fn default() -> Self {
-        Self::new()
-    }
+  fn default() -> Self {
+    Self::new()
+  }
 }
+
+
 
 /// Instruction builder for `SetImmutable`.
 ///
 /// ### Accounts:
 ///
-///   0. `[writable]` metadata
-///   1. `[signer]` authority
-///   2. `[optional]` program
-///   3. `[optional]` program_data
+                ///   0. `[writable]` metadata
+                ///   1. `[signer]` authority
+                ///   2. `[optional]` program
+                ///   3. `[optional]` program_data
 #[derive(Clone, Debug, Default)]
 pub struct SetImmutableBuilder {
-    metadata: Option<solana_pubkey::Pubkey>,
-    authority: Option<solana_pubkey::Pubkey>,
-    program: Option<solana_pubkey::Pubkey>,
-    program_data: Option<solana_pubkey::Pubkey>,
-    __remaining_accounts: Vec<solana_instruction::AccountMeta>,
+            metadata: Option<solana_pubkey::Pubkey>,
+                authority: Option<solana_pubkey::Pubkey>,
+                program: Option<solana_pubkey::Pubkey>,
+                program_data: Option<solana_pubkey::Pubkey>,
+                __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
 impl SetImmutableBuilder {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    /// Metadata account.
-    #[inline(always)]
+  pub fn new() -> Self {
+    Self::default()
+  }
+            /// Metadata account.
+#[inline(always)]
     pub fn metadata(&mut self, metadata: solana_pubkey::Pubkey) -> &mut Self {
-        self.metadata = Some(metadata);
-        self
+                        self.metadata = Some(metadata);
+                    self
     }
-    /// Authority account.
-    #[inline(always)]
+            /// Authority account.
+#[inline(always)]
     pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
-        self.authority = Some(authority);
-        self
+                        self.authority = Some(authority);
+                    self
     }
-    /// `[optional account]`
-    /// Program account.
-    #[inline(always)]
+            /// `[optional account]`
+/// Program account.
+#[inline(always)]
     pub fn program(&mut self, program: Option<solana_pubkey::Pubkey>) -> &mut Self {
-        self.program = program;
-        self
+                        self.program = program;
+                    self
     }
-    /// `[optional account]`
-    /// Program data account.
-    #[inline(always)]
+            /// `[optional account]`
+/// Program data account.
+#[inline(always)]
     pub fn program_data(&mut self, program_data: Option<solana_pubkey::Pubkey>) -> &mut Self {
-        self.program_data = program_data;
-        self
+                        self.program_data = program_data;
+                    self
     }
-    /// Add an additional account to the instruction.
-    #[inline(always)]
-    pub fn add_remaining_account(&mut self, account: solana_instruction::AccountMeta) -> &mut Self {
-        self.__remaining_accounts.push(account);
-        self
-    }
-    /// Add additional accounts to the instruction.
-    #[inline(always)]
-    pub fn add_remaining_accounts(
-        &mut self,
-        accounts: &[solana_instruction::AccountMeta],
-    ) -> &mut Self {
-        self.__remaining_accounts.extend_from_slice(accounts);
-        self
-    }
-    #[allow(clippy::clone_on_copy)]
-    pub fn instruction(&self) -> solana_instruction::Instruction {
-        let accounts = SetImmutable {
-            metadata: self.metadata.expect("metadata is not set"),
-            authority: self.authority.expect("authority is not set"),
-            program: self.program,
-            program_data: self.program_data,
-        };
-
-        accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
-    }
+            /// Add an additional account to the instruction.
+  #[inline(always)]
+  pub fn add_remaining_account(&mut self, account: solana_instruction::AccountMeta) -> &mut Self {
+    self.__remaining_accounts.push(account);
+    self
+  }
+  /// Add additional accounts to the instruction.
+  #[inline(always)]
+  pub fn add_remaining_accounts(&mut self, accounts: &[solana_instruction::AccountMeta]) -> &mut Self {
+    self.__remaining_accounts.extend_from_slice(accounts);
+    self
+  }
+  #[allow(clippy::clone_on_copy)]
+  pub fn instruction(&self) -> solana_instruction::Instruction {
+    let accounts = SetImmutable {
+                              metadata: self.metadata.expect("metadata is not set"),
+                                        authority: self.authority.expect("authority is not set"),
+                                        program: self.program,
+                                        program_data: self.program_data,
+                      };
+    
+    accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
+  }
 }
 
-/// `set_immutable` CPI accounts.
-pub struct SetImmutableCpiAccounts<'a, 'b> {
-    /// Metadata account.
-    pub metadata: &'b solana_account_info::AccountInfo<'a>,
-    /// Authority account.
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
-    /// Program account.
-    pub program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    /// Program data account.
-    pub program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-}
+  /// `set_immutable` CPI accounts.
+  pub struct SetImmutableCpiAccounts<'a, 'b> {
+                  /// Metadata account.
+
+      
+                    
+              pub metadata: &'b solana_account_info::AccountInfo<'a>,
+                        /// Authority account.
+
+      
+                    
+              pub authority: &'b solana_account_info::AccountInfo<'a>,
+                        /// Program account.
+
+      
+                    
+              pub program: Option<&'b solana_account_info::AccountInfo<'a>>,
+                        /// Program data account.
+
+      
+                    
+              pub program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
+            }
 
 /// `set_immutable` CPI instruction.
 pub struct SetImmutableCpi<'a, 'b> {
-    /// The program to invoke.
-    pub __program: &'b solana_account_info::AccountInfo<'a>,
-    /// Metadata account.
-    pub metadata: &'b solana_account_info::AccountInfo<'a>,
-    /// Authority account.
-    pub authority: &'b solana_account_info::AccountInfo<'a>,
-    /// Program account.
-    pub program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    /// Program data account.
-    pub program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-}
+  /// The program to invoke.
+  pub __program: &'b solana_account_info::AccountInfo<'a>,
+            /// Metadata account.
+
+    
+              
+          pub metadata: &'b solana_account_info::AccountInfo<'a>,
+                /// Authority account.
+
+    
+              
+          pub authority: &'b solana_account_info::AccountInfo<'a>,
+                /// Program account.
+
+    
+              
+          pub program: Option<&'b solana_account_info::AccountInfo<'a>>,
+                /// Program data account.
+
+    
+              
+          pub program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
+        }
 
 impl<'a, 'b> SetImmutableCpi<'a, 'b> {
-    pub fn new(
-        program: &'b solana_account_info::AccountInfo<'a>,
-        accounts: SetImmutableCpiAccounts<'a, 'b>,
-    ) -> Self {
-        Self {
-            __program: program,
-            metadata: accounts.metadata,
-            authority: accounts.authority,
-            program: accounts.program,
-            program_data: accounts.program_data,
-        }
-    }
-    #[inline(always)]
-    pub fn invoke(&self) -> solana_program_error::ProgramResult {
-        self.invoke_signed_with_remaining_accounts(&[], &[])
-    }
-    #[inline(always)]
-    pub fn invoke_with_remaining_accounts(
-        &self,
-        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> solana_program_error::ProgramResult {
-        self.invoke_signed_with_remaining_accounts(&[], remaining_accounts)
-    }
-    #[inline(always)]
-    pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
-        self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
-    }
-    #[allow(clippy::arithmetic_side_effects)]
-    #[allow(clippy::clone_on_copy)]
-    #[allow(clippy::vec_init_then_push)]
-    pub fn invoke_signed_with_remaining_accounts(
-        &self,
-        signers_seeds: &[&[&[u8]]],
-        remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> solana_program_error::ProgramResult {
-        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
-        accounts.push(solana_instruction::AccountMeta::new(
+  pub fn new(
+    program: &'b solana_account_info::AccountInfo<'a>,
+          accounts: SetImmutableCpiAccounts<'a, 'b>,
+          ) -> Self {
+    Self {
+      __program: program,
+              metadata: accounts.metadata,
+              authority: accounts.authority,
+              program: accounts.program,
+              program_data: accounts.program_data,
+                }
+  }
+  #[inline(always)]
+  pub fn invoke(&self) -> solana_program_error::ProgramResult {
+    self.invoke_signed_with_remaining_accounts(&[], &[])
+  }
+  #[inline(always)]
+  pub fn invoke_with_remaining_accounts(&self, remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]) -> solana_program_error::ProgramResult {
+    self.invoke_signed_with_remaining_accounts(&[], remaining_accounts)
+  }
+  #[inline(always)]
+  pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
+    self.invoke_signed_with_remaining_accounts(signers_seeds, &[])
+  }
+  #[allow(clippy::arithmetic_side_effects)]
+  #[allow(clippy::clone_on_copy)]
+  #[allow(clippy::vec_init_then_push)]
+  pub fn invoke_signed_with_remaining_accounts(
+    &self,
+    signers_seeds: &[&[&[u8]]],
+    remaining_accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]
+  ) -> solana_program_error::ProgramResult {
+    let mut accounts = Vec::with_capacity(4+ remaining_accounts.len());
+                            accounts.push(solana_instruction::AccountMeta::new(
             *self.metadata.key,
-            false,
-        ));
-        accounts.push(solana_instruction::AccountMeta::new_readonly(
+            false
+          ));
+                                          accounts.push(solana_instruction::AccountMeta::new_readonly(
             *self.authority.key,
-            true,
-        ));
-        if let Some(program) = self.program {
+            true
+          ));
+                                          if let Some(program) = self.program {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
-                *program.key,
-                false,
+              *program.key,
+              false,
             ));
-        } else {
+          } else {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
-                crate::PROGRAM_METADATA_ID,
-                false,
+              crate::PROGRAM_METADATA_ID,
+              false,
             ));
+          }
+                                          if let Some(program_data) = self.program_data {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+              *program_data.key,
+              false,
+            ));
+          } else {
+            accounts.push(solana_instruction::AccountMeta::new_readonly(
+              crate::PROGRAM_METADATA_ID,
+              false,
+            ));
+          }
+                      remaining_accounts.iter().for_each(|remaining_account| {
+      accounts.push(solana_instruction::AccountMeta {
+          pubkey: *remaining_account.0.key,
+          is_signer: remaining_account.1,
+          is_writable: remaining_account.2,
+      })
+    });
+    let data = SetImmutableInstructionData::new().try_to_vec().unwrap();
+    
+    let instruction = solana_instruction::Instruction {
+      program_id: crate::PROGRAM_METADATA_ID,
+      accounts,
+      data,
+    };
+    let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
+    account_infos.push(self.__program.clone());
+                  account_infos.push(self.metadata.clone());
+                        account_infos.push(self.authority.clone());
+                        if let Some(program) = self.program {
+          account_infos.push(program.clone());
         }
-        if let Some(program_data) = self.program_data {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
-                *program_data.key,
-                false,
-            ));
-        } else {
-            accounts.push(solana_instruction::AccountMeta::new_readonly(
-                crate::PROGRAM_METADATA_ID,
-                false,
-            ));
+                        if let Some(program_data) = self.program_data {
+          account_infos.push(program_data.clone());
         }
-        remaining_accounts.iter().for_each(|remaining_account| {
-            accounts.push(solana_instruction::AccountMeta {
-                pubkey: *remaining_account.0.key,
-                is_signer: remaining_account.1,
-                is_writable: remaining_account.2,
-            })
-        });
-        let data = SetImmutableInstructionData::new().try_to_vec().unwrap();
+              remaining_accounts.iter().for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
 
-        let instruction = solana_instruction::Instruction {
-            program_id: crate::PROGRAM_METADATA_ID,
-            accounts,
-            data,
-        };
-        let mut account_infos = Vec::with_capacity(5 + remaining_accounts.len());
-        account_infos.push(self.__program.clone());
-        account_infos.push(self.metadata.clone());
-        account_infos.push(self.authority.clone());
-        if let Some(program) = self.program {
-            account_infos.push(program.clone());
-        }
-        if let Some(program_data) = self.program_data {
-            account_infos.push(program_data.clone());
-        }
-        remaining_accounts
-            .iter()
-            .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
-
-        if signers_seeds.is_empty() {
-            solana_cpi::invoke(&instruction, &account_infos)
-        } else {
-            solana_cpi::invoke_signed(&instruction, &account_infos, signers_seeds)
-        }
+    if signers_seeds.is_empty() {
+      solana_cpi::invoke(&instruction, &account_infos)
+    } else {
+      solana_cpi::invoke_signed(&instruction, &account_infos, signers_seeds)
     }
+  }
 }
 
 /// Instruction builder for `SetImmutable` via CPI.
 ///
 /// ### Accounts:
 ///
-///   0. `[writable]` metadata
-///   1. `[signer]` authority
-///   2. `[optional]` program
-///   3. `[optional]` program_data
+                ///   0. `[writable]` metadata
+                ///   1. `[signer]` authority
+                ///   2. `[optional]` program
+                ///   3. `[optional]` program_data
 #[derive(Clone, Debug)]
 pub struct SetImmutableCpiBuilder<'a, 'b> {
-    instruction: Box<SetImmutableCpiBuilderInstruction<'a, 'b>>,
+  instruction: Box<SetImmutableCpiBuilderInstruction<'a, 'b>>,
 }
 
 impl<'a, 'b> SetImmutableCpiBuilder<'a, 'b> {
-    pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(SetImmutableCpiBuilderInstruction {
-            __program: program,
-            metadata: None,
-            authority: None,
-            program: None,
-            program_data: None,
-            __remaining_accounts: Vec::new(),
-        });
-        Self { instruction }
-    }
-    /// Metadata account.
-    #[inline(always)]
+  pub fn new(program: &'b solana_account_info::AccountInfo<'a>) -> Self {
+    let instruction = Box::new(SetImmutableCpiBuilderInstruction {
+      __program: program,
+              metadata: None,
+              authority: None,
+              program: None,
+              program_data: None,
+                                __remaining_accounts: Vec::new(),
+    });
+    Self { instruction }
+  }
+      /// Metadata account.
+#[inline(always)]
     pub fn metadata(&mut self, metadata: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.metadata = Some(metadata);
-        self
+                        self.instruction.metadata = Some(metadata);
+                    self
     }
-    /// Authority account.
-    #[inline(always)]
+      /// Authority account.
+#[inline(always)]
     pub fn authority(&mut self, authority: &'b solana_account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.authority = Some(authority);
-        self
+                        self.instruction.authority = Some(authority);
+                    self
     }
-    /// `[optional account]`
-    /// Program account.
-    #[inline(always)]
-    pub fn program(
-        &mut self,
-        program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    ) -> &mut Self {
-        self.instruction.program = program;
-        self
+      /// `[optional account]`
+/// Program account.
+#[inline(always)]
+    pub fn program(&mut self, program: Option<&'b solana_account_info::AccountInfo<'a>>) -> &mut Self {
+                        self.instruction.program = program;
+                    self
     }
-    /// `[optional account]`
-    /// Program data account.
-    #[inline(always)]
-    pub fn program_data(
-        &mut self,
-        program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-    ) -> &mut Self {
-        self.instruction.program_data = program_data;
-        self
+      /// `[optional account]`
+/// Program data account.
+#[inline(always)]
+    pub fn program_data(&mut self, program_data: Option<&'b solana_account_info::AccountInfo<'a>>) -> &mut Self {
+                        self.instruction.program_data = program_data;
+                    self
     }
-    /// Add an additional account to the instruction.
-    #[inline(always)]
-    pub fn add_remaining_account(
-        &mut self,
-        account: &'b solana_account_info::AccountInfo<'a>,
-        is_writable: bool,
-        is_signer: bool,
-    ) -> &mut Self {
-        self.instruction
-            .__remaining_accounts
-            .push((account, is_writable, is_signer));
-        self
-    }
-    /// Add additional accounts to the instruction.
-    ///
-    /// Each account is represented by a tuple of the `AccountInfo`, a `bool` indicating whether the account is writable or not,
-    /// and a `bool` indicating whether the account is a signer or not.
-    #[inline(always)]
-    pub fn add_remaining_accounts(
-        &mut self,
-        accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)],
-    ) -> &mut Self {
-        self.instruction
-            .__remaining_accounts
-            .extend_from_slice(accounts);
-        self
-    }
-    #[inline(always)]
-    pub fn invoke(&self) -> solana_program_error::ProgramResult {
-        self.invoke_signed(&[])
-    }
-    #[allow(clippy::clone_on_copy)]
-    #[allow(clippy::vec_init_then_push)]
-    pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
+            /// Add an additional account to the instruction.
+  #[inline(always)]
+  pub fn add_remaining_account(&mut self, account: &'b solana_account_info::AccountInfo<'a>, is_writable: bool, is_signer: bool) -> &mut Self {
+    self.instruction.__remaining_accounts.push((account, is_writable, is_signer));
+    self
+  }
+  /// Add additional accounts to the instruction.
+  ///
+  /// Each account is represented by a tuple of the `AccountInfo`, a `bool` indicating whether the account is writable or not,
+  /// and a `bool` indicating whether the account is a signer or not.
+  #[inline(always)]
+  pub fn add_remaining_accounts(&mut self, accounts: &[(&'b solana_account_info::AccountInfo<'a>, bool, bool)]) -> &mut Self {
+    self.instruction.__remaining_accounts.extend_from_slice(accounts);
+    self
+  }
+  #[inline(always)]
+  pub fn invoke(&self) -> solana_program_error::ProgramResult {
+    self.invoke_signed(&[])
+  }
+  #[allow(clippy::clone_on_copy)]
+  #[allow(clippy::vec_init_then_push)]
+  pub fn invoke_signed(&self, signers_seeds: &[&[&[u8]]]) -> solana_program_error::ProgramResult {
         let instruction = SetImmutableCpi {
-            __program: self.instruction.__program,
-
-            metadata: self.instruction.metadata.expect("metadata is not set"),
-
-            authority: self.instruction.authority.expect("authority is not set"),
-
-            program: self.instruction.program,
-
-            program_data: self.instruction.program_data,
-        };
-        instruction.invoke_signed_with_remaining_accounts(
-            signers_seeds,
-            &self.instruction.__remaining_accounts,
-        )
-    }
+        __program: self.instruction.__program,
+                  
+          metadata: self.instruction.metadata.expect("metadata is not set"),
+                  
+          authority: self.instruction.authority.expect("authority is not set"),
+                  
+          program: self.instruction.program,
+                  
+          program_data: self.instruction.program_data,
+                    };
+    instruction.invoke_signed_with_remaining_accounts(signers_seeds, &self.instruction.__remaining_accounts)
+  }
 }
 
 #[derive(Clone, Debug)]
 struct SetImmutableCpiBuilderInstruction<'a, 'b> {
-    __program: &'b solana_account_info::AccountInfo<'a>,
-    metadata: Option<&'b solana_account_info::AccountInfo<'a>>,
-    authority: Option<&'b solana_account_info::AccountInfo<'a>>,
-    program: Option<&'b solana_account_info::AccountInfo<'a>>,
-    program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-    /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
-    __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
+  __program: &'b solana_account_info::AccountInfo<'a>,
+            metadata: Option<&'b solana_account_info::AccountInfo<'a>>,
+                authority: Option<&'b solana_account_info::AccountInfo<'a>>,
+                program: Option<&'b solana_account_info::AccountInfo<'a>>,
+                program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
+                /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
+  __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }
+

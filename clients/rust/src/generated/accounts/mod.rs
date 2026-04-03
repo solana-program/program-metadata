@@ -5,8 +5,9 @@
 //! <https://github.com/codama-idl/codama>
 //!
 
-pub(crate) mod r#buffer;
-pub(crate) mod r#metadata;
+  pub(crate) mod r#buffer;
+  pub(crate) mod r#metadata;
 
-pub use self::r#buffer::*;
-pub use self::r#metadata::*;
+  pub use self::r#buffer::*;
+  pub use self::r#metadata::*;
+

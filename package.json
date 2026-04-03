@@ -1,4 +1,82 @@
-{
+cat > /tmp/run-metadata-check.sh <<'SH'
+#!/usr/bin/env bash
+set -u
+cd /workspaces/program-metadata || exit 1
+
+PROGRAM_ID="3NJyzGWjSHP4hZvsqakodi7jAtbufwd52vn1ek6EzQ35"
+SEED="idl"
+
+echo "== command checks =="
+command -v node || echo "node missing"
+command -v pnpm || echo "pnpm missing"
+command -v npx || echo "npx missing"
+
+echo "== install deps =="
+pnpm install || exit 1
+
+echo "== fetch metadata =="
+if command -v npx >/dev/null 2>&1; then
+  npx @solana-program/program-metadata@latest fetch "$SEED" "$PROGRAM_ID" \
+    --rpc https://api.mainnet-beta.solana.com \
+    --output ./program/idl.fetched.json
+else
+  pnpm dlx @solana-program/program-metadata@latest fetch "$SEED" "$PROGRAM_ID" \
+    --rpc https://api.mainnet-beta.solana.com \
+    --output ./program/idl.fetched.json
+fi
+FETCH_EXIT=$?
+echo "fetch_exit=$FETCH_EXIT"
+
+echo "== verify file =="
+ls -l ./program/idl.fetched.json
+
+echo "== diff =="
+diff -u ./program/idl.json ./program/idl.fetched.json
+DIFF_EXIT=$?
+echo "diff_exit=$DIFF_EXIT"
+SH
+
+chmod +x /tmp/run-metadata-check.sh
+bash /tmp/run-metadata-check.sh 2>&1 | tee /workspaces/program-metadata/run-all-output.txtcat > /tmp/run-metadata-check.sh <<'SH'
+#!/usr/bin/env bash
+set -u
+cd /workspaces/program-metadata || exit 1
+
+PROGRAM_ID="3NJyzGWjSHP4hZvsqakodi7jAtbufwd52vn1ek6EzQ35"
+SEED="idl"
+
+echo "== command checks =="
+command -v node || echo "node missing"
+command -v pnpm || echo "pnpm missing"
+command -v npx || echo "npx missing"
+
+echo "== install deps =="
+pnpm install || exit 1
+
+echo "== fetch metadata =="
+if command -v npx >/dev/null 2>&1; then
+  npx @solana-program/program-metadata@latest fetch "$SEED" "$PROGRAM_ID" \
+    --rpc https://api.mainnet-beta.solana.com \
+    --output ./program/idl.fetched.json
+else
+  pnpm dlx @solana-program/program-metadata@latest fetch "$SEED" "$PROGRAM_ID" \
+    --rpc https://api.mainnet-beta.solana.com \
+    --output ./program/idl.fetched.json
+fi
+FETCH_EXIT=$?
+echo "fetch_exit=$FETCH_EXIT"
+
+echo "== verify file =="
+ls -l ./program/idl.fetched.json
+
+echo "== diff =="
+diff -u ./program/idl.json ./program/idl.fetched.json
+DIFF_EXIT=$?
+echo "diff_exit=$DIFF_EXIT"
+SH
+
+chmod +x /tmp/run-metadata-check.sh
+bash /tmp/run-metadata-check.sh 2>&1 | tee /workspaces/program-metadata/run-all-output.txt{
     "private": true,
     "scripts": {
         "programs:build": "zx ./scripts/rust/build-sbf.mjs program",

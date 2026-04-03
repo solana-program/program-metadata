@@ -6,93 +6,90 @@
 //!
 
 use crate::generated::types::AccountDiscriminator;
-use crate::generated::types::Compression;
-use crate::generated::types::DataSource;
-use crate::generated::types::Encoding;
-use crate::generated::types::Format;
-use crate::generated::types::Seed;
-use crate::hooked::ZeroableOptionPubkey;
-use borsh::BorshDeserialize;
-use borsh::BorshSerialize;
-use kaigan::types::RemainderVec;
 use solana_pubkey::Pubkey;
+use crate::hooked::ZeroableOptionPubkey;
+use crate::generated::types::Seed;
+use crate::generated::types::Encoding;
+use crate::generated::types::Compression;
+use crate::generated::types::Format;
+use crate::generated::types::DataSource;
+use kaigan::types::RemainderVec;
+use borsh::BorshSerialize;
+use borsh::BorshDeserialize;
+
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Metadata {
-    pub discriminator: AccountDiscriminator,
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
-    )]
-    pub program: Pubkey,
-    pub authority: ZeroableOptionPubkey,
-    pub mutable: bool,
-    pub canonical: bool,
-    pub seed: Seed,
-    pub encoding: Encoding,
-    pub compression: Compression,
-    pub format: Format,
-    pub data_source: DataSource,
-    pub data_length: u32,
-    pub data: RemainderVec<u8>,
+pub discriminator: AccountDiscriminator,
+#[cfg_attr(feature = "serde", serde(with = "serde_with::As::<serde_with::DisplayFromStr>"))]
+pub program: Pubkey,
+pub authority: ZeroableOptionPubkey,
+pub mutable: bool,
+pub canonical: bool,
+pub seed: Seed,
+pub encoding: Encoding,
+pub compression: Compression,
+pub format: Format,
+pub data_source: DataSource,
+pub data_length: u32,
+pub data: RemainderVec<u8>,
 }
 
+
+
+
 impl Metadata {
-    #[inline(always)]
-    pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
-        let mut data = data;
-        Self::deserialize(&mut data)
-    }
+  
+  
+  
+  #[inline(always)]
+  pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
+    let mut data = data;
+    Self::deserialize(&mut data)
+  }
 }
 
 impl<'a> TryFrom<&solana_account_info::AccountInfo<'a>> for Metadata {
-    type Error = std::io::Error;
+  type Error = std::io::Error;
 
-    fn try_from(account_info: &solana_account_info::AccountInfo<'a>) -> Result<Self, Self::Error> {
-        let mut data: &[u8] = &(*account_info.data).borrow();
-        Self::deserialize(&mut data)
-    }
+  fn try_from(account_info: &solana_account_info::AccountInfo<'a>) -> Result<Self, Self::Error> {
+      let mut data: &[u8] = &(*account_info.data).borrow();
+      Self::deserialize(&mut data)
+  }
 }
 
 #[cfg(feature = "fetch")]
 pub fn fetch_metadata(
-    rpc: &solana_client::rpc_client::RpcClient,
-    address: &solana_pubkey::Pubkey,
+  rpc: &solana_client::rpc_client::RpcClient,
+  address: &solana_pubkey::Pubkey,
 ) -> Result<crate::shared::DecodedAccount<Metadata>, std::io::Error> {
-    let accounts = fetch_all_metadata(rpc, &[*address])?;
-    Ok(accounts[0].clone())
+  let accounts = fetch_all_metadata(rpc, &[*address])?;
+  Ok(accounts[0].clone())
 }
 
 #[cfg(feature = "fetch")]
 pub fn fetch_all_metadata(
-    rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[solana_pubkey::Pubkey],
+  rpc: &solana_client::rpc_client::RpcClient,
+  addresses: &[solana_pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::DecodedAccount<Metadata>>, std::io::Error> {
-    let accounts = rpc
-        .get_multiple_accounts(addresses)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let accounts = rpc.get_multiple_accounts(addresses)
+      .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::DecodedAccount<Metadata>> = Vec::new();
     for i in 0..addresses.len() {
-        let address = addresses[i];
-        let account = accounts[i].as_ref().ok_or(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Account not found: {}", address),
-        ))?;
-        let data = Metadata::from_bytes(&account.data)?;
-        decoded_accounts.push(crate::shared::DecodedAccount {
-            address,
-            account: account.clone(),
-            data,
-        });
+      let address = addresses[i];
+      let account = accounts[i].as_ref()
+        .ok_or(std::io::Error::new(std::io::ErrorKind::Other, format!("Account not found: {}", address)))?;
+      let data = Metadata::from_bytes(&account.data)?;
+      decoded_accounts.push(crate::shared::DecodedAccount { address, account: account.clone(), data });
     }
     Ok(decoded_accounts)
 }
 
 #[cfg(feature = "fetch")]
 pub fn fetch_maybe_metadata(
-    rpc: &solana_client::rpc_client::RpcClient,
-    address: &solana_pubkey::Pubkey,
+  rpc: &solana_client::rpc_client::RpcClient,
+  address: &solana_pubkey::Pubkey,
 ) -> Result<crate::shared::MaybeAccount<Metadata>, std::io::Error> {
     let accounts = fetch_all_maybe_metadata(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -100,27 +97,22 @@ pub fn fetch_maybe_metadata(
 
 #[cfg(feature = "fetch")]
 pub fn fetch_all_maybe_metadata(
-    rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[solana_pubkey::Pubkey],
+  rpc: &solana_client::rpc_client::RpcClient,
+  addresses: &[solana_pubkey::Pubkey],
 ) -> Result<Vec<crate::shared::MaybeAccount<Metadata>>, std::io::Error> {
-    let accounts = rpc
-        .get_multiple_accounts(addresses)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+    let accounts = rpc.get_multiple_accounts(addresses)
+      .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::MaybeAccount<Metadata>> = Vec::new();
     for i in 0..addresses.len() {
-        let address = addresses[i];
-        if let Some(account) = accounts[i].as_ref() {
-            let data = Metadata::from_bytes(&account.data)?;
-            decoded_accounts.push(crate::shared::MaybeAccount::Exists(
-                crate::shared::DecodedAccount {
-                    address,
-                    account: account.clone(),
-                    data,
-                },
-            ));
-        } else {
-            decoded_accounts.push(crate::shared::MaybeAccount::NotFound(address));
-        }
+      let address = addresses[i];
+      if let Some(account) = accounts[i].as_ref() {
+        let data = Metadata::from_bytes(&account.data)?;
+        decoded_accounts.push(crate::shared::MaybeAccount::Exists(crate::shared::DecodedAccount { address, account: account.clone(), data }));
+      } else {
+        decoded_accounts.push(crate::shared::MaybeAccount::NotFound(address));
+      }
     }
-    Ok(decoded_accounts)
+  Ok(decoded_accounts)
 }
+
+
