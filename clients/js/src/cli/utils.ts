@@ -121,11 +121,12 @@ async function exportTransactionPlan(
             m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
             m => removeComputeUnitLimitInstruction(m),
         );
-        logInstructions(message);
         const transaction = compileTransaction(message);
         const encodedTransaction = decodeData(transactionEncoder.encode(transaction), options.exportEncoding);
         const prefix = picocolors.yellow(`[Transaction #${i + 1}]`);
-        console.log(`${prefix}\n${encodedTransaction}\n`);
+        console.log(`\n${prefix}`);
+        logInstructions(message);
+        console.log(`${picocolors.yellow('Encoded:')}\n${encodedTransaction}\n`);
     }
 }
 
