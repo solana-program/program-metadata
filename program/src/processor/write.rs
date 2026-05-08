@@ -38,7 +38,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
     // target_buffer
     // - must be initialized
     // - must be rent exempt (pre-funded account) since we are reallocating the buffer
-    //   account (this is tested implicity)
+    //   account
 
     let (required_length, source_data) = {
         // SAFETY: scoped immutable borrow of `buffer` account data. There

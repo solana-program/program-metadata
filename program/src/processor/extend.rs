@@ -36,7 +36,7 @@ pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
     // - must be a buffer or metadata account
     // - must have a valid authority
     // - must be rent exempt (pre-funded account) since we are reallocating the buffer
-    //   account (this is tested implicity)
+    //   account
 
     if account.data_is_empty() {
         return Err(ProgramError::InvalidAccountData);
