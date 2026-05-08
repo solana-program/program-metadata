@@ -4,7 +4,9 @@ use pinocchio::{
     memory::sol_memcpy,
     program_error::ProgramError,
     pubkey::{find_program_address, Pubkey},
-    seeds, ProgramResult,
+    seeds,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign};
 
@@ -101,9 +103,6 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             return Err(ProgramError::AccountAlreadyInitialized)
         }
         None => {
-            if metadata.lamports() == 0 {
-                return Err(ProgramError::AccountNotRentExempt);
-            }
             // Ensure remaining data is provided.
             if remaining_data.is_empty() {
                 return Err(ProgramError::InvalidInstructionData);
@@ -124,11 +123,12 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
                 )
             };
             let signer = &[Signer::from(signer_seeds)];
+            // Instruction data is limited to ~1232 bytes.
+            let space = Header::LEN + remaining_data.len();
 
             Allocate {
                 account: metadata,
-                // Instruction data is limited to 1232 bytes.
-                space: (Header::LEN + remaining_data.len()) as u64,
+                space: space as u64,
             }
             .invoke_signed(signer)?;
 
@@ -137,6 +137,12 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
                 owner: &crate::ID,
             }
             .invoke_signed(signer)?;
+
+            let minimum_balance = Rent::get()?.minimum_balance(space);
+
+            if metadata.lamports() < minimum_balance {
+                return Err(ProgramError::AccountNotRentExempt);
+            }
 
             // SAFETY: scoped mutable borrow of `metadata` account data. The data is
             // guaranteed to be allocated and assigned to the program.

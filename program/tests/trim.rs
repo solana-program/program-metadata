@@ -3,8 +3,9 @@ pub use setup::*;
 
 use mollusk_svm::{program::keyed_account_for_system_program, result::Check};
 use solana_account::Account;
+use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
-use solana_sdk_ids::system_program;
+use solana_sdk_ids::{system_program, sysvar::rent};
 use spl_program_metadata::state::{buffer::Buffer, header::Header};
 
 const EXCESS_LAMPORTS: usize = 90;
@@ -253,6 +254,53 @@ fn test_trim_buffer() {
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
             (solana_rent::sysvar::ID, rent_sysvar()),
+        ],
+    );
+}
+
+#[test]
+fn fail_trim_non_rent_exempt_account() {
+    let destination_key = Pubkey::new_unique();
+    let destination_account = create_empty_account(Buffer::LEN, PROGRAM_ID);
+
+    // A program-owned account non-rent exempt on purpose to try trigger
+    // an underflow
+    let fake_buffer_key = Pubkey::new_unique();
+    let mut fake_buffer_account = Account {
+        lamports: 0,
+        owner: PROGRAM_ID,
+        data: vec![1; Buffer::LEN], // buffer discriminator
+        ..Default::default()
+    };
+    // Set the authority to a non-zero value to pass the authority validation.
+    fake_buffer_account.data[33..65].copy_from_slice(fake_buffer_key.as_array());
+
+    let destination_lamports = destination_account.lamports;
+
+    process_instructions(
+        &[(
+            &trim(
+                &fake_buffer_key,
+                &fake_buffer_key,
+                None,
+                None,
+                &destination_key,
+            )
+            .unwrap(),
+            &[
+                Check::err(ProgramError::AccountNotRentExempt),
+                Check::account(&destination_key)
+                    .lamports(destination_lamports)
+                    .build(),
+                Check::account(&fake_buffer_key).lamports(0).build(),
+            ],
+        )],
+        &[
+            (fake_buffer_key, fake_buffer_account),
+            (PROGRAM_ID, Account::default()),
+            (destination_key, destination_account),
+            keyed_account_for_system_program(),
+            (rent::ID, rent_sysvar()),
         ],
     );
 }
