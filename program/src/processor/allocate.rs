@@ -3,6 +3,7 @@ use pinocchio::{
     instruction::{Seed, Signer},
     program_error::ProgramError,
     pubkey::find_program_address,
+    sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign};
@@ -81,10 +82,6 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
             // Allocates the space for the buffer account and assigns it to
             // the program.
 
-            if buffer.lamports() == 0 {
-                return Err(ProgramError::AccountNotRentExempt);
-            }
-
             let space = Buffer::LEN as u64;
 
             match (is_pda, canonical) {
@@ -136,6 +133,12 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
             }
         }
         _ => return Err(ProgramError::InvalidAccountData),
+    }
+
+    let minimum_balance = Rent::get()?.minimum_balance(buffer.data_len());
+
+    if buffer.lamports() < minimum_balance {
+        return Err(ProgramError::AccountNotRentExempt);
     }
 
     // Writes the buffer header.

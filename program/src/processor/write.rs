@@ -1,7 +1,11 @@
 use core::cmp::max;
 
 use pinocchio::{
-    account_info::AccountInfo, memory::sol_memcpy, program_error::ProgramError, ProgramResult,
+    account_info::AccountInfo,
+    memory::sol_memcpy,
+    program_error::ProgramError,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
 };
 
 use crate::state::{buffer::Buffer, header::Header, AccountDiscriminator};
@@ -77,6 +81,12 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
         // The length of the data to write is validated by the `realloc`.
         (max(data.len(), offset + source_data.len()), source_data)
     };
+
+    let minimum_balance = Rent::get()?.minimum_balance(required_length);
+
+    if target_buffer.lamports() < minimum_balance {
+        return Err(ProgramError::AccountNotRentExempt);
+    }
 
     // Writes the source data to the buffer account.
 

@@ -53,19 +53,27 @@ pub fn trim(accounts: &[AccountInfo]) -> ProgramResult {
 
     let minimum_balance = {
         // SAFETY: single immutable borrow of `rent_sysver` account data.
-        let rent = unsafe { Rent::from_bytes(rent_sysvar.borrow_data_unchecked())? };
+        let rent = unsafe { Rent::from_account_info_unchecked(rent_sysvar)? };
         rent.minimum_balance(length)
     };
 
     account.realloc(length, false)?;
 
+    // Current lamports should always be greater than or equal to the minimum
+    // balance since the account must be rent exempt.
+    let excess_lamports = account
+        .lamports()
+        .checked_sub(minimum_balance)
+        .ok_or(ProgramError::AccountNotRentExempt)?;
+
     // SAFETY: single mutable borrow if `account` and `destination` lamports.
     unsafe {
         let account_lamports = account.borrow_mut_lamports_unchecked();
         let destination_lamports = destination.borrow_mut_lamports_unchecked();
-        // Current lamports should always be greater than or equal to the minimum
-        // balance since the account is rent exempt.
-        *destination_lamports += *account_lamports - minimum_balance;
+
+        *destination_lamports = destination_lamports
+            .checked_add(excess_lamports)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
         *account_lamports = minimum_balance;
     }
 

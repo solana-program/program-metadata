@@ -1,5 +1,10 @@
 use core::mem::size_of;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+use pinocchio::{
+    account_info::AccountInfo,
+    program_error::ProgramError,
+    sysvars::{rent::Rent, Sysvar},
+    ProgramResult,
+};
 
 use crate::state::{buffer::Buffer, AccountDiscriminator};
 
@@ -54,11 +59,17 @@ pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
         }
     }
 
-    // Reallocates the account size.
-
     // The length of the data is never more than `10_000_000`; adding a `u16`
     // will never overflow the `usize` limit.
-    account.realloc(account.data_len() + extend_length as usize, false)?;
+    let length = account.data_len() + extend_length as usize;
 
-    Ok(())
+    let minimum_balance = Rent::get()?.minimum_balance(length);
+
+    if account.lamports() < minimum_balance {
+        return Err(ProgramError::AccountNotRentExempt);
+    }
+
+    // Reallocates the account size.
+
+    account.realloc(length, false)
 }
