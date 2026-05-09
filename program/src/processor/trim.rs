@@ -1,5 +1,5 @@
 use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, sysvars::rent::Rent, ProgramResult,
+    account::AccountView, error::ProgramError, sysvars::rent::Rent, ProgramResult, Resize,
 };
 
 use crate::state::{buffer::Buffer, header::Header, AccountDiscriminator};
@@ -9,7 +9,7 @@ use super::{validate_authority, validate_metadata};
 /// Processor for the [`Trim`](`crate::instruction::ProgramMetadataInstruction::Trim`)
 /// instruction.
 #[allow(clippy::arithmetic_side_effects)]
-pub fn trim(accounts: &[AccountInfo]) -> ProgramResult {
+pub fn trim(accounts: &mut [AccountView]) -> ProgramResult {
     // Access accounts.
 
     let [account, authority, program, program_data, destination, rent_sysvar] = accounts else {
@@ -17,19 +17,22 @@ pub fn trim(accounts: &[AccountInfo]) -> ProgramResult {
     };
 
     // Account validation.
+    //
+    // Note that program owned and writable checks are done implicitly by writing
+    // to the account.
 
     // account
     // - authority must be a signer (checked by `validate_authority`)
     // - must be a buffer or metadata account
     // - must have a valid authority
 
-    if account.data_is_empty() {
+    if account.is_data_empty() {
         return Err(ProgramError::UninitializedAccount);
     };
 
     let length = {
         // SAFETY: scoped immutable borrow of `account` account data.
-        let data = unsafe { account.borrow_data_unchecked() };
+        let data = unsafe { account.borrow_unchecked() };
         // SAFETY: `account` is guaranteed to not be empty.
         let discriminator = unsafe { data.get_unchecked(0) };
 
@@ -53,11 +56,12 @@ pub fn trim(accounts: &[AccountInfo]) -> ProgramResult {
 
     let minimum_balance = {
         // SAFETY: single immutable borrow of `rent_sysver` account data.
-        let rent = unsafe { Rent::from_account_info_unchecked(rent_sysvar)? };
-        rent.minimum_balance(length)
+        let rent = unsafe { Rent::from_account_view_unchecked(rent_sysvar)? };
+        rent.try_minimum_balance(length)?
     };
 
-    account.realloc(length, false)?;
+    // SAFETY: `account` is not borrowed at this point.
+    unsafe { account.resize_unchecked(length)? };
 
     // Current lamports should always be greater than or equal to the minimum
     // balance since the account must be rent exempt.
@@ -65,17 +69,14 @@ pub fn trim(accounts: &[AccountInfo]) -> ProgramResult {
         .lamports()
         .checked_sub(minimum_balance)
         .ok_or(ProgramError::AccountNotRentExempt)?;
+    let destination_lamports = destination.lamports();
 
-    // SAFETY: single mutable borrow if `account` and `destination` lamports.
-    unsafe {
-        let account_lamports = account.borrow_mut_lamports_unchecked();
-        let destination_lamports = destination.borrow_mut_lamports_unchecked();
-
-        *destination_lamports = destination_lamports
+    destination.set_lamports(
+        destination_lamports
             .checked_add(excess_lamports)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-        *account_lamports = minimum_balance;
-    }
+            .ok_or(ProgramError::ArithmeticOverflow)?,
+    );
+    account.set_lamports(minimum_balance);
 
     Ok(())
 }

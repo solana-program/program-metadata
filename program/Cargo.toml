@@ -21,9 +21,9 @@ name = "spl_program_metadata"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-pinocchio = "0.8"
-pinocchio-pubkey = "0.2"
-pinocchio-system = "0.2"
+pinocchio = { version = "0.11.1", features = ["account-resize"] }
+pinocchio-system = "0.6.1"
+solana-program-log = { version = "1.0", default-features = false }
 solana-security-txt = "1.1.1"
 
 [dev-dependencies]

@@ -1,8 +1,4 @@
-use pinocchio::{
-    account_info::AccountInfo,
-    program_error::ProgramError,
-    pubkey::{Pubkey, PUBKEY_BYTES},
-};
+use pinocchio::{address::ADDRESS_BYTES, error::ProgramError, AccountView, Address};
 
 use crate::{
     error::ProgramMetadataError,
@@ -20,10 +16,10 @@ pub mod trim;
 pub mod write;
 
 /// The program ID of the SVM Loader `v3`.
-const BPF_LOADER_UPGRABABLE_ID: Pubkey = [
+const BPF_LOADER_UPGRABABLE_ID: Address = Address::new_from_array([
     2, 168, 246, 145, 78, 136, 161, 176, 226, 16, 21, 62, 247, 99, 174, 43, 0, 194, 185, 61, 22,
     193, 36, 210, 192, 83, 122, 16, 4, 128, 0, 0,
-];
+]);
 
 /// Checks if the provided `authority` is the authority allowed to update the `program`.
 /// Fails when providing unexpected input.
@@ -50,27 +46,27 @@ const BPF_LOADER_UPGRABABLE_ID: Pubkey = [
 #[allow(clippy::arithmetic_side_effects)]
 #[inline(always)]
 fn is_program_authority(
-    program: &AccountInfo,
-    program_data: &AccountInfo,
-    authority: &Pubkey,
+    program: &AccountView,
+    program_data: &AccountView,
+    authority: &Address,
 ) -> Result<bool, ProgramError> {
     // For BPFv1 and BPF Loader v2 programs, there is no program data associated. In this case,
     // the keypair used to deploy the program must be the authority and sign the transaction.
-    if !program.is_owned_by(&BPF_LOADER_UPGRABABLE_ID) {
-        return Ok(program.executable() && program.key() == authority);
+    if !program.owned_by(&BPF_LOADER_UPGRABABLE_ID) {
+        return Ok(program.executable() && program.address() == authority);
     }
 
     // For BPFv3 programs, we need the program data account to check the auhtority.
-    if program_data.key() == &crate::ID {
+    if program_data.address() == &crate::ID {
         return Ok(false);
     }
 
     let expected_program_data = {
-        let data = unsafe { program.borrow_data_unchecked() };
+        let data = unsafe { program.borrow_unchecked() };
         match (data.first(), program.executable()) {
             (Some(2 /* program discriminator */), true) => {
                 let offset: usize = 4 /* discriminator */;
-                Pubkey::try_from(&data[offset..offset + PUBKEY_BYTES])
+                Address::try_from(&data[offset..offset + ADDRESS_BYTES])
                     .map_err(|_| ProgramError::InvalidAccountData)?
             }
             _ => {
@@ -80,13 +76,13 @@ fn is_program_authority(
     };
 
     // Program <-> Program Data check.
-    if expected_program_data != *program_data.key() {
+    if expected_program_data != *program_data.address() {
         return Err(ProgramMetadataError::InvalidProgramDataAccount.into());
     }
 
     // Program Data checks.
     let is_program_authority = {
-        let data = unsafe { program_data.borrow_data_unchecked() };
+        let data = unsafe { program_data.borrow_unchecked() };
         match (data.first(), program_data.executable()) {
             (Some(3 /* program data discriminator */), false) => {
                 let option_offset: usize = 4 /* discriminator */ + 8 /* slot */;
@@ -94,7 +90,7 @@ fn is_program_authority(
                     let pubkey_offset: usize = option_offset + 1 /* option */;
                     // The `authority_key` is a `Pubkey`.
                     let authority_key =
-                        Pubkey::try_from(&data[pubkey_offset..pubkey_offset + PUBKEY_BYTES])
+                        Address::try_from(&data[pubkey_offset..pubkey_offset + ADDRESS_BYTES])
                             .map_err(|_| ProgramError::InvalidAccountData)?;
                     authority == &authority_key
                 } else {
@@ -118,8 +114,8 @@ fn is_program_authority(
 ///   be [`AccountDiscriminator::Metadata`].
 /// - The `metadata` account must be mutable (`mutable = true`).
 #[inline(always)]
-fn validate_metadata(metadata: &AccountInfo) -> Result<&Header, ProgramError> {
-    let header = unsafe { Header::from_bytes_unchecked(metadata.borrow_data_unchecked()) };
+fn validate_metadata(metadata: &AccountView) -> Result<&Header, ProgramError> {
+    let header = unsafe { Header::from_bytes_unchecked(metadata.borrow_unchecked()) };
     if header.discriminator != AccountDiscriminator::Metadata as u8 {
         return Err(ProgramError::UninitializedAccount);
     }
@@ -140,9 +136,9 @@ fn validate_metadata(metadata: &AccountInfo) -> Result<&Header, ProgramError> {
 #[inline(always)]
 fn validate_authority<T: Account>(
     account: &T,
-    authority: &AccountInfo,
-    program: &AccountInfo,
-    program_data: &AccountInfo,
+    authority: &AccountView,
+    program: &AccountView,
+    program_data: &AccountView,
 ) -> Result<(), ProgramError> {
     // Authority checks.
     if !authority.is_signer() {
@@ -151,18 +147,27 @@ fn validate_authority<T: Account>(
 
     // The authority is the set authority.
     let explicitly_authorized = match account.get_authority() {
-        Some(metadata_authority) => metadata_authority == authority.key(),
+        Some(metadata_authority) => metadata_authority == authority.address(),
         None => false,
     };
 
     // The authority is the program upgrade authority for canonical metadata accounts.
     let authorized = explicitly_authorized
-        || (account.is_canonical(program.key())
-            && is_program_authority(program, program_data, authority.key())?);
+        || (account.is_canonical(program.address())
+            && is_program_authority(program, program_data, authority.address())?);
 
     if !authorized {
         Err(ProgramError::IncorrectAuthority)
     } else {
         Ok(())
     }
+}
+
+#[inline(always)]
+fn derive_program_address<const N: usize>(
+    seeds: &[&[u8]; N],
+    program_id: &Address,
+) -> (Address, u8) {
+    Address::derive_program_address(seeds, program_id)
+        .expect("Unable to find a viable program address bump seed")
 }

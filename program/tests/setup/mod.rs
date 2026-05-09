@@ -17,7 +17,7 @@ use solana_pubkey::Pubkey;
 use solana_rent::Rent;
 use solana_sdk_ids::bpf_loader_upgradeable;
 
-pub const PROGRAM_ID: Pubkey = Pubkey::new_from_array(spl_program_metadata::ID);
+pub const PROGRAM_ID: Pubkey = Pubkey::new_from_array(*spl_program_metadata::ID.as_array());
 
 pub fn create_account(data: Vec<u8>, executable: bool, owner: Pubkey) -> Account {
     let space = data.len();
@@ -68,12 +68,22 @@ pub fn process_instructions(
     instructions: &[(&Instruction, &[Check])],
     accounts: &[(Pubkey, Account)],
 ) {
-    let mollusk = Mollusk::new(&PROGRAM_ID, "spl_program_metadata");
+    let mut mollusk = Mollusk::new(&PROGRAM_ID, "spl_program_metadata");
+    let mut rent = Rent::default();
+    rent.lamports_per_byte_year = rent
+        .lamports_per_byte_year
+        .saturating_mul(rent.exemption_threshold as u64);
+    mollusk.sysvars.rent = rent;
+
     mollusk.process_and_validate_instruction_chain(instructions, accounts);
 }
 
 pub fn rent_sysvar() -> Account {
-    create_account_for_test(&Rent::default())
+    let mut rent = Rent::default();
+    rent.lamports_per_byte_year = rent
+        .lamports_per_byte_year
+        .saturating_mul(rent.exemption_threshold as u64);
+    create_account_for_test(&rent)
 }
 
 pub fn setup_program_account(program_data: &Pubkey) -> Account {

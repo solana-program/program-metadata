@@ -1,15 +1,14 @@
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    program_error::ProgramError,
-    pubkey::find_program_address,
+    cpi::{Seed, Signer},
+    error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    AccountView, ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign};
 
 use crate::{
     error::ProgramMetadataError,
+    processor::derive_program_address,
     state::{buffer::Buffer, AccountDiscriminator, SEED_LEN},
     ID,
 };
@@ -18,7 +17,7 @@ use super::is_program_authority;
 
 /// Processor for the [`Allocate`](`crate::instruction::ProgramMetadataInstruction::Allocate`)
 /// instruction.
-pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+pub fn allocate(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramResult {
     // Access accounts.
 
     let [buffer, authority, program, program_data, _system_program, _remaining @ ..] = accounts
@@ -43,7 +42,7 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
     //   a signer (match the authority)
     // - must be rent exempt (pre-funded account)
 
-    let (is_pda, bump, canonical) = if buffer.key() == authority.key() {
+    let (is_pda, bump, canonical) = if buffer.address() == authority.address() {
         // A keypair buffer does not require a `seed` value.
         if !instruction_data.is_empty() {
             return Err(ProgramError::InvalidInstructionData);
@@ -60,17 +59,22 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
             return Err(ProgramMetadataError::NotExecutableAccount.into());
         }
 
-        let canonical = is_program_authority(program, program_data, authority.key())?;
+        let canonical = is_program_authority(program, program_data, authority.address())?;
 
-        let seeds: &[&[u8]] = if canonical {
-            &[program.key(), instruction_data]
+        let (derived_metadata, bump) = if canonical {
+            derive_program_address(&[program.address().as_array(), instruction_data], &ID)
         } else {
-            &[program.key(), authority.key(), instruction_data]
+            derive_program_address(
+                &[
+                    program.address().as_array(),
+                    authority.address().as_array(),
+                    instruction_data,
+                ],
+                &ID,
+            )
         };
 
-        let (derived_metadata, bump) = find_program_address(seeds, &ID);
-
-        if buffer.key() != &derived_metadata {
+        if buffer.address() != &derived_metadata {
             return Err(ProgramError::InvalidSeeds);
         }
 
@@ -90,7 +94,7 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
                     buffer,
                     space,
                     &[
-                        Seed::from(program.key()),
+                        Seed::from(program.address().as_array()),
                         Seed::from(instruction_data),
                         Seed::from(&[bump]),
                     ],
@@ -100,8 +104,8 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
                     buffer,
                     space,
                     &[
-                        Seed::from(program.key()),
-                        Seed::from(authority.key()),
+                        Seed::from(program.address().as_array()),
+                        Seed::from(authority.address().as_array()),
                         Seed::from(instruction_data),
                         Seed::from(&[bump]),
                     ],
@@ -115,7 +119,7 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
             // buffer account to the program (the runtime only allows assigning
             // zeroed accounts, so there is no need to check the contents of the
             // account).
-            if !buffer.is_owned_by(&crate::ID) {
+            if !buffer.owned_by(&crate::ID) {
                 Assign {
                     account: buffer,
                     owner: &crate::ID,
@@ -125,7 +129,7 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
                 // Checks whether the buffer account is already initialized or not.
                 //
                 // SAFETY: scoped borrow of the `buffer` account data.
-                let data = unsafe { buffer.borrow_data_unchecked() };
+                let data = unsafe { buffer.borrow_unchecked() };
 
                 if data[0] != AccountDiscriminator::Empty as u8 {
                     return Err(ProgramError::AccountAlreadyInitialized);
@@ -135,7 +139,8 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
         _ => return Err(ProgramError::InvalidAccountData),
     }
 
-    let minimum_balance = Rent::get()?.minimum_balance(buffer.data_len());
+    // `buffer` length is within the permitted limit.
+    let minimum_balance = Rent::get()?.minimum_balance_unchecked(buffer.data_len());
 
     if buffer.lamports() < minimum_balance {
         return Err(ProgramError::AccountNotRentExempt);
@@ -145,13 +150,12 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
 
     // SAFETY: single mutable borrow of the `buffer` account data. The legth of the buffer account
     // data has been checked to be at least `Buffer::LEN` and uninitialized.
-    let buffer_header =
-        unsafe { Buffer::from_bytes_mut_unchecked(buffer.borrow_mut_data_unchecked()) };
+    let buffer_header = unsafe { Buffer::from_bytes_mut_unchecked(buffer.borrow_unchecked_mut()) };
     buffer_header.discriminator = AccountDiscriminator::Buffer as u8;
-    buffer_header.authority = (*authority.key()).into();
+    buffer_header.authority = (*authority.address()).into();
 
     if is_pda {
-        buffer_header.program = (*program.key()).into();
+        buffer_header.program = (*program.address()).into();
         buffer_header.canonical = canonical as u8;
         buffer_header
             .seed
@@ -165,7 +169,7 @@ pub fn allocate(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
 ///
 /// When the `account` is a PDA, the `seeds` are used to create the signer.
 #[inline(always)]
-fn allocate_and_assign(account: &AccountInfo, space: u64, seeds: &[Seed]) -> ProgramResult {
+fn allocate_and_assign(account: &AccountView, space: u64, seeds: &[Seed]) -> ProgramResult {
     let signer: &[Signer] = if seeds.is_empty() {
         &[]
     } else {

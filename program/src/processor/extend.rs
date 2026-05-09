@@ -1,9 +1,9 @@
 use core::mem::size_of;
 use pinocchio::{
-    account_info::AccountInfo,
-    program_error::ProgramError,
+    account::AccountView,
+    error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    ProgramResult, Resize,
 };
 
 use crate::state::{buffer::Buffer, AccountDiscriminator};
@@ -13,7 +13,7 @@ use super::{validate_authority, validate_metadata};
 /// Processor for the [`Extend`](`crate::instruction::ProgramMetadataInstruction::Extend`)
 /// instruction.
 #[allow(clippy::arithmetic_side_effects)]
-pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+pub fn extend(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 
     let extend_length = if instruction_data.len() != size_of::<u16>() {
@@ -30,6 +30,9 @@ pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
     };
 
     // Account validation.
+    //
+    // Note that program owned and writable checks are done implicitly by writing
+    // to the account.
 
     // account
     // - authority must be a signer (validated by `validate_authority`)
@@ -38,11 +41,11 @@ pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
     // - must be rent exempt (pre-funded account) since we are reallocating the buffer
     //   account
 
-    if account.data_is_empty() {
+    if account.is_data_empty() {
         return Err(ProgramError::InvalidAccountData);
     } else {
         // SAFETY: single immutable borrow of `account` account data.
-        let data = unsafe { account.borrow_data_unchecked() };
+        let data = unsafe { account.borrow_unchecked() };
         // SAFETY: `account` is guaranteed to not be empty.
         let discriminator = unsafe { data.get_unchecked(0) };
 
@@ -63,7 +66,7 @@ pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
     // will never overflow the `usize` limit.
     let length = account.data_len() + extend_length as usize;
 
-    let minimum_balance = Rent::get()?.minimum_balance(length);
+    let minimum_balance = Rent::get()?.try_minimum_balance(length)?;
 
     if account.lamports() < minimum_balance {
         return Err(ProgramError::AccountNotRentExempt);
@@ -71,5 +74,6 @@ pub fn extend(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResul
 
     // Reallocates the account size.
 
-    account.realloc(length, false)
+    // SAFETY: `account` is not borrowed at this point.
+    unsafe { account.resize_unchecked(length) }
 }

@@ -1,6 +1,4 @@
-use pinocchio::{
-    account_info::AccountInfo, memory::sol_memcpy, program_error::ProgramError, ProgramResult,
-};
+use pinocchio::{account::AccountView, error::ProgramError, ProgramResult, Resize};
 
 use crate::state::{
     header::Header, AccountDiscriminator, Compression, DataSource, Encoding, Format,
@@ -11,7 +9,7 @@ use super::{validate_authority, validate_metadata};
 /// Processor for the [`SetData`](`crate::instruction::ProgramMetadataInstruction::SetData`)
 /// instruction.
 #[allow(clippy::arithmetic_side_effects)]
-pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+pub fn set_data(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 
     if instruction_data.len() < SetData::LEN {
@@ -57,12 +55,12 @@ pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
     validate_authority(header, authority, program, program_data)?;
 
     // Get data from buffer or remaining instruction data, if any.
-    let has_buffer = buffer.key() != &crate::ID;
+    let has_buffer = buffer.address() != &crate::ID;
     let data = match (optional_data, has_buffer) {
         (Some((data_source, Some(remaining_data))), false) => Some((data_source, remaining_data)),
         (Some((data_source, None)), true) => {
             // SAFETY: singe immutable borrow of `buffer` account data.
-            let buffer_data = unsafe { buffer.borrow_data_unchecked() };
+            let buffer_data = unsafe { buffer.borrow_unchecked() };
             match AccountDiscriminator::try_from_bytes(buffer_data)? {
                 Some(AccountDiscriminator::Buffer) => {
                     Some((data_source, &buffer_data[Header::LEN..]))
@@ -78,20 +76,23 @@ pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
 
     if let Some(data) = update_header(metadata, args, data)? {
         // Realloc the metadata account if necessary.
+
+        // SAFETY: There are no other active borrows to the `metadata` account data.
         //
         // The realloc validates that the new size does not exceed the
         // maximum size of an account.
-        metadata.realloc(Header::LEN + data.len(), false)?;
+        unsafe { metadata.resize_unchecked(Header::LEN + data.len())? };
 
         // SAFETY: There are no other active borrows to the `metadata`
         // account data and the account has been reallocated to accommodate
         // the new data.
         unsafe {
-            sol_memcpy(
+            core::ptr::copy_nonoverlapping(
+                data.as_ptr(),
                 metadata
-                    .borrow_mut_data_unchecked()
-                    .get_unchecked_mut(Header::LEN..),
-                data,
+                    .borrow_unchecked_mut()
+                    .get_unchecked_mut(Header::LEN..)
+                    .as_mut_ptr(),
                 data.len(),
             );
         }
@@ -103,12 +104,12 @@ pub fn set_data(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramRes
 /// Updates the metadata header with the provided arguments and data.
 #[inline(always)]
 fn update_header<'a>(
-    metadata: &AccountInfo,
+    metadata: &mut AccountView,
     args: &SetData,
     data: Option<(&'a u8, &'a [u8])>,
 ) -> Result<Option<&'a [u8]>, ProgramError> {
     // SAFETY: There are no other active borrows to the `metadata` account data.
-    let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
+    let metadata_account_data = unsafe { metadata.borrow_unchecked_mut() };
     // SAFETY: `metadata` is validated to be initialized and mutable.
     let header = unsafe { Header::from_bytes_mut_unchecked(metadata_account_data) };
 
