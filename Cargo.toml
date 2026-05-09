@@ -3,11 +3,11 @@ resolver = "2"
 members = ["program", "clients/rust"]
 
 [workspace.metadata.cli]
-solana = "2.3.4"
+solana = "3.1.14"
 
 [workspace.metadata.toolchains]
-format = "nightly-2025-02-16"
-lint = "nightly-2025-02-16"
+format = "nightly-2026-01-22"
+lint = "nightly-2026-01-22"
 
 [workspace.metadata.spellcheck]
 config = "scripts/spellcheck.toml"
