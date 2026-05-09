@@ -53,14 +53,17 @@ export const exportOption = new Option(
     .default(false)
     .argParser(addressOrBooleanParser('export'));
 
-export type ExportEncodingOption = { exportEncoding: Encoding };
+export type ExportEncoding = Encoding | 'instruction-list';
+export type ExportEncodingOption = { exportEncoding: ExportEncoding };
 export const exportEncodingOption = new Option(
     '--export-encoding <encoding>',
-    'Describes how to encode exported transactions.',
+    'Describes how to encode exported transactions. Use "instruction-list" to print a human-readable list of instructions instead of the raw transaction bytes.',
 )
-    .choices(['none', 'utf8', 'base58', 'base64'])
+    .choices(['none', 'utf8', 'base58', 'base64', 'instruction-list'])
     .default(Encoding.Base64, 'base64')
-    .argParser(encodingParser);
+    .argParser(
+        (value: string): ExportEncoding => (value === 'instruction-list' ? 'instruction-list' : encodingParser(value)),
+    );
 
 export type WriteOptions = TextOption &
     UrlOption &
