@@ -1,6 +1,6 @@
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
 
-use crate::state::header::Header;
+use crate::{error::ProgramMetadataError, state::header::Header};
 
 use super::{validate_authority, validate_metadata};
 
@@ -40,8 +40,7 @@ pub fn set_immutable(accounts: &[AccountInfo]) -> ProgramResult {
     if header.mutable() {
         header.mutable = 0;
     } else {
-        // TODO: use custom error (metadata already immutable)
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramMetadataError::ImmutableMetadataAccount.into());
     }
 
     Ok(())

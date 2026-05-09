@@ -11,6 +11,8 @@ use pinocchio::{
 use data::{Data, ExternalData};
 use header::Header;
 
+use crate::error::ProgramMetadataError;
+
 /// The length of the seed used to derive the metadata account address.
 pub const SEED_LEN: usize = 16;
 
@@ -176,10 +178,7 @@ impl DataSource {
         match (self, length) {
             (DataSource::Direct | DataSource::Url, l) if l > 0 => Ok(()),
             (DataSource::External, ExternalData::LEN) => Ok(()),
-            _ => {
-                // TODO: use custom error (invalid data length)
-                Err(ProgramError::InvalidAccountData)
-            }
+            _ => Err(ProgramMetadataError::InvalidDataLength.into()),
         }
     }
 }

@@ -4,7 +4,10 @@ use pinocchio::{
     pubkey::{Pubkey, PUBKEY_BYTES},
 };
 
-use crate::state::{header::Header, Account, AccountDiscriminator};
+use crate::{
+    error::ProgramMetadataError,
+    state::{header::Header, Account, AccountDiscriminator},
+};
 
 pub mod allocate;
 pub mod close;
@@ -71,16 +74,14 @@ fn is_program_authority(
                     .map_err(|_| ProgramError::InvalidAccountData)?
             }
             _ => {
-                // TODO: use custom error (invalid program state)
-                return Err(ProgramError::InvalidAccountData);
+                return Err(ProgramMetadataError::InvalidProgramState.into());
             }
         }
     };
 
     // Program <-> Program Data check.
     if expected_program_data != *program_data.key() {
-        // TODO: use custom error (invalid program data account)
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramMetadataError::InvalidProgramDataAccount.into());
     }
 
     // Program Data checks.
@@ -101,8 +102,7 @@ fn is_program_authority(
                 }
             }
             _ => {
-                // TODO: use custom error (invalid program state)
-                return Err(ProgramError::InvalidAccountData);
+                return Err(ProgramMetadataError::InvalidProgramState.into());
             }
         }
     };
@@ -124,8 +124,7 @@ fn validate_metadata(metadata: &AccountInfo) -> Result<&Header, ProgramError> {
         return Err(ProgramError::UninitializedAccount);
     }
     if !header.mutable() {
-        // TODO: use custom error (immutable metadata account)
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramMetadataError::ImmutableMetadataAccount.into());
     }
     Ok(header)
 }
