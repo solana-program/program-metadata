@@ -1249,7 +1249,43 @@
         }
       }
     ],
-    "errors": []
+    "errors": [
+      {
+        "kind": "errorNode",
+        "name": "notExecutableAccount",
+        "code": 0,
+        "message": "The program account is not executable",
+        "docs": ["NotExecutableAccount: The program account is not executable"]
+      },
+      {
+        "kind": "errorNode",
+        "name": "invalidProgramState",
+        "code": 1,
+        "message": "The program state is invalid",
+        "docs": ["InvalidProgramState: The program state is invalid"]
+      },
+      {
+        "kind": "errorNode",
+        "name": "invalidProgramDataAccount",
+        "code": 2,
+        "message": "The program data account is invalid",
+        "docs": ["InvalidProgramDataAccount: The program data account is invalid"]
+      },
+      {
+        "kind": "errorNode",
+        "name": "immutableMetadataAccount",
+        "code": 3,
+        "message": "The metadata account is immutable",
+        "docs": ["ImmutableMetadataAccount: The metadata account is immutable"]
+      },
+      {
+        "kind": "errorNode",
+        "name": "invalidDataLength",
+        "code": 4,
+        "message": "The account data length is invalid",
+        "docs": ["InvalidDataLength: The account data length is invalid"]
+      }
+    ]
   },
   "additionalPrograms": []
 }
