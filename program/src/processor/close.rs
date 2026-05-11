@@ -27,7 +27,7 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
 
     // account
     // - must have data
-    // - authority must match (if not a keypair buffer)
+    // - authority must match
 
     let account_data = if account.data_is_empty() {
         return Err(ProgramError::UninitializedAccount);
@@ -35,20 +35,16 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
         unsafe { account.borrow_data_unchecked() }
     };
 
-    // We only need to validate the authority if it is not a keypair buffer,
-    // since we already validated that the authority is a signer.
-    if account.key() != authority.key() {
-        match AccountDiscriminator::try_from(account_data[0])? {
-            AccountDiscriminator::Buffer => {
-                let buffer = unsafe { Buffer::from_bytes_unchecked(account_data) };
-                validate_authority(buffer, authority, program, program_data)?
-            }
-            AccountDiscriminator::Metadata => {
-                let header = validate_metadata(account)?;
-                validate_authority(header, authority, program, program_data)?
-            }
-            _ => return Err(ProgramError::InvalidAccountData),
+    match AccountDiscriminator::try_from(account_data[0])? {
+        AccountDiscriminator::Buffer => {
+            let buffer = unsafe { Buffer::from_bytes_unchecked(account_data) };
+            validate_authority(buffer, authority, program, program_data)?
         }
+        AccountDiscriminator::Metadata => {
+            let header = validate_metadata(account)?;
+            validate_authority(header, authority, program, program_data)?
+        }
+        _ => return Err(ProgramError::InvalidAccountData),
     }
 
     // Move the lamports to the destination account and close the account.

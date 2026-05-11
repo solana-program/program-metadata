@@ -4,7 +4,9 @@ import {
     appendTransactionMessageInstructions,
     generateKeyPairSigner,
     getUtf8Encoder,
+    isSolanaError,
     pipe,
+    SOLANA_ERROR__INSTRUCTION_ERROR__INCORRECT_AUTHORITY,
 } from '@solana/kit';
 import test from 'ava';
 import { fetchMaybeMetadata, getCloseInstruction, getSetAuthorityInstruction } from '../src';
@@ -258,6 +260,89 @@ test('it can close keypair buffers', async t => {
     const closeIx = getCloseInstruction({
         account: buffer.address,
         authority: buffer,
+        destination: payer.address,
+    });
+    await pipe(
+        await createDefaultTransaction(client, payer),
+        tx => appendTransactionMessageInstruction(closeIx, tx),
+        tx => signAndSendTransaction(client, tx),
+    );
+
+    // Then we expect the buffer account to no longer exist.
+    const account = await fetchMaybeMetadata(client.rpc, buffer.address);
+    t.false(account.exists);
+});
+
+test('it cannot close a keypair buffer with a different authority set using the buffer keypair', async t => {
+    // Given the following payer.
+    const client = createDefaultSolanaClient();
+    const payer = await generateKeyPairSignerWithSol(client);
+
+    // And the following pre-allocated keypair buffer.
+    const buffer = await createKeypairBuffer(client, {
+        payer,
+        data: getUtf8Encoder().encode('Hello, World!'),
+    });
+
+    // And we set a different authority on the buffer account.
+    const bufferAuthority = await generateKeyPairSigner();
+    const setAuthorityIx = getSetAuthorityInstruction({
+        account: buffer.address,
+        authority: buffer,
+        newAuthority: bufferAuthority.address,
+    });
+    await pipe(
+        await createDefaultTransaction(client, payer),
+        tx => appendTransactionMessageInstruction(setAuthorityIx, tx),
+        tx => signAndSendTransaction(client, tx),
+    );
+
+    // When the buffer keypair tries to close its own account.
+    const closeIx = getCloseInstruction({
+        account: buffer.address,
+        authority: buffer,
+        destination: payer.address,
+    });
+    const promise = pipe(
+        await createDefaultTransaction(client, payer),
+        tx => appendTransactionMessageInstruction(closeIx, tx),
+        tx => signAndSendTransaction(client, tx),
+    );
+
+    // Then we expect a program error.
+    const error = await t.throwsAsync(promise);
+    t.true(isSolanaError(error));
+    t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INCORRECT_AUTHORITY));
+});
+
+test('it can close a keypair buffer with its authority', async t => {
+    // Given the following payer.
+    const client = createDefaultSolanaClient();
+    const payer = await generateKeyPairSignerWithSol(client);
+
+    // And the following pre-allocated keypair buffer.
+    const buffer = await createKeypairBuffer(client, {
+        payer,
+        data: getUtf8Encoder().encode('Hello, World!'),
+    });
+
+    // And we set a different authority on the buffer account.
+    const bufferAuthority = await generateKeyPairSigner();
+    const setAuthorityIx = getSetAuthorityInstruction({
+        account: buffer.address,
+        authority: buffer,
+        newAuthority: bufferAuthority.address,
+    });
+    await pipe(
+        await createDefaultTransaction(client, payer),
+        tx => appendTransactionMessageInstruction(setAuthorityIx, tx),
+        tx => signAndSendTransaction(client, tx),
+    );
+
+    // When the authority closes the buffer account.
+    const closeIx = getCloseInstruction({
+        account: buffer.address,
+        authority: bufferAuthority,
         destination: payer.address,
     });
     await pipe(
