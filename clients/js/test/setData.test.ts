@@ -6,7 +6,6 @@ import {
     getUtf8Encoder,
     isSolanaError,
     pipe,
-    SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA,
     SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_REALLOC,
 } from '@solana/kit';
 import test from 'ava';
@@ -20,7 +19,9 @@ import {
     getSetAuthorityInstruction,
     getSetDataInstruction,
     getSetImmutableInstruction,
+    isProgramMetadataError,
     Metadata,
+    PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT,
 } from '../src';
 import {
     createCanonicalMetadata,
@@ -450,15 +451,14 @@ test('an immutable canonical metadata account cannot be updated', async t => {
         dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('New data'),
     });
-    const promise = pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setImmutableIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
+    const transactionMessage = pipe(await createDefaultTransaction(client, authority), tx =>
+        appendTransactionMessageInstructions([setImmutableIx, setDataIx], tx),
     );
+    const promise = signAndSendTransaction(client, transactionMessage);
 
     // Then we expect the transaction to fail.
     const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA));
+    t.true(isProgramMetadataError(error.cause, transactionMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT));
 });
 
 test('an immutable non-canonical metadata account cannot be updated', async t => {
@@ -493,15 +493,14 @@ test('an immutable non-canonical metadata account cannot be updated', async t =>
         dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('New data'),
     });
-    const promise = pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setImmutableIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
+    const transactionMessage = pipe(await createDefaultTransaction(client, authority), tx =>
+        appendTransactionMessageInstructions([setImmutableIx, setDataIx], tx),
     );
+    const promise = signAndSendTransaction(client, transactionMessage);
 
     // Then we expect the transaction to fail.
     const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA));
+    t.true(isProgramMetadataError(error.cause, transactionMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT));
 });
 
 test('The metadata account needs to be extended for data changes that add more than 1KB', async t => {

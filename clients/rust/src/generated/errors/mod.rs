@@ -4,3 +4,7 @@
 //!
 //! <https://github.com/codama-idl/codama>
 //!
+
+pub(crate) mod program_metadata;
+
+pub use self::program_metadata::ProgramMetadataError;
