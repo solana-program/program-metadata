@@ -65,6 +65,12 @@ pub enum ProgramMetadataInstruction {
     ///     authority is removed. For canonical metadata accounts, the program
     ///     upgrade authority will still be able to manage the account.
     ///   - It is not possible to remove the authority of a buffer account.
+    ///   - It is possible to change the authority of a buffer account, even
+    ///     if the buffer account has a non-canonical derivation. This allows
+    ///     flexibility when writing data to the account. Note that even if an
+    ///     authority is set on a buffer account, only the program upgrade
+    ///     authority (canonical) or the authority in the address derivation
+    ///     (non-canonical) will be able to initialize the account.
     ///
     /// There are 2 optional accounts:
     ///   - `program`: required to validate whether the authority is the program upgrade
