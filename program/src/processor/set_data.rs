@@ -79,8 +79,12 @@ pub fn set_data(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
 
         // SAFETY: There are no other active borrows to the `metadata` account data.
         //
-        // The realloc validates that the new size does not exceed the
-        // maximum size of an account.
+        // The `resize_unchecked` validates that the new size does not exceed the
+        // maximum permitted data increase. Since the data comes either from the
+        // instruction data or from a buffer account, it is guranteed to be within
+        // the maximum data length. The runtime also enforces that the total size
+        // of the account data after resizing does not exceed the maximum account
+        // length.
         unsafe { metadata.resize_unchecked(Header::LEN + data.len())? };
 
         // SAFETY: There are no other active borrows to the `metadata`
