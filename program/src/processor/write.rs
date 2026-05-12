@@ -1,11 +1,9 @@
 use core::cmp::max;
 
 use pinocchio::{
-    account_info::AccountInfo,
-    memory::sol_memcpy,
-    program_error::ProgramError,
+    error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    AccountView, ProgramResult, Resize,
 };
 
 use crate::state::{buffer::Buffer, header::Header, AccountDiscriminator};
@@ -13,7 +11,7 @@ use crate::state::{buffer::Buffer, header::Header, AccountDiscriminator};
 /// Processor for the [`Write`](`crate::instruction::ProgramMetadataInstruction::Write`)
 /// instruction.
 #[allow(clippy::arithmetic_side_effects)]
-pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 
     let args = Write::try_from_bytes(instruction_data)?;
@@ -43,7 +41,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
     let (required_length, source_data) = {
         // SAFETY: scoped immutable borrow of `buffer` account data. There
         // are no other borrows active.
-        let data = unsafe { target_buffer.borrow_data_unchecked() };
+        let data = unsafe { target_buffer.borrow_unchecked() };
 
         if data.is_empty() || data[0] != AccountDiscriminator::Buffer as u8 {
             return Err(ProgramError::InvalidAccountData);
@@ -52,7 +50,7 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
         // SAFETY: `buffer` account data is guaranteed to be a `Buffer`.
         let buffer_header = unsafe { Buffer::from_bytes_unchecked(data) };
 
-        if Some(authority.key()) != buffer_header.authority.as_ref() {
+        if Some(authority.address()) != buffer_header.authority.as_ref() {
             return Err(ProgramError::IncorrectAuthority);
         }
 
@@ -62,9 +60,9 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
             _ => None,
         };
 
-        let buffer_data = if source_buffer.key() != &crate::ID {
+        let buffer_data = if source_buffer.address() != &crate::ID {
             // SAFETY: singe immutable borrow of `source_buffer` account data.
-            Some(unsafe { source_buffer.borrow_data_unchecked() })
+            Some(unsafe { source_buffer.borrow_unchecked() })
         } else {
             None
         };
@@ -78,11 +76,11 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
             _ => return Err(ProgramError::InvalidInstructionData),
         };
 
-        // The length of the data to write is validated by the `realloc`.
+        // The length of the data to write is validated by the `try_minimum_balance`.
         (max(data.len(), offset + source_data.len()), source_data)
     };
 
-    let minimum_balance = Rent::get()?.minimum_balance(required_length);
+    let minimum_balance = Rent::get()?.try_minimum_balance(required_length)?;
 
     if target_buffer.lamports() < minimum_balance {
         return Err(ProgramError::AccountNotRentExempt);
@@ -90,15 +88,17 @@ pub fn write(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult
 
     // Writes the source data to the buffer account.
 
-    target_buffer.realloc(required_length, false)?;
+    // SAFETY: `target_buffer` account is not borrowed at this point.
+    unsafe { target_buffer.resize_unchecked(required_length)? };
+
     // SAFETY: single mutable borrow of `buffer` account data. There
     // are no other borrows active.
-    let data = unsafe { target_buffer.borrow_mut_data_unchecked() };
+    let data = unsafe { target_buffer.borrow_unchecked_mut() };
 
     unsafe {
-        sol_memcpy(
-            data.get_unchecked_mut(offset..),
-            source_data,
+        core::ptr::copy_nonoverlapping(
+            source_data.as_ptr(),
+            data.get_unchecked_mut(offset..).as_mut_ptr(),
             source_data.len(),
         );
     }
@@ -117,7 +117,7 @@ struct Write<'a> {
 
 impl Write<'_> {
     #[inline]
-    pub fn try_from_bytes(bytes: &[u8]) -> Result<Write, ProgramError> {
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Write<'_>, ProgramError> {
         // The minimum expected size of the instruction data.
         // - offset (4 bytes)
         // - data (...n bytes, optional)

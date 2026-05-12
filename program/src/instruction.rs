@@ -1,4 +1,4 @@
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 
 /// Instructions supported by the program metadata program.
 #[derive(Clone, Copy, Debug)]

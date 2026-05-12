@@ -1,4 +1,4 @@
-use pinocchio::{program_error::ProgramError, pubkey::Pubkey};
+use pinocchio::{error::ProgramError, Address};
 
 use super::{DataSource, ZeroableOption};
 
@@ -52,8 +52,8 @@ pub struct UrlData<'a>(pub &'a str);
 /// External data contains a reference (address) to an external account
 /// and an offset and an optional length to specify the data range.
 pub struct ExternalData {
-    /// Pubkey of the external account.
-    pub address: Pubkey,
+    /// Address of the external account.
+    pub address: Address,
 
     /// Offset of the data in the external account.
     ///

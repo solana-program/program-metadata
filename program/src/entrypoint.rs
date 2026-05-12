@@ -1,7 +1,9 @@
 use pinocchio::{
-    account_info::AccountInfo, default_panic_handler, no_allocator, program_entrypoint,
-    program_error::ProgramError, pubkey::Pubkey, ProgramResult,
+    default_panic_handler, error::ProgramError, no_allocator, program_entrypoint, AccountView,
+    Address, ProgramResult,
 };
+#[cfg(feature = "logging")]
+use solana_program_log::log;
 
 use crate::{
     instruction::ProgramMetadataInstruction,
@@ -19,8 +21,8 @@ default_panic_handler!();
 no_allocator!();
 
 fn process_instruction(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &mut [AccountView],
     instruction_data: &[u8],
 ) -> ProgramResult {
     let [instruction, data @ ..] = instruction_data else {
@@ -31,63 +33,63 @@ fn process_instruction(
         // 0 - Write
         ProgramMetadataInstruction::Write => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: Write");
+            log("Instruction: Write");
 
             write(accounts, data)
         }
         // 1 - Initialize
         ProgramMetadataInstruction::Initialize => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: Initialize");
+            log("Instruction: Initialize");
 
             initialize(accounts, data)
         }
         // 2 - SetAuthority
         ProgramMetadataInstruction::SetAuthority => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: SetAuthority");
+            log("Instruction: SetAuthority");
 
             set_authority(accounts, data)
         }
         // 3 - SetData
         ProgramMetadataInstruction::SetData => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: SetData");
+            log("Instruction: SetData");
 
             set_data(accounts, data)
         }
         // 4 - SetImmutable
         ProgramMetadataInstruction::SetImmutable => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: SetImmutable");
+            log("Instruction: SetImmutable");
 
             set_immutable(accounts)
         }
         // 5 - Trim
         ProgramMetadataInstruction::Trim => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: Trim");
+            log("Instruction: Trim");
 
             trim(accounts)
         }
         // 6 - Close
         ProgramMetadataInstruction::Close => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: Close");
+            log("Instruction: Close");
 
             close(accounts)
         }
         // 7 - Allocate
         ProgramMetadataInstruction::Allocate => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: Allocate");
+            log("Instruction: Allocate");
 
             allocate(accounts, data)
         }
         // 8 - Extend
         ProgramMetadataInstruction::Extend => {
             #[cfg(feature = "logging")]
-            pinocchio::msg!("Instruction: Extend");
+            log("Instruction: Extend");
 
             extend(accounts, data)
         }

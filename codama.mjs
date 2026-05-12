@@ -80,7 +80,7 @@ export default {
                     {
                         formatCode: true,
                         crateFolder: 'clients/rust',
-                        toolchain: '+nightly-2025-02-16',
+                        toolchain: '+nightly-2026-01-22',
                         anchorTraits: false,
                         linkOverrides: {
                             definedTypes: {

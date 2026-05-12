@@ -1,4 +1,4 @@
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+use pinocchio::{account::AccountView, error::ProgramError, ProgramResult};
 
 use crate::state::{buffer::Buffer, AccountDiscriminator};
 
@@ -6,7 +6,7 @@ use super::{validate_authority, validate_metadata};
 
 /// Processor for the [`Close`](`crate::instruction::ProgramMetadataInstruction::Close`)
 /// instruction.
-pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
+pub fn close(accounts: &mut [AccountView]) -> ProgramResult {
     // Access accounts.
 
     let [account, authority, program, program_data, destination] = accounts else {
@@ -29,10 +29,10 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
     // - must have data
     // - authority must match
 
-    let account_data = if account.data_is_empty() {
+    let account_data = if account.is_data_empty() {
         return Err(ProgramError::UninitializedAccount);
     } else {
-        unsafe { account.borrow_data_unchecked() }
+        unsafe { account.borrow_unchecked() }
     };
 
     match AccountDiscriminator::try_from(account_data[0])? {
@@ -49,16 +49,15 @@ pub fn close(accounts: &[AccountInfo]) -> ProgramResult {
 
     // Move the lamports to the destination account and close the account.
 
-    // SAFETY: There are no active borrows to accounts' lamports.
-    unsafe {
-        let account_lamports = account.borrow_mut_lamports_unchecked();
-        let destination_lamports = destination.borrow_mut_lamports_unchecked();
+    let account_lamports = account.lamports();
+    let destination_lamports = destination.lamports();
 
-        *destination_lamports = destination_lamports
-            .checked_add(*account_lamports)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-        *account_lamports = 0;
-    }
+    destination.set_lamports(
+        destination_lamports
+            .checked_add(account_lamports)
+            .ok_or(ProgramError::ArithmeticOverflow)?,
+    );
+    account.set_lamports(0);
 
     account.close()
 }

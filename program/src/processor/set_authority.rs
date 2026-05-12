@@ -1,6 +1,4 @@
-use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
-};
+use pinocchio::{account::AccountView, error::ProgramError, Address, ProgramResult};
 
 use crate::{
     processor::validate_authority,
@@ -9,7 +7,7 @@ use crate::{
 
 /// Processor for the [`SetAuthority`](`crate::instruction::ProgramMetadataInstruction::SetAuthority`)
 /// instruction.
-pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+pub fn set_authority(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 
     let [has_new_authority, new_authority @ ..] = instruction_data else {
@@ -17,6 +15,9 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
     };
 
     // Access accounts.
+    //
+    // Note that program owned and writable checks are done implicitly by writing
+    // to the account.
 
     let [account, authority, program, program_data] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -36,7 +37,7 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
     // - must have a valid authority
 
     // SAFETY: single mutable borrow of `account` account data.
-    let account_data = unsafe { account.borrow_mut_data_unchecked() };
+    let account_data = unsafe { account.borrow_unchecked_mut() };
 
     match AccountDiscriminator::try_from_bytes(account_data)? {
         Some(AccountDiscriminator::Buffer) => {
@@ -48,7 +49,7 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
                 return Err(ProgramError::InvalidArgument);
             }
 
-            let new_authority: Pubkey = new_authority
+            let new_authority: Address = new_authority
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             buffer.authority = new_authority.into();
@@ -63,9 +64,9 @@ pub fn set_authority(accounts: &[AccountInfo], instruction_data: &[u8]) -> Progr
             validate_authority(header, authority, program, program_data)?;
 
             header.authority = if *has_new_authority == 0 {
-                Pubkey::ZERO.into()
+                Address::ZERO.into()
             } else {
-                let new_authority: Pubkey = new_authority
+                let new_authority: Address = new_authority
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 new_authority.into()

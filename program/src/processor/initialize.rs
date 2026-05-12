@@ -1,16 +1,14 @@
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::{Seed, Signer},
-    memory::sol_memcpy,
-    program_error::ProgramError,
-    pubkey::{find_program_address, Pubkey},
-    seeds,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    instruction::seeds,
     sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    AccountView, Address, ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign};
 
 use crate::{
+    processor::derive_program_address,
     state::{
         header::Header, AccountDiscriminator, Compression, DataSource, Encoding, Format, Zeroable,
     },
@@ -22,7 +20,7 @@ use super::is_program_authority;
 /// Processor for the [`Initialize`](`crate::instruction::ProgramMetadataInstruction::Initialize`)
 /// instruction.
 #[allow(clippy::arithmetic_side_effects)]
-pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramResult {
     // Validates the instruction data.
 
     let (args, remaining_data) = if instruction_data.len() < Initialize::LEN {
@@ -55,7 +53,7 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let canonical: bool = is_program_authority(program, program_data, authority.key())?;
+    let canonical: bool = is_program_authority(program, program_data, authority.address())?;
 
     // metadata
     // - must be a PDA derived from the program ID and the seed
@@ -64,21 +62,26 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
     //   pre-allocated buffer (i.e. `discriminator = 1`), in which case, no remaining
     //   instruction data is allowed as the data must already be written to the account
 
-    let seeds: &[&[u8]] = if canonical {
-        &[program.key(), args.seed.as_ref()]
+    let (derived_metadata, bump) = if canonical {
+        derive_program_address(&[program.address().as_array(), args.seed.as_ref()], &ID)
     } else {
-        &[program.key(), authority.key(), args.seed.as_ref()]
+        derive_program_address(
+            &[
+                program.address().as_array(),
+                authority.address().as_array(),
+                args.seed.as_ref(),
+            ],
+            &ID,
+        )
     };
 
-    let (derived_metadata, bump) = find_program_address(seeds, &ID);
-
-    if metadata.key() != &derived_metadata {
+    if metadata.address() != &derived_metadata {
         return Err(ProgramError::InvalidSeeds);
     }
 
     let discriminator = {
         // SAFETY: scoped immutable borrow of `metadata` account data.
-        AccountDiscriminator::try_from_bytes(unsafe { metadata.borrow_data_unchecked() })?
+        AccountDiscriminator::try_from_bytes(unsafe { metadata.borrow_unchecked() })?
     };
 
     let data_length = match discriminator {
@@ -112,12 +115,16 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             let signer_bump = &[bump];
             let signer_seeds: &[Seed] = if canonical {
                 // canonical
-                &seeds!(program.key(), args.seed.as_ref(), signer_bump)
+                &seeds!(
+                    program.address().as_array(),
+                    args.seed.as_ref(),
+                    signer_bump
+                )
             } else {
                 // non-canonical
                 &seeds!(
-                    program.key(),
-                    authority.key(),
+                    program.address().as_array(),
+                    authority.address().as_array(),
                     args.seed.as_ref(),
                     signer_bump
                 )
@@ -138,7 +145,8 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
             }
             .invoke_signed(signer)?;
 
-            let minimum_balance = Rent::get()?.minimum_balance(space);
+            // `space` is guranteed to be within the permitted limits.
+            let minimum_balance = Rent::get()?.minimum_balance_unchecked(space);
 
             if metadata.lamports() < minimum_balance {
                 return Err(ProgramError::AccountNotRentExempt);
@@ -146,16 +154,18 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
 
             // SAFETY: scoped mutable borrow of `metadata` account data. The data is
             // guaranteed to be allocated and assigned to the program.
-            let metadata_account_data = unsafe { metadata.borrow_mut_data_unchecked() };
+            let metadata_account_data = unsafe { metadata.borrow_unchecked_mut() };
 
             // Copy the instruction remaining data to the metadata account.
             //
             // SAFETY: `metadata` account has been allocated and assigned to the program
             // and the length of the remaining data was checked.
             unsafe {
-                sol_memcpy(
-                    metadata_account_data.get_unchecked_mut(Header::LEN..),
-                    remaining_data,
+                core::ptr::copy_nonoverlapping(
+                    remaining_data.as_ptr(),
+                    metadata_account_data
+                        .get_unchecked_mut(Header::LEN..)
+                        .as_mut_ptr(),
                     remaining_data.len(),
                 );
             }
@@ -168,13 +178,13 @@ pub fn initialize(accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramR
 
     // SAFETY: there are no other active borrows to `metadata` account data and
     // the account discriminator has been validated.
-    let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
+    let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_unchecked_mut()) };
 
     header.discriminator = AccountDiscriminator::Metadata as u8;
-    header.program = *program.key();
+    header.program = *program.address();
     header.authority = match canonical {
-        true => Pubkey::ZERO.into(),
-        false => (*authority.key()).into(),
+        true => Address::ZERO.into(),
+        false => (*authority.address()).into(),
     };
     header.mutable = true as u8;
     header.canonical = canonical as u8;

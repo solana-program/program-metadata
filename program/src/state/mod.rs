@@ -2,11 +2,7 @@ pub mod buffer;
 pub mod data;
 pub mod header;
 
-use pinocchio::{
-    program_error::ProgramError,
-    pubkey::{Pubkey, PUBKEY_BYTES},
-    ProgramResult,
-};
+use pinocchio::{address::ADDRESS_BYTES, error::ProgramError, Address, ProgramResult};
 
 use data::{Data, ExternalData};
 use header::Header;
@@ -54,11 +50,11 @@ impl<'a> Metadata<'a> {
 /// Utility trait for an account.
 pub(crate) trait Account {
     /// Returns the account authority, if there is one.
-    fn get_authority(&self) -> Option<&Pubkey>;
+    fn get_authority(&self) -> Option<&Address>;
 
     /// Indicates whether the PDA represents a canonical PDA for
     /// the given program.
-    fn is_canonical(&self, program: &Pubkey) -> bool;
+    fn is_canonical(&self, program: &Address) -> bool;
 }
 
 /// Account discriminators.
@@ -206,8 +202,8 @@ pub trait Zeroable: PartialEq + Sized {
     }
 }
 
-impl Zeroable for Pubkey {
-    const ZERO: Self = [0u8; PUBKEY_BYTES];
+impl Zeroable for Address {
+    const ZERO: Self = Address::new_from_array([0u8; ADDRESS_BYTES]);
 }
 
 impl Zeroable for u32 {

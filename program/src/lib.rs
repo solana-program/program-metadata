@@ -6,7 +6,7 @@ pub mod instruction;
 pub mod processor;
 pub mod state;
 
-pinocchio_pubkey::declare_id!("ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S");
+pinocchio::address::declare_id!("ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S");
 
 solana_security_txt::security_txt! {
     // Required fields

@@ -1,4 +1,4 @@
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError, ProgramResult};
+use pinocchio::{account::AccountView, error::ProgramError, ProgramResult};
 
 use crate::{error::ProgramMetadataError, state::header::Header};
 
@@ -6,7 +6,7 @@ use super::{validate_authority, validate_metadata};
 
 /// Processor for the [`SetImmutable`](`crate::instruction::ProgramMetadataInstruction::SetImmutable`)
 /// instruction.
-pub fn set_immutable(accounts: &[AccountInfo]) -> ProgramResult {
+pub fn set_immutable(accounts: &mut [AccountView]) -> ProgramResult {
     // Access accounts.
 
     let [metadata, authority, program, program_data] = accounts else {
@@ -35,7 +35,7 @@ pub fn set_immutable(accounts: &[AccountInfo]) -> ProgramResult {
 
     // SAFETY: There are no active borrows of the `metadata` account data and the
     // account has been validated.
-    let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_mut_data_unchecked()) };
+    let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_unchecked_mut()) };
 
     if header.mutable() {
         header.mutable = 0;

@@ -1,7 +1,7 @@
 use pinocchio::{
-    account_info::{AccountInfo, Ref},
-    program_error::ProgramError,
-    pubkey::Pubkey,
+    account::{AccountView, Ref},
+    error::ProgramError,
+    Address,
 };
 
 use super::{Account, AccountDiscriminator, ZeroableOption, SEED_LEN};
@@ -17,12 +17,12 @@ pub struct Buffer {
     /// Program ID that this metadata is associated with.
     ///
     /// Only for buffer PDA accounts; otherwise `None`.
-    pub program: ZeroableOption<Pubkey>,
+    pub program: ZeroableOption<Address>,
 
     /// Authority that can update this buffer.
     ///
     /// Only for buffer PDA accounts; otherwise `None`.
-    pub authority: ZeroableOption<Pubkey>,
+    pub authority: ZeroableOption<Address>,
 
     /// Indicates whether the buffer PDA is canonical.
     ///
@@ -62,11 +62,11 @@ impl Buffer {
     ///  2. Account discriminator: it must match [`AccountDiscriminator::Buffer`].
     ///  3. Borrow data: it must be allowed to borrow the account data.
     #[inline]
-    pub fn from_account_info(account_info: &AccountInfo) -> Result<Ref<Self>, ProgramError> {
-        if !account_info.is_owned_by(&crate::ID) {
+    pub fn from_account_info(account_info: &AccountView) -> Result<Ref<'_, Self>, ProgramError> {
+        if !account_info.owned_by(&crate::ID) {
             return Err(ProgramError::InvalidAccountOwner);
         }
-        let data = account_info.try_borrow_data()?;
+        let data = account_info.try_borrow()?;
         if data.len() < Self::LEN || data[0] != AccountDiscriminator::Buffer as u8 {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -88,12 +88,12 @@ impl Buffer {
     /// no mutable borrows of the account data.
     #[inline]
     pub unsafe fn from_account_info_unchecked(
-        account_info: &AccountInfo,
+        account_info: &AccountView,
     ) -> Result<&Self, ProgramError> {
-        if account_info.owner() != &crate::ID {
+        if !account_info.owned_by(&crate::ID) {
             return Err(ProgramError::InvalidAccountOwner);
         }
-        let data = account_info.borrow_data_unchecked();
+        let data = account_info.borrow_unchecked();
         if data.len() < Self::LEN || data[0] != AccountDiscriminator::Buffer as u8 {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -150,11 +150,11 @@ impl Buffer {
 }
 
 impl Account for Buffer {
-    fn get_authority(&self) -> Option<&Pubkey> {
+    fn get_authority(&self) -> Option<&Address> {
         self.authority.as_ref()
     }
 
-    fn is_canonical(&self, program: &Pubkey) -> bool {
+    fn is_canonical(&self, program: &Address) -> bool {
         self.canonical() && self.program.as_ref() == Some(program)
     }
 }
