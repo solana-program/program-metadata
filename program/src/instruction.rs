@@ -82,8 +82,8 @@ pub enum ProgramMetadataInstruction {
     ///
     ///  0. `[w]` Buffer or metadata account.
     ///  1. `[s]` Current authority account.
-    ///  2. `[o]` (optional) Program account.
-    ///  3. `[o]` (optional) Program data account.
+    ///  2. `[o]` Program account.
+    ///  3. `[o]` Program data account.
     ///
     /// Instruction data:
     ///
@@ -111,9 +111,9 @@ pub enum ProgramMetadataInstruction {
     ///
     ///  0. `[w]` Metadata account.
     ///  1. `[s]` Authority account.
-    ///  2. `[o]` (optional) Buffer account to copy data from.
-    ///  3. `[o]` (optional) Program account.
-    ///  4. `[o]` (optional) Program data account.
+    ///  2. `[o]` Buffer account to copy data from.
+    ///  3. `[o]` Program account.
+    ///  4. `[o]` Program data account.
     ///
     /// Instruction data:
     ///
@@ -136,8 +136,8 @@ pub enum ProgramMetadataInstruction {
     ///
     ///  0. `[w]` Metadata account.
     ///  1. `[s]` Authority account.
-    ///  2. `[o]` (optional) Program account.
-    ///  3. `[o]` (optional) Program data account.
+    ///  2. `[o]` Program account.
+    ///  3. `[o]` Program data account.
     SetImmutable,
 
     /// Resizes and withdraws excess lamports from a buffer or metadata account.
@@ -156,8 +156,8 @@ pub enum ProgramMetadataInstruction {
     ///
     ///  0. `[w]` Buffer or metadata account.
     ///  1. `[s]` Authority account.
-    ///  2. `[o]` (optional) Program account.
-    ///  3. `[o]` (optional) Program data account.
+    ///  2. `[o]` Program account.
+    ///  3. `[o]` Program data account.
     ///  5. `[w]` Destination account.
     ///  6. `[]` Rent sysvar account.
     Trim,
@@ -180,8 +180,8 @@ pub enum ProgramMetadataInstruction {
     ///
     ///  0. `[w]` Account to close.
     ///  1. `[s]` Metadata authority or buffer account.
-    ///  2. `[o]` (optional) Program account.
-    ///  3. `[o]` (optional) Program data account.
+    ///  2. `[o]` Program account.
+    ///  3. `[o]` Program data account.
     ///  5. `[w]` Destination account.
     Close,
 
@@ -233,8 +233,8 @@ pub enum ProgramMetadataInstruction {
     ///
     ///  0. `[w]` Buffer or metadata account.
     ///  1. `[s]` Authority account.
-    ///  2. `[o]` (optional) Program account.
-    ///  3. `[o]` (optional) Program data account.
+    ///  2. `[o]` Program account.
+    ///  3. `[o]` Program data account.
     ///
     /// Instruction data:
     ///
