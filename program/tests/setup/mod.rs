@@ -69,6 +69,13 @@ pub fn process_instructions(
     accounts: &[(Pubkey, Account)],
 ) {
     let mut mollusk = Mollusk::new(&PROGRAM_ID, "spl_program_metadata");
+    // The latest pinocchio version computes the rent using `lamports_per_byte`
+    // instead of `lamports_per_byte_year * exemption_threshold` as described in
+    // SIMD-0194, so we need to adjust the rent sysvar accordingly to avoid
+    // underfunding accounts in tests.
+    //
+    // This can be removed once mollusk is updated to a version using agave
+    // v4.0 dependencies.
     let mut rent = Rent::default();
     rent.lamports_per_byte_year = rent
         .lamports_per_byte_year
@@ -79,6 +86,13 @@ pub fn process_instructions(
 }
 
 pub fn rent_sysvar() -> Account {
+    // The latest pinocchio version computes the rent using `lamports_per_byte`
+    // instead of `lamports_per_byte_year * exemption_threshold` as described in
+    // SIMD-0194, so we need to adjust the rent sysvar accordingly to avoid
+    // underfunding accounts in tests.
+    //
+    // This can be removed once mollusk is updated to a version using agave
+    // v4.0 dependencies.
     let mut rent = Rent::default();
     rent.lamports_per_byte_year = rent
         .lamports_per_byte_year
