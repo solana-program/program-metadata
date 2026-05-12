@@ -304,3 +304,64 @@ fn fail_trim_non_rent_exempt_account() {
         ],
     );
 }
+
+#[test]
+fn fail_trim_with_wrong_authority() {
+    let buffer_key = Pubkey::new_unique();
+    let wrong_authority_key = Pubkey::new_unique();
+    let buffer_account = create_funded_account(
+        minimum_balance_for(Buffer::LEN + EXCESS_LAMPORTS),
+        system_program::ID,
+    );
+
+    let destination_key = Pubkey::new_unique();
+
+    process_instructions(
+        &[
+            (
+                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &trim(
+                    &buffer_key,
+                    &wrong_authority_key,
+                    None,
+                    None,
+                    &destination_key,
+                )
+                .unwrap(),
+                &[Check::err(ProgramError::IncorrectAuthority)],
+            ),
+        ],
+        &[
+            (buffer_key, buffer_account),
+            (PROGRAM_ID, Account::default()),
+            (wrong_authority_key, Account::default()),
+            (destination_key, Account::default()),
+            keyed_account_for_system_program(),
+            (rent::ID, rent_sysvar()),
+        ],
+    );
+}
+
+#[test]
+fn fail_trim_account_with_empty_discriminator() {
+    let account_key = Pubkey::new_unique();
+    let account = create_empty_account(Buffer::LEN, PROGRAM_ID);
+    let destination_key = Pubkey::new_unique();
+
+    process_instruction(
+        (
+            &trim(&account_key, &account_key, None, None, &destination_key).unwrap(),
+            &[Check::err(ProgramError::UninitializedAccount)],
+        ),
+        &[
+            (account_key, account),
+            (PROGRAM_ID, Account::default()),
+            (destination_key, Account::default()),
+            keyed_account_for_system_program(),
+            (rent::ID, rent_sysvar()),
+        ],
+    );
+}

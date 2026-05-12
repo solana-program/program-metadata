@@ -1,12 +1,20 @@
 mod allocate;
+mod close;
 mod extend;
 mod initialize;
+mod set_authority;
+mod set_data;
+mod set_immutable;
 mod trim;
 mod write;
 
 pub use allocate::*;
+pub use close::*;
 pub use extend::*;
 pub use initialize::*;
+pub use set_authority::*;
+pub use set_data::*;
+pub use set_immutable::*;
 pub use trim::*;
 pub use write::*;
 

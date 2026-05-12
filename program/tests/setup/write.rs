@@ -8,12 +8,14 @@ use super::PROGRAM_ID;
 pub fn write(
     buffer: &Pubkey,
     authority: &Pubkey,
+    source_buffer: Option<&Pubkey>,
     offset: u32,
     data: &[u8],
 ) -> Result<Instruction, ProgramError> {
     let accounts = vec![
         AccountMeta::new(*buffer, false),
         AccountMeta::new_readonly(*authority, true),
+        AccountMeta::new_readonly(*source_buffer.unwrap_or(&PROGRAM_ID), false),
     ];
 
     let mut instruction_data = vec![ProgramMetadataInstruction::Write as u8];
