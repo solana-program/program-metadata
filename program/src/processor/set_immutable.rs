@@ -22,7 +22,9 @@ pub fn set_immutable(accounts: &mut [AccountView]) -> ProgramResult {
     // - must be initialized
     // - must be mutable
 
-    let header = validate_metadata(metadata)?;
+    // SAFETY: There are no active borrows of the `metadata` account data.
+    let metadata_account_data = unsafe { metadata.borrow_unchecked_mut() };
+    let header = validate_metadata(metadata_account_data)?;
 
     // authority
     // - must be a signer
@@ -33,9 +35,7 @@ pub fn set_immutable(accounts: &mut [AccountView]) -> ProgramResult {
 
     // Make the metadata account immutable.
 
-    // SAFETY: There are no active borrows of the `metadata` account data and the
-    // account has been validated.
-    let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_unchecked_mut()) };
+    let header = Header::from_bytes_mut(metadata_account_data)?;
 
     if header.mutable() {
         header.mutable = 0;

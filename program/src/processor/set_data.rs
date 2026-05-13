@@ -40,27 +40,31 @@ pub fn set_data(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
     //
     // Note that program owned and writable checks are done implicitly by writing
     // to the account.
+    {
+        // metadata
+        // - must be initialized
+        // - must be mutable
 
-    // metadata
-    // - must be initialized
-    // - must be mutable
+        // SAFETY: Scoped immutable borrow of `metadata` account data for validation.
+        let metadata_account_data = unsafe { metadata.borrow_unchecked() };
+        let header = validate_metadata(metadata_account_data)?;
 
-    let header = validate_metadata(metadata)?;
+        // authority
+        // - must be a signer
+        // - must match the authority set on the `metadata` account OR it must be the
+        //   program upgrade authority if the `metadata` account is canonical
 
-    // authority
-    // - must be a signer
-    // - must match the authority set on the `metadata` account OR it must be the
-    //   program upgrade authority if the `metadata` account is canonical
+        validate_authority(header, authority, program, program_data)?;
+    }
 
-    validate_authority(header, authority, program, program_data)?;
-
-    // Get data from buffer or remaining instruction data, if any.
     let has_buffer = buffer.address() != &crate::ID;
+    // Get data from buffer or remaining instruction data, if any.
     let data = match (optional_data, has_buffer) {
         (Some((data_source, Some(remaining_data))), false) => Some((data_source, remaining_data)),
         (Some((data_source, None)), true) => {
-            // SAFETY: singe immutable borrow of `buffer` account data.
+            // SAFETY: single immutable borrow of `buffer` account data.
             let buffer_data = unsafe { buffer.borrow_unchecked() };
+
             match AccountDiscriminator::try_from_bytes(buffer_data)? {
                 Some(AccountDiscriminator::Buffer) => {
                     Some((data_source, &buffer_data[Header::LEN..]))

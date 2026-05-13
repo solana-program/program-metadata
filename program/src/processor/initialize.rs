@@ -96,11 +96,14 @@ pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> Prog
             // When using a pre-allocated buffer, no remaining instruction data
             // is allowed.
             if !remaining_data.is_empty() {
-                return Err(ProgramError::InvalidAccountData);
+                return Err(ProgramError::InvalidInstructionData);
             }
-            // A pre-allocated buffer length is at least the size of the
+            // A pre-allocated buffer length should be at least the size of the
             // `Header`.
-            metadata.data_len() - Header::LEN
+            metadata
+                .data_len()
+                .checked_sub(Header::LEN)
+                .ok_or(ProgramError::InvalidAccountData)?
         }
         Some(AccountDiscriminator::Metadata) => {
             return Err(ProgramError::AccountAlreadyInitialized)
@@ -177,7 +180,7 @@ pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> Prog
     // Initialize the metadata account.
 
     // SAFETY: there are no other active borrows to `metadata` account data and
-    // the account discriminator has been validated.
+    // the account length has been validated to be sufficient to hold a `Header`.
     let header = unsafe { Header::from_bytes_mut_unchecked(metadata.borrow_unchecked_mut()) };
 
     header.discriminator = AccountDiscriminator::Metadata as u8;
