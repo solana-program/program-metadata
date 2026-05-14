@@ -43,10 +43,10 @@ pub fn trim(accounts: &mut [AccountView]) -> ProgramResult {
                 account.data_len()
             }
             Ok(AccountDiscriminator::Metadata) => {
-                let metadata = validate_metadata(account)?;
-                validate_authority(metadata, authority, program, program_data)?;
+                let header = validate_metadata(data)?;
+                validate_authority(header, authority, program, program_data)?;
                 // The length of the data is never more than `10_000_000`.
-                Header::LEN + metadata.data_length() as usize
+                Header::LEN + header.data_length() as usize
             }
             _ => return Err(ProgramError::UninitializedAccount),
         }

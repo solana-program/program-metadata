@@ -150,7 +150,7 @@ pub fn allocate(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
 
     // SAFETY: single mutable borrow of the `buffer` account data. The legth of the buffer account
     // data has been checked to be at least `Buffer::LEN` and uninitialized.
-    let buffer_header = unsafe { Buffer::from_bytes_mut_unchecked(buffer.borrow_unchecked_mut()) };
+    let buffer_header = Buffer::from_bytes_mut(unsafe { buffer.borrow_unchecked_mut() })?;
     buffer_header.discriminator = AccountDiscriminator::Buffer as u8;
     buffer_header.authority = (*authority.address()).into();
 

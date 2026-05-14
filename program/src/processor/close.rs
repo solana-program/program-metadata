@@ -32,16 +32,17 @@ pub fn close(accounts: &mut [AccountView]) -> ProgramResult {
     let account_data = if account.is_data_empty() {
         return Err(ProgramError::UninitializedAccount);
     } else {
+        // SAFETY: Single borrow of the `account` data.
         unsafe { account.borrow_unchecked() }
     };
 
     match AccountDiscriminator::try_from(account_data[0])? {
         AccountDiscriminator::Buffer => {
-            let buffer = unsafe { Buffer::from_bytes_unchecked(account_data) };
+            let buffer = Buffer::from_bytes(account_data)?;
             validate_authority(buffer, authority, program, program_data)?
         }
         AccountDiscriminator::Metadata => {
-            let header = validate_metadata(account)?;
+            let header = validate_metadata(account_data)?;
             validate_authority(header, authority, program, program_data)?
         }
         _ => return Err(ProgramError::InvalidAccountData),

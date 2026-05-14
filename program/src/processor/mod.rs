@@ -114,8 +114,8 @@ fn is_program_authority(
 ///   be [`AccountDiscriminator::Metadata`].
 /// - The `metadata` account must be mutable (`mutable = true`).
 #[inline(always)]
-fn validate_metadata(metadata: &AccountView) -> Result<&Header, ProgramError> {
-    let header = unsafe { Header::from_bytes_unchecked(metadata.borrow_unchecked()) };
+fn validate_metadata(bytes: &[u8]) -> Result<&Header, ProgramError> {
+    let header = Header::from_bytes(bytes)?;
     if header.discriminator != AccountDiscriminator::Metadata as u8 {
         return Err(ProgramError::UninitializedAccount);
     }

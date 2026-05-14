@@ -32,19 +32,6 @@ impl<'a> Metadata<'a> {
         let data = Data::from_bytes(header.data_source()?, &bytes[Header::LEN..])?;
         Ok(Self { header, data })
     }
-
-    /*
-    /// Return a `Metadata` from the given bytes.
-    ///
-    /// # Safety
-    ///
-    /// The caller must ensure that `bytes` contains a valid representation of `Metadata`.
-    pub(crate) unsafe fn from_bytes_unchecked(bytes: &'a [u8]) -> Self {
-        let header = Header::from_bytes_unchecked(bytes);
-        let data = Data::from_bytes_unchecked(header.data_source().unwrap(), &bytes[Header::LEN..]);
-        Self { header, data }
-    }
-    */
 }
 
 /// Utility trait for an account.

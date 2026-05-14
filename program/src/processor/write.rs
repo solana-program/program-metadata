@@ -47,27 +47,28 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // SAFETY: `buffer` account data is guaranteed to be a `Buffer`.
-        let buffer_header = unsafe { Buffer::from_bytes_unchecked(data) };
+        // `data` was validated to have a `Buffer` discriminator.
+        let buffer_header = Buffer::from_bytes(data)?;
 
         if Some(authority.address()) != buffer_header.authority.as_ref() {
             return Err(ProgramError::IncorrectAuthority);
         }
 
-        // Determine from where to copy the data.
+        // Determine from where to copy the data, ether from the instruction data
+        // or the source buffer account.
         let instruction_data = match args.data() {
             source_data if !source_data.is_empty() => Some(source_data),
             _ => None,
         };
 
-        let buffer_data = if source_buffer.address() != &crate::ID {
+        let source_buffer_data = if source_buffer.address() != &crate::ID {
             // SAFETY: singe immutable borrow of `source_buffer` account data.
             Some(unsafe { source_buffer.borrow_unchecked() })
         } else {
             None
         };
 
-        let source_data = match (instruction_data, buffer_data) {
+        let source_data = match (instruction_data, source_buffer_data) {
             (Some(instruction_data), None) => instruction_data,
             (None, Some(buffer_data)) => match AccountDiscriminator::try_from_bytes(buffer_data)? {
                 Some(AccountDiscriminator::Buffer) => &buffer_data[Header::LEN..],
@@ -76,7 +77,8 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
             _ => return Err(ProgramError::InvalidInstructionData),
         };
 
-        // The length of the data to write is validated by the `try_minimum_balance`.
+        // The length of the data to write is validated by the `try_minimum_balance` and
+        // `offset` is a `u32` value and `source_data` is at most `10_000_000` bytes.
         (max(data.len(), offset + source_data.len()), source_data)
     };
 

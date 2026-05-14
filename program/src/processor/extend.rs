@@ -55,7 +55,7 @@ pub fn extend(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramR
                 validate_authority(buffer, authority, program, program_data)?
             }
             Ok(AccountDiscriminator::Metadata) => {
-                let metadata = validate_metadata(account)?;
+                let metadata = validate_metadata(data)?;
                 validate_authority(metadata, authority, program, program_data)?
             }
             _ => return Err(ProgramError::InvalidAccountData),
