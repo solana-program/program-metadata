@@ -1,6 +1,6 @@
 use pinocchio::{account::AccountView, error::ProgramError, ProgramResult};
 
-use crate::{error::ProgramMetadataError, state::header::Header};
+use crate::state::header::Header;
 
 use super::{validate_authority, validate_metadata};
 
@@ -35,13 +35,10 @@ pub fn set_immutable(accounts: &mut [AccountView]) -> ProgramResult {
 
     // Make the metadata account immutable.
 
-    let header = Header::from_bytes_mut(metadata_account_data)?;
-
-    if header.mutable() {
-        header.mutable = 0;
-    } else {
-        return Err(ProgramMetadataError::ImmutableMetadataAccount.into());
-    }
+    // SAFETY: `metadata_account_data` has been validated to be initialized
+    // and mutable.
+    let header = unsafe { Header::from_bytes_mut_unchecked(metadata_account_data) };
+    header.mutable = 0;
 
     Ok(())
 }
