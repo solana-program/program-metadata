@@ -14,18 +14,13 @@ use crate::generated::types::Seed;
 use crate::hooked::ZeroableOptionPubkey;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderVec;
-use solana_pubkey::Pubkey;
+use solana_address::Address;
+use spl_collections::TrailingVec;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Metadata {
     pub discriminator: AccountDiscriminator,
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
-    )]
-    pub program: Pubkey,
+    pub program: Address,
     pub authority: ZeroableOptionPubkey,
     pub mutable: bool,
     pub canonical: bool,
@@ -35,7 +30,7 @@ pub struct Metadata {
     pub format: Format,
     pub data_source: DataSource,
     pub data_length: u32,
-    pub data: RemainderVec<u8>,
+    pub data: TrailingVec<u8>,
 }
 
 impl Metadata {
@@ -57,8 +52,8 @@ impl<'a> TryFrom<&solana_account_info::AccountInfo<'a>> for Metadata {
 
 #[cfg(feature = "fetch")]
 pub fn fetch_metadata(
-    rpc: &solana_client::rpc_client::RpcClient,
-    address: &solana_pubkey::Pubkey,
+    rpc: &solana_rpc_client::rpc_client::RpcClient,
+    address: &solana_address::Address,
 ) -> Result<crate::shared::DecodedAccount<Metadata>, std::io::Error> {
     let accounts = fetch_all_metadata(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -66,19 +61,18 @@ pub fn fetch_metadata(
 
 #[cfg(feature = "fetch")]
 pub fn fetch_all_metadata(
-    rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[solana_pubkey::Pubkey],
+    rpc: &solana_rpc_client::rpc_client::RpcClient,
+    addresses: &[solana_address::Address],
 ) -> Result<Vec<crate::shared::DecodedAccount<Metadata>>, std::io::Error> {
     let accounts = rpc
         .get_multiple_accounts(addresses)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::DecodedAccount<Metadata>> = Vec::new();
     for i in 0..addresses.len() {
         let address = addresses[i];
-        let account = accounts[i].as_ref().ok_or(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Account not found: {}", address),
-        ))?;
+        let account = accounts[i].as_ref().ok_or(std::io::Error::other(format!(
+            "Account not found: {address}"
+        )))?;
         let data = Metadata::from_bytes(&account.data)?;
         decoded_accounts.push(crate::shared::DecodedAccount {
             address,
@@ -91,8 +85,8 @@ pub fn fetch_all_metadata(
 
 #[cfg(feature = "fetch")]
 pub fn fetch_maybe_metadata(
-    rpc: &solana_client::rpc_client::RpcClient,
-    address: &solana_pubkey::Pubkey,
+    rpc: &solana_rpc_client::rpc_client::RpcClient,
+    address: &solana_address::Address,
 ) -> Result<crate::shared::MaybeAccount<Metadata>, std::io::Error> {
     let accounts = fetch_all_maybe_metadata(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -100,12 +94,12 @@ pub fn fetch_maybe_metadata(
 
 #[cfg(feature = "fetch")]
 pub fn fetch_all_maybe_metadata(
-    rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[solana_pubkey::Pubkey],
+    rpc: &solana_rpc_client::rpc_client::RpcClient,
+    addresses: &[solana_address::Address],
 ) -> Result<Vec<crate::shared::MaybeAccount<Metadata>>, std::io::Error> {
     let accounts = rpc
         .get_multiple_accounts(addresses)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::MaybeAccount<Metadata>> = Vec::new();
     for i in 0..addresses.len() {
         let address = addresses[i];

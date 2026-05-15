@@ -15,15 +15,15 @@ pub const ALLOCATE_DISCRIMINATOR: u8 = 7;
 #[derive(Debug)]
 pub struct Allocate {
     /// Buffer account to allocate.
-    pub buffer: solana_pubkey::Pubkey,
+    pub buffer: solana_address::Address,
     /// Authority account.
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_address::Address,
     /// Program account.
-    pub program: Option<solana_pubkey::Pubkey>,
+    pub program: Option<solana_address::Address>,
     /// Program data account.
-    pub program_data: Option<solana_pubkey::Pubkey>,
+    pub program_data: Option<solana_address::Address>,
     /// System program.
-    pub system: Option<solana_pubkey::Pubkey>,
+    pub system: Option<solana_address::Address>,
 }
 
 impl Allocate {
@@ -86,7 +86,6 @@ impl Allocate {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AllocateInstructionData {
     discriminator: u8,
 }
@@ -108,7 +107,6 @@ impl Default for AllocateInstructionData {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AllocateInstructionArgs {
     pub seed: RemainderOptionSeed,
 }
@@ -130,11 +128,11 @@ impl AllocateInstructionArgs {
 ///   4. `[optional]` system (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct AllocateBuilder {
-    buffer: Option<solana_pubkey::Pubkey>,
-    authority: Option<solana_pubkey::Pubkey>,
-    program: Option<solana_pubkey::Pubkey>,
-    program_data: Option<solana_pubkey::Pubkey>,
-    system: Option<solana_pubkey::Pubkey>,
+    buffer: Option<solana_address::Address>,
+    authority: Option<solana_address::Address>,
+    program: Option<solana_address::Address>,
+    program_data: Option<solana_address::Address>,
+    system: Option<solana_address::Address>,
     seed: Option<RemainderOptionSeed>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -145,34 +143,34 @@ impl AllocateBuilder {
     }
     /// Buffer account to allocate.
     #[inline(always)]
-    pub fn buffer(&mut self, buffer: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn buffer(&mut self, buffer: solana_address::Address) -> &mut Self {
         self.buffer = Some(buffer);
         self
     }
     /// Authority account.
     #[inline(always)]
-    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn authority(&mut self, authority: solana_address::Address) -> &mut Self {
         self.authority = Some(authority);
         self
     }
     /// `[optional account]`
     /// Program account.
     #[inline(always)]
-    pub fn program(&mut self, program: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program(&mut self, program: Option<solana_address::Address>) -> &mut Self {
         self.program = program;
         self
     }
     /// `[optional account]`
     /// Program data account.
     #[inline(always)]
-    pub fn program_data(&mut self, program_data: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program_data(&mut self, program_data: Option<solana_address::Address>) -> &mut Self {
         self.program_data = program_data;
         self
     }
     /// `[optional account]`
     /// System program.
     #[inline(always)]
-    pub fn system(&mut self, system: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn system(&mut self, system: Option<solana_address::Address>) -> &mut Self {
         self.system = system;
         self
     }

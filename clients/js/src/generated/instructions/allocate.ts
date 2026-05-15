@@ -15,6 +15,8 @@ import {
     getU8Decoder,
     getU8Encoder,
     none,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -33,13 +35,13 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { PROGRAM_METADATA_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import { getSeedDecoder, getSeedEncoder, type Seed, type SeedArgs } from '../types';
 
 export const ALLOCATE_DISCRIMINATOR = 7;
 
-export function getAllocateDiscriminatorBytes() {
+export function getAllocateDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(ALLOCATE_DISCRIMINATOR);
 }
 
@@ -147,7 +149,7 @@ export function getAllocateInstruction<
         programData: { value: input.programData ?? null, isWritable: false },
         system: { value: input.system ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -160,11 +162,11 @@ export function getAllocateInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.buffer),
-            getAccountMeta(accounts.authority),
-            getAccountMeta(accounts.program),
-            getAccountMeta(accounts.programData),
-            getAccountMeta(accounts.system),
+            getAccountMeta('buffer', accounts.buffer),
+            getAccountMeta('authority', accounts.authority),
+            getAccountMeta('program', accounts.program),
+            getAccountMeta('programData', accounts.programData),
+            getAccountMeta('system', accounts.system),
         ],
         data: getAllocateInstructionDataEncoder().encode(args as AllocateInstructionDataArgs),
         programAddress,
@@ -204,8 +206,10 @@ export function parseAllocateInstruction<TProgram extends string, TAccountMetas 
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedAllocateInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 5) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 5,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

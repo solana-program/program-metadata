@@ -6,7 +6,7 @@ export default {
     scripts: {
         js: {
             from: '@codama/renderers-js',
-            args: ['clients/js/src/generated', { packageFolder: 'clients/js', syncPackageJson: true }],
+            args: ['clients/js', { syncPackageJson: true, kitImportStrategy: 'rootOnly' }],
         },
         rust: [
             {
@@ -76,10 +76,9 @@ export default {
             {
                 from: '@codama/renderers-rust',
                 args: [
-                    'clients/rust/src/generated',
+                    'clients/rust',
                     {
                         formatCode: true,
-                        crateFolder: 'clients/rust',
                         toolchain: '+nightly-2026-01-22',
                         anchorTraits: false,
                         linkOverrides: {

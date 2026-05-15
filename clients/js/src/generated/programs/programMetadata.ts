@@ -9,13 +9,45 @@
 import {
     assertIsInstructionWithAccounts,
     containsBytes,
+    extendClient,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION,
+    SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE,
+    SolanaError,
     type Address,
+    type ClientWithRpc,
+    type ClientWithTransactionPlanning,
+    type ClientWithTransactionSending,
+    type GetAccountInfoApi,
+    type GetMultipleAccountsApi,
     type Instruction,
     type InstructionWithData,
     type ReadonlyUint8Array,
 } from '@solana/kit';
 import {
+    addSelfFetchFunctions,
+    addSelfPlanAndSendFunctions,
+    type SelfFetchFunctions,
+    type SelfPlanAndSendFunctions,
+} from '@solana/kit/program-client-core';
+import {
+    getBufferCodec,
+    getMetadataCodec,
+    type Buffer,
+    type BufferArgs,
+    type Metadata,
+    type MetadataArgs,
+} from '../accounts';
+import {
+    getAllocateInstruction,
+    getCloseInstruction,
+    getExtendInstruction,
+    getInitializeInstructionAsync,
+    getSetAuthorityInstruction,
+    getSetDataInstruction,
+    getSetImmutableInstruction,
+    getTrimInstruction,
+    getWriteInstruction,
     parseAllocateInstruction,
     parseCloseInstruction,
     parseExtendInstruction,
@@ -25,6 +57,10 @@ import {
     parseSetImmutableInstruction,
     parseTrimInstruction,
     parseWriteInstruction,
+    type AllocateInput,
+    type CloseInput,
+    type ExtendInput,
+    type InitializeAsyncInput,
     type ParsedAllocateInstruction,
     type ParsedCloseInstruction,
     type ParsedExtendInstruction,
@@ -34,7 +70,13 @@ import {
     type ParsedSetImmutableInstruction,
     type ParsedTrimInstruction,
     type ParsedWriteInstruction,
+    type SetAuthorityInput,
+    type SetDataInput,
+    type SetImmutableInput,
+    type TrimInput,
+    type WriteInput,
 } from '../instructions';
+import { findCanonicalPda, findMetadataPda, findNonCanonicalPda } from '../pdas';
 
 export const PROGRAM_METADATA_PROGRAM_ADDRESS =
     'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S' as Address<'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'>;
@@ -87,7 +129,10 @@ export function identifyProgramMetadataInstruction(
     if (containsBytes(data, getU8Encoder().encode(8), 0)) {
         return ProgramMetadataInstruction.Extend;
     }
-    throw new Error('The provided instruction could not be identified as a programMetadata instruction.');
+    throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__FAILED_TO_IDENTIFY_INSTRUCTION, {
+        instructionData: data,
+        programName: 'programMetadata',
+    });
 }
 
 export type ParsedProgramMetadataInstruction<TProgram extends string = 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'> =
@@ -152,6 +197,75 @@ export function parseProgramMetadataInstruction<TProgram extends string>(
             return { instructionType: ProgramMetadataInstruction.Extend, ...parseExtendInstruction(instruction) };
         }
         default:
-            throw new Error(`Unrecognized instruction type: ${instructionType as string}`);
+            throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__UNRECOGNIZED_INSTRUCTION_TYPE, {
+                instructionType: instructionType as string,
+                programName: 'programMetadata',
+            });
     }
+}
+
+export type ProgramMetadataPlugin = {
+    accounts: ProgramMetadataPluginAccounts;
+    instructions: ProgramMetadataPluginInstructions;
+    pdas: ProgramMetadataPluginPdas;
+};
+
+export type ProgramMetadataPluginAccounts = {
+    buffer: ReturnType<typeof getBufferCodec> & SelfFetchFunctions<BufferArgs, Buffer>;
+    metadata: ReturnType<typeof getMetadataCodec> & SelfFetchFunctions<MetadataArgs, Metadata>;
+};
+
+export type ProgramMetadataPluginInstructions = {
+    write: (input: WriteInput) => ReturnType<typeof getWriteInstruction> & SelfPlanAndSendFunctions;
+    initialize: (
+        input: InitializeAsyncInput,
+    ) => ReturnType<typeof getInitializeInstructionAsync> & SelfPlanAndSendFunctions;
+    setAuthority: (
+        input: SetAuthorityInput,
+    ) => ReturnType<typeof getSetAuthorityInstruction> & SelfPlanAndSendFunctions;
+    setData: (input: SetDataInput) => ReturnType<typeof getSetDataInstruction> & SelfPlanAndSendFunctions;
+    setImmutable: (
+        input: SetImmutableInput,
+    ) => ReturnType<typeof getSetImmutableInstruction> & SelfPlanAndSendFunctions;
+    trim: (input: TrimInput) => ReturnType<typeof getTrimInstruction> & SelfPlanAndSendFunctions;
+    close: (input: CloseInput) => ReturnType<typeof getCloseInstruction> & SelfPlanAndSendFunctions;
+    allocate: (input: AllocateInput) => ReturnType<typeof getAllocateInstruction> & SelfPlanAndSendFunctions;
+    extend: (input: ExtendInput) => ReturnType<typeof getExtendInstruction> & SelfPlanAndSendFunctions;
+};
+
+export type ProgramMetadataPluginPdas = {
+    canonical: typeof findCanonicalPda;
+    nonCanonical: typeof findNonCanonicalPda;
+    metadata: typeof findMetadataPda;
+};
+
+export type ProgramMetadataPluginRequirements = ClientWithRpc<GetAccountInfoApi & GetMultipleAccountsApi> &
+    ClientWithTransactionPlanning &
+    ClientWithTransactionSending;
+
+export function programMetadataProgram() {
+    return <T extends ProgramMetadataPluginRequirements>(
+        client: T,
+    ): Omit<T, 'programMetadata'> & { programMetadata: ProgramMetadataPlugin } => {
+        return extendClient(client, {
+            programMetadata: <ProgramMetadataPlugin>{
+                accounts: {
+                    buffer: addSelfFetchFunctions(client, getBufferCodec()),
+                    metadata: addSelfFetchFunctions(client, getMetadataCodec()),
+                },
+                instructions: {
+                    write: input => addSelfPlanAndSendFunctions(client, getWriteInstruction(input)),
+                    initialize: input => addSelfPlanAndSendFunctions(client, getInitializeInstructionAsync(input)),
+                    setAuthority: input => addSelfPlanAndSendFunctions(client, getSetAuthorityInstruction(input)),
+                    setData: input => addSelfPlanAndSendFunctions(client, getSetDataInstruction(input)),
+                    setImmutable: input => addSelfPlanAndSendFunctions(client, getSetImmutableInstruction(input)),
+                    trim: input => addSelfPlanAndSendFunctions(client, getTrimInstruction(input)),
+                    close: input => addSelfPlanAndSendFunctions(client, getCloseInstruction(input)),
+                    allocate: input => addSelfPlanAndSendFunctions(client, getAllocateInstruction(input)),
+                    extend: input => addSelfPlanAndSendFunctions(client, getExtendInstruction(input)),
+                },
+                pdas: { canonical: findCanonicalPda, nonCanonical: findNonCanonicalPda, metadata: findMetadataPda },
+            },
+        });
+    };
 }

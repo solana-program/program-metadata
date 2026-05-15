@@ -14,13 +14,13 @@ pub const EXTEND_DISCRIMINATOR: u8 = 8;
 #[derive(Debug)]
 pub struct Extend {
     /// Buffer or metadata account.
-    pub account: solana_pubkey::Pubkey,
+    pub account: solana_address::Address,
     /// Authority account.
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_address::Address,
     /// Program account.
-    pub program: Option<solana_pubkey::Pubkey>,
+    pub program: Option<solana_address::Address>,
     /// Program data account.
-    pub program_data: Option<solana_pubkey::Pubkey>,
+    pub program_data: Option<solana_address::Address>,
 }
 
 impl Extend {
@@ -75,7 +75,6 @@ impl Extend {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExtendInstructionData {
     discriminator: u8,
 }
@@ -97,7 +96,6 @@ impl Default for ExtendInstructionData {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ExtendInstructionArgs {
     pub length: u16,
 }
@@ -118,10 +116,10 @@ impl ExtendInstructionArgs {
 ///   3. `[optional]` program_data
 #[derive(Clone, Debug, Default)]
 pub struct ExtendBuilder {
-    account: Option<solana_pubkey::Pubkey>,
-    authority: Option<solana_pubkey::Pubkey>,
-    program: Option<solana_pubkey::Pubkey>,
-    program_data: Option<solana_pubkey::Pubkey>,
+    account: Option<solana_address::Address>,
+    authority: Option<solana_address::Address>,
+    program: Option<solana_address::Address>,
+    program_data: Option<solana_address::Address>,
     length: Option<u16>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
@@ -132,27 +130,27 @@ impl ExtendBuilder {
     }
     /// Buffer or metadata account.
     #[inline(always)]
-    pub fn account(&mut self, account: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn account(&mut self, account: solana_address::Address) -> &mut Self {
         self.account = Some(account);
         self
     }
     /// Authority account.
     #[inline(always)]
-    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn authority(&mut self, authority: solana_address::Address) -> &mut Self {
         self.authority = Some(authority);
         self
     }
     /// `[optional account]`
     /// Program account.
     #[inline(always)]
-    pub fn program(&mut self, program: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program(&mut self, program: Option<solana_address::Address>) -> &mut Self {
         self.program = program;
         self
     }
     /// `[optional account]`
     /// Program data account.
     #[inline(always)]
-    pub fn program_data(&mut self, program_data: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program_data(&mut self, program_data: Option<solana_address::Address>) -> &mut Self {
         self.program_data = program_data;
         self
     }

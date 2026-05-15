@@ -17,6 +17,8 @@ import {
     getU8Decoder,
     getU8Encoder,
     none,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -35,9 +37,14 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import {
+    getAccountMetaFactory,
+    getAddressFromResolvedInstructionAccount,
+    getNonNullResolvedInstructionInput,
+    type ResolvedInstructionAccount,
+} from '@solana/kit/program-client-core';
 import { findCanonicalPda, findNonCanonicalPda } from '../pdas';
 import { PROGRAM_METADATA_PROGRAM_ADDRESS } from '../programs';
-import { expectAddress, expectSome, getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
     getCompressionDecoder,
     getCompressionEncoder,
@@ -63,7 +70,7 @@ import {
 
 export const INITIALIZE_DISCRIMINATOR = 1;
 
-export function getInitializeDiscriminatorBytes() {
+export function getInitializeDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(INITIALIZE_DISCRIMINATOR);
 }
 
@@ -202,7 +209,7 @@ export async function getInitializeInstructionAsync<
         programData: { value: input.programData ?? null, isWritable: false },
         system: { value: input.system ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -211,14 +218,14 @@ export async function getInitializeInstructionAsync<
     if (!accounts.metadata.value) {
         if (accounts.programData.value) {
             accounts.metadata.value = await findCanonicalPda({
-                program: expectAddress(accounts.program.value),
-                seed: expectSome(args.seed),
+                program: getAddressFromResolvedInstructionAccount('program', accounts.program.value),
+                seed: getNonNullResolvedInstructionInput('seed', args.seed),
             });
         } else {
             accounts.metadata.value = await findNonCanonicalPda({
-                program: expectAddress(accounts.program.value),
-                authority: expectAddress(accounts.authority.value),
-                seed: expectSome(args.seed),
+                program: getAddressFromResolvedInstructionAccount('program', accounts.program.value),
+                authority: getAddressFromResolvedInstructionAccount('authority', accounts.authority.value),
+                seed: getNonNullResolvedInstructionInput('seed', args.seed),
             });
         }
     }
@@ -229,11 +236,11 @@ export async function getInitializeInstructionAsync<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.metadata),
-            getAccountMeta(accounts.authority),
-            getAccountMeta(accounts.program),
-            getAccountMeta(accounts.programData),
-            getAccountMeta(accounts.system),
+            getAccountMeta('metadata', accounts.metadata),
+            getAccountMeta('authority', accounts.authority),
+            getAccountMeta('program', accounts.program),
+            getAccountMeta('programData', accounts.programData),
+            getAccountMeta('system', accounts.system),
         ],
         data: getInitializeInstructionDataEncoder().encode(args as InitializeInstructionDataArgs),
         programAddress,
@@ -301,7 +308,7 @@ export function getInitializeInstruction<
         programData: { value: input.programData ?? null, isWritable: false },
         system: { value: input.system ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -314,11 +321,11 @@ export function getInitializeInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.metadata),
-            getAccountMeta(accounts.authority),
-            getAccountMeta(accounts.program),
-            getAccountMeta(accounts.programData),
-            getAccountMeta(accounts.system),
+            getAccountMeta('metadata', accounts.metadata),
+            getAccountMeta('authority', accounts.authority),
+            getAccountMeta('program', accounts.program),
+            getAccountMeta('programData', accounts.programData),
+            getAccountMeta('system', accounts.system),
         ],
         data: getInitializeInstructionDataEncoder().encode(args as InitializeInstructionDataArgs),
         programAddress,
@@ -358,8 +365,10 @@ export function parseInitializeInstruction<TProgram extends string, TAccountMeta
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedInitializeInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 5) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 5,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {
