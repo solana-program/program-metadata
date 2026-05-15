@@ -1,37 +1,29 @@
-import { address, getUtf8Encoder, none, some } from '@solana/kit';
+import { address, generateKeyPairSigner, getUtf8Encoder, none, some } from '@solana/kit';
 import test from 'ava';
 import {
     AccountDiscriminator,
     Compression,
-    createMetadata,
     DataSource,
     Encoding,
-    fetchMaybeBuffer,
-    fetchMetadata,
+    findCanonicalPda,
+    findNonCanonicalPda,
     Format,
     Metadata,
 } from '../src';
-import {
-    createDefaultSolanaClient,
-    createDeployedProgram,
-    createKeypairBuffer,
-    generateKeyPairSignerWithSol,
-    setAuthority,
-} from './_setup';
+import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
 test('it creates a canonical metadata account', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
-    const [program] = await createDeployedProgram(client, authority);
+    const [program, programData] = await createDeployedProgram(client, authority);
 
     // When we create a canonical metadata account for the program.
     const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
-    const { metadata } = await createMetadata({
-        ...client,
-        payer: authority,
+    await client.programMetadata.createMetadata({
         authority,
         program,
+        programData,
         seed: 'idl',
         encoding: Encoding.Utf8,
         compression: Compression.None,
@@ -41,7 +33,8 @@ test('it creates a canonical metadata account', async t => {
     });
 
     // Then we expect the following metadata account to be created.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
@@ -60,17 +53,16 @@ test('it creates a canonical metadata account', async t => {
 
 test('it creates a canonical metadata account with data larger than a transaction size', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
-    const [program] = await createDeployedProgram(client, authority);
+    const [program, programData] = await createDeployedProgram(client, authority);
 
     // When we create a canonical metadata account for the program with a lot of data.
     const largeData = getUtf8Encoder().encode('x'.repeat(3_000));
-    const { metadata } = await createMetadata({
-        ...client,
-        payer: authority,
+    await client.programMetadata.createMetadata({
         authority,
         program,
+        programData,
         seed: 'idl',
         encoding: Encoding.Utf8,
         compression: Compression.None,
@@ -80,7 +72,8 @@ test('it creates a canonical metadata account with data larger than a transactio
     });
 
     // Then we expect the following metadata account to be created.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
@@ -99,20 +92,22 @@ test('it creates a canonical metadata account with data larger than a transactio
 
 test('it creates a canonical metadata account using an existing buffer', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
-    const [program] = await createDeployedProgram(client, authority);
+    const [program, programData] = await createDeployedProgram(client, authority);
 
     // And an existing buffer with the following data.
     const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
-    const buffer = await createKeypairBuffer(client, { payer: authority, data });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, data })
+        .sendTransaction();
 
     // When we create a canonical metadata account using the existing buffer.
-    const { metadata } = await createMetadata({
-        ...client,
-        payer: authority,
+    await client.programMetadata.createMetadata({
         authority,
         program,
+        programData,
         seed: 'idl',
         encoding: Encoding.Utf8,
         compression: Compression.None,
@@ -122,7 +117,8 @@ test('it creates a canonical metadata account using an existing buffer', async t
     });
 
     // Then we expect the following metadata account to be created.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
@@ -141,15 +137,13 @@ test('it creates a canonical metadata account using an existing buffer', async t
 
 test('it creates a non-canonical metadata account', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // When we create a non-canonical metadata account for the program.
     const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
-    const { metadata } = await createMetadata({
-        ...client,
-        payer: authority,
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'idl',
@@ -161,7 +155,8 @@ test('it creates a non-canonical metadata account', async t => {
     });
 
     // Then we expect the following metadata account to be created.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const [metadata] = await findNonCanonicalPda({ program, authority: authority.address, seed: 'idl' });
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
@@ -180,15 +175,13 @@ test('it creates a non-canonical metadata account', async t => {
 
 test('it creates a non-canonical metadata account with data larger than a transaction size', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // When we create a non-canonical metadata account for the program with a lot of data.
     const largeData = getUtf8Encoder().encode('x'.repeat(3_000));
-    const { metadata } = await createMetadata({
-        ...client,
-        payer: authority,
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'idl',
@@ -200,7 +193,8 @@ test('it creates a non-canonical metadata account with data larger than a transa
     });
 
     // Then we expect the following metadata account to be created.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const [metadata] = await findNonCanonicalPda({ program, authority: authority.address, seed: 'idl' });
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
@@ -219,18 +213,19 @@ test('it creates a non-canonical metadata account with data larger than a transa
 
 test('it creates a non-canonical metadata account using an existing buffer', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // And an existing buffer with the following data.
     const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
-    const buffer = await createKeypairBuffer(client, { payer: authority, data });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, data })
+        .sendTransaction();
 
     // When we create a non-canonical metadata account using the existing buffer.
-    const { metadata } = await createMetadata({
-        ...client,
-        payer: authority,
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'idl',
@@ -242,7 +237,8 @@ test('it creates a non-canonical metadata account using an existing buffer', asy
     });
 
     // Then we expect the following metadata account to be created.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const [metadata] = await findNonCanonicalPda({ program, authority: authority.address, seed: 'idl' });
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
@@ -261,14 +257,12 @@ test('it creates a non-canonical metadata account using an existing buffer', asy
 
 test('it cannot create a metadata account if no data or buffer is provided', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // When we try to create a metadata account without providing data or buffer.
-    const promise = createMetadata({
-        ...client,
-        payer: authority,
+    const promise = client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'idl',
@@ -286,27 +280,21 @@ test('it cannot create a metadata account if no data or buffer is provided', asy
 
 test('it can close an existing buffer after using it to create a new metadata account', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
-    const [program] = await createDeployedProgram(client, authority);
+    const [program, programData] = await createDeployedProgram(client, authority);
 
     // And an existing buffer with the same authority.
     const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
-    const buffer = await createKeypairBuffer(client, { payer: authority, data });
-    await setAuthority(client, {
-        payer: authority,
-        authority: buffer,
-        account: buffer.address,
-        newAuthority: authority.address,
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions.createBuffer({ newBuffer: buffer, authority, data }).sendTransaction();
 
     // When we create a canonical metadata account
     // using the existing buffer and the `closeBuffer` option.
-    await createMetadata({
-        ...client,
-        payer: authority,
+    await client.programMetadata.createMetadata({
         authority,
         program,
+        programData,
         seed: 'idl',
         encoding: Encoding.Utf8,
         compression: Compression.None,
@@ -317,6 +305,6 @@ test('it can close an existing buffer after using it to create a new metadata ac
     });
 
     // Then we expect the buffer account to no longer exist.
-    const bufferAccount = await fetchMaybeBuffer(client.rpc, buffer.address);
+    const bufferAccount = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
     t.false(bufferAccount.exists);
 });

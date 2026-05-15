@@ -43,8 +43,7 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
     ]);
 
     await client.planAndExecute(
-        await getWriteMetadataInstructionPlan({
-            ...client,
+        await getWriteMetadataInstructionPlan(client, {
             ...writeInput,
             payer: client.payer,
             authority: client.authority,
@@ -52,7 +51,6 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
             programData,
             seed,
             metadata: metadataAccount,
-            planner: client.planner,
         }),
     );
 }

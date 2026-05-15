@@ -74,7 +74,7 @@ export function logTable(tabularData: unknown) {
     });
     const logger = new Console({ stdout: ts });
     logger.table(tabularData);
-    const table: string = (ts.read() || '').toString();
+    const table: string = ((ts.read() as { toString: () => string } | null) || '').toString();
     let result = '';
     for (const row of table.split(/[\r\n]+/)) {
         let r = row.replace(/[^┬]*┬/, '┌');

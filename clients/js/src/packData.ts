@@ -227,7 +227,7 @@ export function compressData(data: ReadonlyUint8Array, compression: Compression)
         case Compression.None:
             return data;
         case Compression.Gzip:
-            throw gzip(data as Uint8Array);
+            return gzip(data as Uint8Array);
         case Compression.Zlib:
             return deflate(data as Uint8Array);
     }
@@ -238,7 +238,7 @@ export function uncompressData(data: ReadonlyUint8Array, compression: Compressio
         case Compression.None:
             return data;
         case Compression.Gzip:
-            throw ungzip(data as Uint8Array);
+            return ungzip(data as Uint8Array);
         case Compression.Zlib:
             return inflate(data as Uint8Array);
     }

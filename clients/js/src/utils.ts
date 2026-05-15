@@ -17,7 +17,6 @@ import {
     MicroLamports,
     ReadonlyUint8Array,
     Rpc,
-    TransactionPlanResult,
     TransactionSigner,
     unwrapOption,
 } from '@solana/kit';
@@ -25,6 +24,8 @@ import {
     CompressionArgs,
     DataSourceArgs,
     EncodingArgs,
+    findCanonicalPda,
+    findNonCanonicalPda,
     FormatArgs,
     getExtendInstruction,
     getWriteInstruction,
@@ -64,15 +65,45 @@ export type MetadataInput = {
      * Defaults to `true`.
      */
     closeBuffer?: Address | boolean;
-};
-
-export type MetadataResponse = {
-    metadata: Address;
-    result: TransactionPlanResult;
+    /**
+     * The metadata PDA address. When omitted, it is derived from `program`,
+     * `seed`, and — for non-canonical metadata accounts — `authority`.
+     *
+     * Provide this explicitly to skip the PDA derivation step.
+     */
+    metadata?: Address;
+    /**
+     * The program data account address. When provided, the operation targets a
+     * canonical metadata account (managed by the program upgrade authority).
+     * When omitted, the operation targets a non-canonical metadata account
+     * (managed by a third-party authority).
+     */
+    programData?: Address;
 };
 
 export function getAccountSize(dataLength: bigint | number) {
     return BigInt(ACCOUNT_HEADER_LENGTH) + BigInt(dataLength);
+}
+
+/**
+ * Resolves the metadata PDA address for the given input.
+ *
+ * - When `input.metadata` is provided, it is used as-is.
+ * - When `input.programData` is provided, the canonical PDA is derived from
+ *   `program` and `seed`.
+ * - Otherwise the non-canonical PDA is derived from `program`, `seed` and
+ *   `authority`.
+ */
+export async function resolveMetadataPda(input: MetadataInput): Promise<Address> {
+    if (input.metadata) return input.metadata;
+    const [metadata] = input.programData
+        ? await findCanonicalPda({ program: input.program, seed: input.seed })
+        : await findNonCanonicalPda({
+              authority: input.authority.address,
+              program: input.program,
+              seed: input.seed,
+          });
+    return metadata;
 }
 
 export async function getProgramDataPda(program: Address) {

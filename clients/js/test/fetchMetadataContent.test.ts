@@ -8,24 +8,22 @@ import {
     Format,
     packDirectData,
     packExternalData,
-    writeMetadata,
 } from '../src';
-import { createBuffer, createDefaultSolanaClient, createDeployedProgram, generateKeyPairSignerWithSol } from './_setup';
+import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
 test('it fetches and parses direct IDLs from canonical metadata accounts', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
-    const [program] = await createDeployedProgram(client, authority);
+    const [program, programData] = await createDeployedProgram(client, authority);
 
     // And given the following IDL exists for the program.
     const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
-    await writeMetadata({
-        ...client,
+    await client.programMetadata.writeMetadata({
         ...packDirectData({ content: idl }),
-        payer: authority,
         authority,
         program,
+        programData,
         seed: 'idl',
         format: Format.Json,
     });
@@ -43,16 +41,14 @@ test('it fetches and parses direct IDLs from canonical metadata accounts', async
 
 test('it fetches and parses direct IDLs from non-canonical metadata accounts', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // And given the following IDL exists for the program.
     const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
-    await writeMetadata({
-        ...client,
+    await client.programMetadata.writeMetadata({
         ...packDirectData({ content: idl }),
-        payer: authority,
         authority,
         program,
         seed: 'idl',
@@ -72,9 +68,8 @@ test('it fetches and parses direct IDLs from non-canonical metadata accounts', a
 
 test('it fetches and parses multiple direct IDLs from metadata accounts', async t => {
     t.timeout(30_000);
-    // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
-    const authority = await generateKeyPairSignerWithSol(client);
+    // Given the following deployed program.
+    const client = await createTestClient();
     const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     const metadata1 = await generateKeyPairSigner();
@@ -83,29 +78,23 @@ test('it fetches and parses multiple direct IDLs from metadata accounts', async 
     // And given the following IDLs exist for the programs.
     const idl1 = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
     const idl2 = '{"kind":"rootNode","standard":"codama","version":"1.0.1"}';
-    const buffer = await generateKeyPairSigner();
 
     // We create a buffer account to hold the IDL data
-    await createBuffer(client, {
-        buffer: buffer.address,
-        authority: buffer,
-        payer: authority,
-        data: getUtf8Encoder().encode(idl2),
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, data: getUtf8Encoder().encode(idl2) })
+        .sendTransaction();
 
     // And we create metadata accounts for direct and external data
     await Promise.all([
-        writeMetadata({
-            ...client,
+        client.programMetadata.writeMetadata({
             ...packDirectData({ content: idl1 }),
-            payer: authority,
             authority: metadata1,
             program,
             seed: 'idl',
             format: Format.Json,
         }),
-        writeMetadata({
-            ...client,
+        client.programMetadata.writeMetadata({
             ...packExternalData({
                 address: buffer.address,
                 offset: 96,
@@ -113,7 +102,6 @@ test('it fetches and parses multiple direct IDLs from metadata accounts', async 
                 compression: Compression.None,
                 encoding: Encoding.Utf8,
             }),
-            payer: authority,
             authority: metadata2,
             program,
             seed: 'idl',

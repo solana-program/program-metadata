@@ -1,40 +1,21 @@
-import {
-    address,
-    appendTransactionMessageInstructions,
-    generateKeyPairSigner,
-    getUtf8Encoder,
-    lamports,
-    pipe,
-} from '@solana/kit';
+import { address, generateKeyPairSigner, getUtf8Encoder, lamports } from '@solana/kit';
 import test from 'ava';
 import {
     AccountDiscriminator,
     Compression,
     DataSource,
     Encoding,
-    fetchMetadata,
+    findCanonicalPda,
+    findNonCanonicalPda,
     Format,
-    getSetAuthorityInstruction,
-    getSetDataInstruction,
-    getTrimInstruction,
     Metadata,
 } from '../src';
-import {
-    createCanonicalMetadata,
-    createDefaultSolanaClient,
-    createDefaultTransaction,
-    createDeployedProgram,
-    createNonCanonicalMetadata,
-    generateKeyPairSignerWithSol,
-    getBalance,
-    getRentWithoutHeader,
-    signAndSendTransaction,
-} from './_setup';
+import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol, getBalance } from './_setup';
 
 test('the program authority of a canonical metadata account can trim it', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
-    const rentForAccountHeader = await client.rpc.getMinimumBalanceForRentExemption(0n).send();
+    const client = await createTestClient();
+    const rentForAccountHeader = await client.getMinimumBalance(0);
     const [authority, destination] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSignerWithSol(client, rentForAccountHeader),
@@ -43,59 +24,59 @@ test('the program authority of a canonical metadata account can trim it', async 
 
     // And the following metadata account with 200 bytes of data.
     const data = getUtf8Encoder().encode('x'.repeat(200));
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
-        data,
         program,
         programData,
         seed: 'dummy',
-    });
-
-    // And given we remove 100 bytes of data.
-    const reducedData = getUtf8Encoder().encode('x'.repeat(100));
-    const reduceBytesIx = getSetDataInstruction({
-        metadata,
-        authority,
         encoding: Encoding.None,
         compression: Compression.None,
         format: Format.None,
         dataSource: DataSource.Direct,
-        data: reducedData,
-        program,
-        programData,
+        data,
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // When we trim the metadata account.
-    const trimIx = getTrimInstruction({
-        account: metadata,
-        authority,
-        destination: destination.address,
-        program,
-        programData,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([reduceBytesIx, trimIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When we remove 100 bytes of data and trim the metadata account.
+    const reducedData = getUtf8Encoder().encode('x'.repeat(100));
+    await client.sendTransaction([
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority,
+            encoding: Encoding.None,
+            compression: Compression.None,
+            format: Format.None,
+            dataSource: DataSource.Direct,
+            data: reducedData,
+            program,
+            programData,
+        }),
+        client.programMetadata.instructions.trim({
+            account: metadata,
+            authority,
+            destination: destination.address,
+            program,
+            programData,
+        }),
+    ]);
 
     // Then we expect the metadata account to be trimmed.
-    const metadataAccount = await fetchMetadata(client.rpc, metadata);
+    const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(metadataAccount.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         data: reducedData,
     });
 
     // And we expect the destination account to have the rent difference.
-    const rentDifference = await getRentWithoutHeader(client, 100);
+    const rentDifference = await client.getMinimumBalance(100, { withoutHeader: true });
     const destinationBalance = await getBalance(client, destination.address);
     t.is(destinationBalance, lamports(rentForAccountHeader + rentDifference));
 });
 
 test('the explicit authority of a canonical metadata account can trim it', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
-    const rentForAccountHeader = await client.rpc.getMinimumBalanceForRentExemption(0n).send();
+    const client = await createTestClient();
+    const rentForAccountHeader = await client.getMinimumBalance(0);
     const [authority, explicitAuthority, destination] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -105,64 +86,62 @@ test('the explicit authority of a canonical metadata account can trim it', async
 
     // And the following metadata account with 200 bytes of data.
     const data = getUtf8Encoder().encode('x'.repeat(200));
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
-        data,
         program,
         programData,
         seed: 'dummy',
-    });
-
-    // And given an explicit authority is set.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        newAuthority: explicitAuthority.address,
-        program,
-        programData,
-    });
-
-    // And given we remove 100 bytes of data.
-    const reducedData = getUtf8Encoder().encode('x'.repeat(100));
-    const reduceBytesIx = getSetDataInstruction({
-        metadata,
-        authority: explicitAuthority,
         encoding: Encoding.None,
         compression: Compression.None,
         format: Format.None,
         dataSource: DataSource.Direct,
-        data: reducedData,
+        data,
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // When we trim the metadata account.
-    const trimIx = getTrimInstruction({
-        account: metadata,
-        authority: explicitAuthority,
-        destination: destination.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setAuthorityIx, reduceBytesIx, trimIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When an explicit authority is set, removes 100 bytes of data, and trims the metadata account.
+    const reducedData = getUtf8Encoder().encode('x'.repeat(100));
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            newAuthority: explicitAuthority.address,
+            program,
+            programData,
+        }),
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority: explicitAuthority,
+            encoding: Encoding.None,
+            compression: Compression.None,
+            format: Format.None,
+            dataSource: DataSource.Direct,
+            data: reducedData,
+        }),
+        client.programMetadata.instructions.trim({
+            account: metadata,
+            authority: explicitAuthority,
+            destination: destination.address,
+        }),
+    ]);
 
     // Then we expect the metadata account to be trimmed.
-    const metadataAccount = await fetchMetadata(client.rpc, metadata);
+    const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(metadataAccount.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         data: reducedData,
     });
 
     // And we expect the destination account to have the rent difference.
-    const rentDifference = await getRentWithoutHeader(client, 100);
+    const rentDifference = await client.getMinimumBalance(100, { withoutHeader: true });
     const destinationBalance = await getBalance(client, destination.address);
     t.is(destinationBalance, lamports(rentForAccountHeader + rentDifference));
 });
 
 test('the metadata authority of a non-canonical metadata account can trim it', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
-    const rentForAccountHeader = await client.rpc.getMinimumBalanceForRentExemption(0n).send();
+    const client = await createTestClient();
+    const rentForAccountHeader = await client.getMinimumBalance(0);
     const [authority, destination] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSignerWithSol(client, rentForAccountHeader),
@@ -171,46 +150,46 @@ test('the metadata authority of a non-canonical metadata account can trim it', a
 
     // And the following metadata account with 200 bytes of data.
     const data = getUtf8Encoder().encode('x'.repeat(200));
-    const [metadata] = await createNonCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
-        data,
         program,
         seed: 'dummy',
-    });
-
-    // And given we remove 100 bytes of data.
-    const reducedData = getUtf8Encoder().encode('x'.repeat(100));
-    const reduceBytesIx = getSetDataInstruction({
-        metadata,
-        authority,
         encoding: Encoding.None,
         compression: Compression.None,
         format: Format.None,
         dataSource: DataSource.Direct,
-        data: reducedData,
+        data,
     });
+    const [metadata] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
-    // When we trim the metadata account.
-    const trimIx = getTrimInstruction({
-        account: metadata,
-        authority,
-        destination: destination.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([reduceBytesIx, trimIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When we remove 100 bytes of data and trim the metadata account.
+    const reducedData = getUtf8Encoder().encode('x'.repeat(100));
+    await client.sendTransaction([
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority,
+            encoding: Encoding.None,
+            compression: Compression.None,
+            format: Format.None,
+            dataSource: DataSource.Direct,
+            data: reducedData,
+        }),
+        client.programMetadata.instructions.trim({
+            account: metadata,
+            authority,
+            destination: destination.address,
+        }),
+    ]);
 
     // Then we expect the metadata account to be trimmed.
-    const metadataAccount = await fetchMetadata(client.rpc, metadata);
+    const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(metadataAccount.data, <Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         data: reducedData,
     });
 
     // And we expect the destination account to have the rent difference.
-    const rentDifference = await getRentWithoutHeader(client, 100);
+    const rentDifference = await client.getMinimumBalance(100, { withoutHeader: true });
     const destinationBalance = await getBalance(client, destination.address);
     t.is(destinationBalance, lamports(rentForAccountHeader + rentDifference));
 });

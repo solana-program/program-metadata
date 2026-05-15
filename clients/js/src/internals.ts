@@ -8,6 +8,7 @@ import {
     Address,
     assertIsSendableTransaction,
     assertIsTransactionWithBlockhashLifetime,
+    ClientWithTransactionPlanning,
     createTransactionMessage,
     createTransactionPlanExecutor,
     createTransactionPlanner,
@@ -23,7 +24,6 @@ import {
     signTransactionMessageWithSigners,
     SimulateTransactionApi,
     TransactionPlanExecutorConfig,
-    TransactionPlanner,
     TransactionSigner,
 } from '@solana/kit';
 import { findMetadataPda, SeedArgs } from './generated';
@@ -37,6 +37,12 @@ export type PdaDetails = {
     programData?: Address;
 };
 
+/**
+ * Fetches the on-chain state of `program` to determine whether the metadata
+ * account is canonical (i.e. the caller's authority matches the program's
+ * upgrade authority) and returns the resolved metadata PDA along with the
+ * associated program-data account when applicable.
+ */
 export async function getPdaDetails(input: {
     rpc: Rpc<GetAccountInfoApi>;
     program: Address;
@@ -100,9 +106,14 @@ export function createDefaultTransactionPlannerAndExecutor(input: {
     return { planner, executor };
 }
 
-export async function isValidInstructionPlan(instructionPlan: InstructionPlan, planner: TransactionPlanner) {
+/**
+ * Returns `true` if the given instruction plan can be planned by the client's
+ * transaction planner without throwing — i.e. it fits within a single
+ * transaction subject to the planner's compute and size limits.
+ */
+export async function isValidInstructionPlan(instructionPlan: InstructionPlan, client: ClientWithTransactionPlanning) {
     try {
-        await planner(instructionPlan);
+        await client.planTransaction(instructionPlan);
         return true;
     } catch {
         return false;
