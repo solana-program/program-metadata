@@ -5,6 +5,7 @@ import { setCreateCommand } from './create';
 import { setCreateBufferCommand } from './create-buffer';
 import { setFetchCommand } from './fetch';
 import { setFetchBufferCommand } from './fetch-buffer';
+import { setHistoryCommand } from './history';
 import { setListBuffersCommand } from './list-buffers';
 import { setRemoveAuthorityCommand } from './remove-authority';
 import { setSetAuthorityCommand } from './set-authority';
@@ -21,6 +22,7 @@ export function setCommands(program: CustomCommand): void {
         .tap(setCreateCommand)
         .tap(setUpdateCommand)
         .tap(setFetchCommand)
+        .tap(setHistoryCommand)
         .tap(setSetAuthorityCommand)
         .tap(setRemoveAuthorityCommand)
         .tap(setSetImmutableCommand)
