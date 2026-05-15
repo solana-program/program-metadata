@@ -19,6 +19,8 @@ import {
     getU8Decoder,
     getU8Encoder,
     none,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -37,12 +39,12 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { PROGRAM_METADATA_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const WRITE_DISCRIMINATOR = 0;
 
-export function getWriteDiscriminatorBytes() {
+export function getWriteDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(WRITE_DISCRIMINATOR);
 }
 
@@ -145,7 +147,7 @@ export function getWriteInstruction<
         authority: { value: input.authority ?? null, isWritable: false },
         sourceBuffer: { value: input.sourceBuffer ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
@@ -153,9 +155,9 @@ export function getWriteInstruction<
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.buffer),
-            getAccountMeta(accounts.authority),
-            getAccountMeta(accounts.sourceBuffer),
+            getAccountMeta('buffer', accounts.buffer),
+            getAccountMeta('authority', accounts.authority),
+            getAccountMeta('sourceBuffer', accounts.sourceBuffer),
         ],
         data: getWriteInstructionDataEncoder().encode(args as WriteInstructionDataArgs),
         programAddress,
@@ -187,8 +189,10 @@ export function parseWriteInstruction<TProgram extends string, TAccountMetas ext
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedWriteInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 3) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 3,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

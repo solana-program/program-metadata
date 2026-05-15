@@ -12,6 +12,8 @@ import {
     getStructEncoder,
     getU8Decoder,
     getU8Encoder,
+    SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS,
+    SolanaError,
     transformEncoder,
     type AccountMeta,
     type AccountSignerMeta,
@@ -28,12 +30,12 @@ import {
     type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
+import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
 import { PROGRAM_METADATA_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export const SET_IMMUTABLE_DISCRIMINATOR = 4;
 
-export function getSetImmutableDiscriminatorBytes() {
+export function getSetImmutableDiscriminatorBytes(): ReadonlyUint8Array {
     return getU8Encoder().encode(SET_IMMUTABLE_DISCRIMINATOR);
 }
 
@@ -116,15 +118,15 @@ export function getSetImmutableInstruction<
         program: { value: input.program ?? null, isWritable: false },
         programData: { value: input.programData ?? null, isWritable: false },
     };
-    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedAccount>;
+    const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
-            getAccountMeta(accounts.metadata),
-            getAccountMeta(accounts.authority),
-            getAccountMeta(accounts.program),
-            getAccountMeta(accounts.programData),
+            getAccountMeta('metadata', accounts.metadata),
+            getAccountMeta('authority', accounts.authority),
+            getAccountMeta('program', accounts.program),
+            getAccountMeta('programData', accounts.programData),
         ],
         data: getSetImmutableInstructionDataEncoder().encode({}),
         programAddress,
@@ -161,8 +163,10 @@ export function parseSetImmutableInstruction<TProgram extends string, TAccountMe
         InstructionWithData<ReadonlyUint8Array>,
 ): ParsedSetImmutableInstruction<TProgram, TAccountMetas> {
     if (instruction.accounts.length < 4) {
-        // TODO: Coded error.
-        throw new Error('Not enough accounts');
+        throw new SolanaError(SOLANA_ERROR__PROGRAM_CLIENTS__INSUFFICIENT_ACCOUNT_METAS, {
+            actualAccountMetas: instruction.accounts.length,
+            expectedAccountMetas: 4,
+        });
     }
     let accountIndex = 0;
     const getNextAccount = () => {

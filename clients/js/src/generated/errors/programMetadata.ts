@@ -33,7 +33,7 @@ export type ProgramMetadataError =
     | typeof PROGRAM_METADATA_ERROR__NOT_EXECUTABLE_ACCOUNT;
 
 let programMetadataErrorMessages: Record<ProgramMetadataError, string> | undefined;
-if (process.env.NODE_ENV !== 'production') {
+if (process.env['NODE_ENV'] !== 'production') {
     programMetadataErrorMessages = {
         [PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT]: `The metadata account is immutable`,
         [PROGRAM_METADATA_ERROR__INVALID_DATA_LENGTH]: `The account data length is invalid`,
@@ -44,7 +44,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export function getProgramMetadataErrorMessage(code: ProgramMetadataError): string {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env['NODE_ENV'] !== 'production') {
         return (programMetadataErrorMessages as Record<ProgramMetadataError, string>)[code];
     }
 

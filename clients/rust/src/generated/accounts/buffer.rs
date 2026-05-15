@@ -10,17 +10,16 @@ use crate::generated::types::Seed;
 use crate::hooked::ZeroableOptionPubkey;
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use kaigan::types::RemainderVec;
+use spl_collections::TrailingVec;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Buffer {
     pub discriminator: AccountDiscriminator,
     pub program: ZeroableOptionPubkey,
     pub authority: ZeroableOptionPubkey,
     pub canonical: bool,
     pub seed: Seed,
-    pub data: RemainderVec<u8>,
+    pub data: TrailingVec<u8>,
 }
 
 impl Buffer {
@@ -42,8 +41,8 @@ impl<'a> TryFrom<&solana_account_info::AccountInfo<'a>> for Buffer {
 
 #[cfg(feature = "fetch")]
 pub fn fetch_buffer(
-    rpc: &solana_client::rpc_client::RpcClient,
-    address: &solana_pubkey::Pubkey,
+    rpc: &solana_rpc_client::rpc_client::RpcClient,
+    address: &solana_address::Address,
 ) -> Result<crate::shared::DecodedAccount<Buffer>, std::io::Error> {
     let accounts = fetch_all_buffer(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -51,19 +50,18 @@ pub fn fetch_buffer(
 
 #[cfg(feature = "fetch")]
 pub fn fetch_all_buffer(
-    rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[solana_pubkey::Pubkey],
+    rpc: &solana_rpc_client::rpc_client::RpcClient,
+    addresses: &[solana_address::Address],
 ) -> Result<Vec<crate::shared::DecodedAccount<Buffer>>, std::io::Error> {
     let accounts = rpc
         .get_multiple_accounts(addresses)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::DecodedAccount<Buffer>> = Vec::new();
     for i in 0..addresses.len() {
         let address = addresses[i];
-        let account = accounts[i].as_ref().ok_or(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            format!("Account not found: {}", address),
-        ))?;
+        let account = accounts[i].as_ref().ok_or(std::io::Error::other(format!(
+            "Account not found: {address}"
+        )))?;
         let data = Buffer::from_bytes(&account.data)?;
         decoded_accounts.push(crate::shared::DecodedAccount {
             address,
@@ -76,8 +74,8 @@ pub fn fetch_all_buffer(
 
 #[cfg(feature = "fetch")]
 pub fn fetch_maybe_buffer(
-    rpc: &solana_client::rpc_client::RpcClient,
-    address: &solana_pubkey::Pubkey,
+    rpc: &solana_rpc_client::rpc_client::RpcClient,
+    address: &solana_address::Address,
 ) -> Result<crate::shared::MaybeAccount<Buffer>, std::io::Error> {
     let accounts = fetch_all_maybe_buffer(rpc, &[*address])?;
     Ok(accounts[0].clone())
@@ -85,12 +83,12 @@ pub fn fetch_maybe_buffer(
 
 #[cfg(feature = "fetch")]
 pub fn fetch_all_maybe_buffer(
-    rpc: &solana_client::rpc_client::RpcClient,
-    addresses: &[solana_pubkey::Pubkey],
+    rpc: &solana_rpc_client::rpc_client::RpcClient,
+    addresses: &[solana_address::Address],
 ) -> Result<Vec<crate::shared::MaybeAccount<Buffer>>, std::io::Error> {
     let accounts = rpc
         .get_multiple_accounts(addresses)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     let mut decoded_accounts: Vec<crate::shared::MaybeAccount<Buffer>> = Vec::new();
     for i in 0..addresses.len() {
         let address = addresses[i];

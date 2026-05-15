@@ -20,15 +20,15 @@ pub const INITIALIZE_DISCRIMINATOR: u8 = 1;
 #[derive(Debug)]
 pub struct Initialize {
     /// Metadata account the initialize.
-    pub metadata: solana_pubkey::Pubkey,
+    pub metadata: solana_address::Address,
     /// Authority (for canonical, must match program upgrade authority).
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_address::Address,
     /// Program account.
-    pub program: solana_pubkey::Pubkey,
+    pub program: solana_address::Address,
     /// Program data account.
-    pub program_data: Option<solana_pubkey::Pubkey>,
+    pub program_data: Option<solana_address::Address>,
     /// System program.
-    pub system: Option<solana_pubkey::Pubkey>,
+    pub system: Option<solana_address::Address>,
 }
 
 impl Initialize {
@@ -85,7 +85,6 @@ impl Initialize {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeInstructionData {
     discriminator: u8,
 }
@@ -107,7 +106,6 @@ impl Default for InitializeInstructionData {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeInstructionArgs {
     pub seed: Seed,
     pub encoding: Encoding,
@@ -134,11 +132,11 @@ impl InitializeInstructionArgs {
 ///   4. `[optional]` system (default to `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct InitializeBuilder {
-    metadata: Option<solana_pubkey::Pubkey>,
-    authority: Option<solana_pubkey::Pubkey>,
-    program: Option<solana_pubkey::Pubkey>,
-    program_data: Option<solana_pubkey::Pubkey>,
-    system: Option<solana_pubkey::Pubkey>,
+    metadata: Option<solana_address::Address>,
+    authority: Option<solana_address::Address>,
+    program: Option<solana_address::Address>,
+    program_data: Option<solana_address::Address>,
+    system: Option<solana_address::Address>,
     seed: Option<Seed>,
     encoding: Option<Encoding>,
     compression: Option<Compression>,
@@ -154,33 +152,33 @@ impl InitializeBuilder {
     }
     /// Metadata account the initialize.
     #[inline(always)]
-    pub fn metadata(&mut self, metadata: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn metadata(&mut self, metadata: solana_address::Address) -> &mut Self {
         self.metadata = Some(metadata);
         self
     }
     /// Authority (for canonical, must match program upgrade authority).
     #[inline(always)]
-    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn authority(&mut self, authority: solana_address::Address) -> &mut Self {
         self.authority = Some(authority);
         self
     }
     /// Program account.
     #[inline(always)]
-    pub fn program(&mut self, program: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn program(&mut self, program: solana_address::Address) -> &mut Self {
         self.program = Some(program);
         self
     }
     /// `[optional account]`
     /// Program data account.
     #[inline(always)]
-    pub fn program_data(&mut self, program_data: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program_data(&mut self, program_data: Option<solana_address::Address>) -> &mut Self {
         self.program_data = program_data;
         self
     }
     /// `[optional account]`
     /// System program.
     #[inline(always)]
-    pub fn system(&mut self, system: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn system(&mut self, system: Option<solana_address::Address>) -> &mut Self {
         self.system = system;
         self
     }
