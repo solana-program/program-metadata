@@ -57,11 +57,19 @@ pub fn set_data(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
         validate_authority(header, authority, program, program_data)?;
     }
 
-    let has_buffer = buffer.address() != &crate::ID;
-    // Get data from buffer or remaining instruction data, if any.
-    let data = match (optional_data, has_buffer) {
+    // buffer (if `remaining_data` is `None`)
+    // - must be initialized
+    // - must be owned by the program
+    //
+    // Get data from buffer or remaining instruction data (if any).
+    let data = match (optional_data, buffer.address() != &crate::ID) {
         (Some((data_source, Some(remaining_data))), false) => Some((data_source, remaining_data)),
         (Some((data_source, None)), true) => {
+            // Since we are not writing to the `buffer` account, validate
+            // the ownership of the account.
+            if !buffer.owned_by(&crate::ID) {
+                return Err(ProgramError::InvalidAccountOwner);
+            }
             // SAFETY: single immutable borrow of `buffer` account data.
             let buffer_data = unsafe { buffer.borrow_unchecked() };
 

@@ -37,6 +37,11 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
     // - must be initialized
     // - must be rent exempt (pre-funded account) since we are reallocating the buffer
     //   account
+    //
+    // source_buffer (if `args.data()` is empty)
+    // - must be initialized
+    // - must be owned by the program
+    // - must not be the same account as `target_buffer`
 
     let (required_length, source_data) = {
         // SAFETY: scoped immutable borrow of `buffer` account data. There
@@ -62,6 +67,11 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
         };
 
         let source_buffer_data = if source_buffer.address() != &crate::ID {
+            // Since we are not writing to the `source_buffer` account, validate
+            // the ownership of the account.
+            if !source_buffer.owned_by(&crate::ID) {
+                return Err(ProgramError::InvalidAccountOwner);
+            }
             // SAFETY: singe immutable borrow of `source_buffer` account data.
             Some(unsafe { source_buffer.borrow_unchecked() })
         } else {
@@ -71,7 +81,10 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
         let source_data = match (instruction_data, source_buffer_data) {
             (Some(instruction_data), None) => instruction_data,
             (None, Some(buffer_data)) => match AccountDiscriminator::try_from_bytes(buffer_data)? {
-                Some(AccountDiscriminator::Buffer) => &buffer_data[Header::LEN..],
+                // `source_buffer` and `target_buffer` must not be the same account.
+                Some(AccountDiscriminator::Buffer) if source_buffer != target_buffer => {
+                    &buffer_data[Header::LEN..]
+                }
                 _ => return Err(ProgramError::InvalidAccountData),
             },
             _ => return Err(ProgramError::InvalidInstructionData),
