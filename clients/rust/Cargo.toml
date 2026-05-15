@@ -26,5 +26,5 @@ solana-instruction = "~3.2"
 solana-program-error = "~3.0"
 solana-rpc-client = { version = "^3.0", optional = true }
 solana-sdk = { version = "^2.3", optional = true }
-spl-collections = "^0.1"
+spl-collections = { version = "^0.1", features = ["borsh"] }
 thiserror = "^1.0"

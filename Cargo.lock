@@ -5242,6 +5242,9 @@ name = "spl-collections"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32f0cbfc37c8bc4f36b42e54a4728fe8d43f9801c723cd4a9b541b6455438ea6"
+dependencies = [
+ "borsh 1.5.7",
+]
 
 [[package]]
 name = "spl-generic-token"
