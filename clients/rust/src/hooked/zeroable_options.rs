@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 
 pub type ZeroableOptionOffset = ZeroableOption<u32>;
-pub type ZeroableOptionPubkey = ZeroableOption<Pubkey>;
+pub type ZeroableOptionPubkey = ZeroableOption<Address>;
 
 pub trait Zeroable: PartialEq {
     const ZERO: Self;
@@ -14,8 +14,8 @@ impl Zeroable for u32 {
     const ZERO: Self = 0;
 }
 
-impl Zeroable for Pubkey {
-    const ZERO: Self = Pubkey::new_from_array([0; 32]);
+impl Zeroable for Address {
+    const ZERO: Self = Address::new_from_array([0; 32]);
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
