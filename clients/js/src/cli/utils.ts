@@ -4,6 +4,7 @@ import path from 'path';
 
 import {
     Account,
+    AccountRole,
     Address,
     address,
     Commitment,
@@ -32,7 +33,7 @@ import {
 import { Command } from 'commander';
 import picocolors from 'picocolors';
 import { parse as parseYaml } from 'yaml';
-import { Buffer, DataSource, fetchBuffer, Format, Seed } from '../generated';
+import { Buffer, DataSource, Encoding, fetchBuffer, Format, Seed } from '../generated';
 import { createDefaultTransactionPlannerAndExecutor, getPdaDetails, PdaDetails } from '../internals';
 import { decodeData, packDirectData, PackedData, packExternalData, packUrlData } from '../packData';
 import { logErrorAndExit, logExports, logSuccess, logWarning } from './logs';
@@ -115,16 +116,43 @@ async function exportTransactionPlan(
     const { value: latestBlockhash } = await client.rpc.getLatestBlockhash().send();
 
     for (let i = 0; i < singleTransactions.length; i++) {
-        const transaction = pipe(
+        const message = pipe(
             singleTransactions[i].message,
             m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
             m => removeComputeUnitLimitInstruction(m),
-            compileTransaction,
         );
-        const encodedTransaction = decodeData(transactionEncoder.encode(transaction), options.exportEncoding);
         const prefix = picocolors.yellow(`[Transaction #${i + 1}]`);
-        console.log(`${prefix}\n${encodedTransaction}\n`);
+        if (options.exportEncoding === 'instruction-list') {
+            console.log(`\n${prefix}`);
+            logInstructions(message);
+        } else {
+            const transaction = compileTransaction(message);
+            const encodedTransaction = decodeData(transactionEncoder.encode(transaction), options.exportEncoding);
+            console.log(`${prefix}\n${encodedTransaction}\n`);
+        }
     }
+}
+
+function logInstructions(message: TransactionMessage): void {
+    message.instructions.forEach((ix, i) => {
+        console.log(picocolors.cyan(`\n------ IX #${i + 1} ------\n`));
+        console.log(`${ix.programAddress}\n`);
+
+        (ix.accounts ?? []).forEach(account => {
+            const isWritable = account.role === AccountRole.WRITABLE || account.role === AccountRole.WRITABLE_SIGNER;
+            const isSigner =
+                account.role === AccountRole.READONLY_SIGNER || account.role === AccountRole.WRITABLE_SIGNER;
+            const writable = isWritable ? 'W' : '';
+            const signer = isSigner ? 'S' : '';
+            console.log(`${String(account.address).padEnd(44)} ${writable.padStart(2)} ${signer.padStart(1)}`);
+        });
+
+        console.log('');
+
+        if (ix.data && ix.data.length > 0) {
+            console.log(`${decodeData(ix.data, Encoding.Base58)}\n`);
+        }
+    });
 }
 
 function removeComputeUnitLimitInstruction<

@@ -4,6 +4,7 @@ import { Transform } from 'node:stream';
 
 import picocolors from 'picocolors';
 import { Encoding } from '../generated';
+import type { ExportEncoding } from './options';
 
 export function logCommand(message: string, data: Record<string, string | undefined> = {}): void {
     console.log('');
@@ -24,17 +25,22 @@ export function logCommand(message: string, data: Record<string, string | undefi
 
 export function logExports(
     transactionLength: number,
-    options: { export: Address | boolean; exportEncoding: Encoding },
+    options: { export: Address | boolean; exportEncoding: ExportEncoding },
 ): void {
     const transactionPluralized = transactionLength === 1 ? 'transaction' : 'transactions';
     const forAuthority = typeof options.export === 'string' ? ` for ${picocolors.bold(options.export)}` : '';
-    const encodingName = {
-        [Encoding.None]: 'hexadecimal',
-        [Encoding.Utf8]: 'UTF-8',
-        [Encoding.Base58]: 'Base58',
-        [Encoding.Base64]: 'Base64',
-    }[options.exportEncoding];
-    const message = `Exporting ${transactionLength} ${transactionPluralized}${forAuthority} in ${encodingName}:\n`;
+    const suffix =
+        options.exportEncoding === 'instruction-list'
+            ? 'as an instruction list'
+            : `in ${
+                  {
+                      [Encoding.None]: 'hexadecimal',
+                      [Encoding.Utf8]: 'UTF-8',
+                      [Encoding.Base58]: 'Base58',
+                      [Encoding.Base64]: 'Base64',
+                  }[options.exportEncoding]
+              }`;
+    const message = `Exporting ${transactionLength} ${transactionPluralized}${forAuthority} ${suffix}:\n`;
     console.log(picocolors.yellow(message));
 }
 
