@@ -14,17 +14,17 @@ pub const TRIM_DISCRIMINATOR: u8 = 5;
 #[derive(Debug)]
 pub struct Trim {
     /// Buffer or metadata account.
-    pub account: solana_pubkey::Pubkey,
+    pub account: solana_address::Address,
     /// Authority account.
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_address::Address,
     /// Program account.
-    pub program: Option<solana_pubkey::Pubkey>,
+    pub program: Option<solana_address::Address>,
     /// Program data account.
-    pub program_data: Option<solana_pubkey::Pubkey>,
+    pub program_data: Option<solana_address::Address>,
     /// Destination account.
-    pub destination: solana_pubkey::Pubkey,
+    pub destination: solana_address::Address,
     /// Rent sysvar account.
-    pub rent: solana_pubkey::Pubkey,
+    pub rent: solana_address::Address,
 }
 
 impl Trim {
@@ -83,7 +83,6 @@ impl Trim {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TrimInstructionData {
     discriminator: u8,
 }
@@ -116,12 +115,12 @@ impl Default for TrimInstructionData {
 ///   5. `[optional]` rent (default to `SysvarRent111111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct TrimBuilder {
-    account: Option<solana_pubkey::Pubkey>,
-    authority: Option<solana_pubkey::Pubkey>,
-    program: Option<solana_pubkey::Pubkey>,
-    program_data: Option<solana_pubkey::Pubkey>,
-    destination: Option<solana_pubkey::Pubkey>,
-    rent: Option<solana_pubkey::Pubkey>,
+    account: Option<solana_address::Address>,
+    authority: Option<solana_address::Address>,
+    program: Option<solana_address::Address>,
+    program_data: Option<solana_address::Address>,
+    destination: Option<solana_address::Address>,
+    rent: Option<solana_address::Address>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
@@ -131,40 +130,40 @@ impl TrimBuilder {
     }
     /// Buffer or metadata account.
     #[inline(always)]
-    pub fn account(&mut self, account: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn account(&mut self, account: solana_address::Address) -> &mut Self {
         self.account = Some(account);
         self
     }
     /// Authority account.
     #[inline(always)]
-    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn authority(&mut self, authority: solana_address::Address) -> &mut Self {
         self.authority = Some(authority);
         self
     }
     /// `[optional account]`
     /// Program account.
     #[inline(always)]
-    pub fn program(&mut self, program: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program(&mut self, program: Option<solana_address::Address>) -> &mut Self {
         self.program = program;
         self
     }
     /// `[optional account]`
     /// Program data account.
     #[inline(always)]
-    pub fn program_data(&mut self, program_data: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program_data(&mut self, program_data: Option<solana_address::Address>) -> &mut Self {
         self.program_data = program_data;
         self
     }
     /// Destination account.
     #[inline(always)]
-    pub fn destination(&mut self, destination: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn destination(&mut self, destination: solana_address::Address) -> &mut Self {
         self.destination = Some(destination);
         self
     }
     /// `[optional account, default to 'SysvarRent111111111111111111111111111111111']`
     /// Rent sysvar account.
     #[inline(always)]
-    pub fn rent(&mut self, rent: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn rent(&mut self, rent: solana_address::Address) -> &mut Self {
         self.rent = Some(rent);
         self
     }
@@ -191,7 +190,7 @@ impl TrimBuilder {
             program: self.program,
             program_data: self.program_data,
             destination: self.destination.expect("destination is not set"),
-            rent: self.rent.unwrap_or(solana_pubkey::pubkey!(
+            rent: self.rent.unwrap_or(solana_address::address!(
                 "SysvarRent111111111111111111111111111111111"
             )),
         };

@@ -15,12 +15,12 @@ pub const WRITE_DISCRIMINATOR: u8 = 0;
 #[derive(Debug)]
 pub struct Write {
     /// The buffer to write to.
-    pub buffer: solana_pubkey::Pubkey,
+    pub buffer: solana_address::Address,
     /// The authority of the buffer.
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_address::Address,
     /// Buffer to copy the data from.
     /// You may use the `data` argument instead of this account to pass data directly.
-    pub source_buffer: Option<solana_pubkey::Pubkey>,
+    pub source_buffer: Option<solana_address::Address>,
 }
 
 impl Write {
@@ -65,7 +65,6 @@ impl Write {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WriteInstructionData {
     discriminator: u8,
 }
@@ -87,7 +86,6 @@ impl Default for WriteInstructionData {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WriteInstructionArgs {
     pub offset: u32,
     pub data: RemainderOptionBytes,
@@ -108,9 +106,9 @@ impl WriteInstructionArgs {
 ///   2. `[optional]` source_buffer
 #[derive(Clone, Debug, Default)]
 pub struct WriteBuilder {
-    buffer: Option<solana_pubkey::Pubkey>,
-    authority: Option<solana_pubkey::Pubkey>,
-    source_buffer: Option<solana_pubkey::Pubkey>,
+    buffer: Option<solana_address::Address>,
+    authority: Option<solana_address::Address>,
+    source_buffer: Option<solana_address::Address>,
     offset: Option<u32>,
     data: Option<RemainderOptionBytes>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
@@ -122,13 +120,13 @@ impl WriteBuilder {
     }
     /// The buffer to write to.
     #[inline(always)]
-    pub fn buffer(&mut self, buffer: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn buffer(&mut self, buffer: solana_address::Address) -> &mut Self {
         self.buffer = Some(buffer);
         self
     }
     /// The authority of the buffer.
     #[inline(always)]
-    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn authority(&mut self, authority: solana_address::Address) -> &mut Self {
         self.authority = Some(authority);
         self
     }
@@ -136,7 +134,7 @@ impl WriteBuilder {
     /// Buffer to copy the data from.
     /// You may use the `data` argument instead of this account to pass data directly.
     #[inline(always)]
-    pub fn source_buffer(&mut self, source_buffer: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn source_buffer(&mut self, source_buffer: Option<solana_address::Address>) -> &mut Self {
         self.source_buffer = source_buffer;
         self
     }

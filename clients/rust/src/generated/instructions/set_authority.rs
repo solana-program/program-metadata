@@ -7,7 +7,7 @@
 
 use borsh::BorshDeserialize;
 use borsh::BorshSerialize;
-use solana_pubkey::Pubkey;
+use solana_address::Address;
 
 pub const SET_AUTHORITY_DISCRIMINATOR: u8 = 2;
 
@@ -15,13 +15,13 @@ pub const SET_AUTHORITY_DISCRIMINATOR: u8 = 2;
 #[derive(Debug)]
 pub struct SetAuthority {
     /// Metadata or buffer account.
-    pub account: solana_pubkey::Pubkey,
+    pub account: solana_address::Address,
     /// Current authority account.
-    pub authority: solana_pubkey::Pubkey,
+    pub authority: solana_address::Address,
     /// Program account.
-    pub program: Option<solana_pubkey::Pubkey>,
+    pub program: Option<solana_address::Address>,
     /// Program data account.
-    pub program_data: Option<solana_pubkey::Pubkey>,
+    pub program_data: Option<solana_address::Address>,
 }
 
 impl SetAuthority {
@@ -79,7 +79,6 @@ impl SetAuthority {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SetAuthorityInstructionData {
     discriminator: u8,
 }
@@ -101,9 +100,8 @@ impl Default for SetAuthorityInstructionData {
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SetAuthorityInstructionArgs {
-    pub new_authority: Option<Pubkey>,
+    pub new_authority: Option<Address>,
 }
 
 impl SetAuthorityInstructionArgs {
@@ -122,11 +120,11 @@ impl SetAuthorityInstructionArgs {
 ///   3. `[optional]` program_data
 #[derive(Clone, Debug, Default)]
 pub struct SetAuthorityBuilder {
-    account: Option<solana_pubkey::Pubkey>,
-    authority: Option<solana_pubkey::Pubkey>,
-    program: Option<solana_pubkey::Pubkey>,
-    program_data: Option<solana_pubkey::Pubkey>,
-    new_authority: Option<Pubkey>,
+    account: Option<solana_address::Address>,
+    authority: Option<solana_address::Address>,
+    program: Option<solana_address::Address>,
+    program_data: Option<solana_address::Address>,
+    new_authority: Option<Address>,
     __remaining_accounts: Vec<solana_instruction::AccountMeta>,
 }
 
@@ -136,33 +134,33 @@ impl SetAuthorityBuilder {
     }
     /// Metadata or buffer account.
     #[inline(always)]
-    pub fn account(&mut self, account: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn account(&mut self, account: solana_address::Address) -> &mut Self {
         self.account = Some(account);
         self
     }
     /// Current authority account.
     #[inline(always)]
-    pub fn authority(&mut self, authority: solana_pubkey::Pubkey) -> &mut Self {
+    pub fn authority(&mut self, authority: solana_address::Address) -> &mut Self {
         self.authority = Some(authority);
         self
     }
     /// `[optional account]`
     /// Program account.
     #[inline(always)]
-    pub fn program(&mut self, program: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program(&mut self, program: Option<solana_address::Address>) -> &mut Self {
         self.program = program;
         self
     }
     /// `[optional account]`
     /// Program data account.
     #[inline(always)]
-    pub fn program_data(&mut self, program_data: Option<solana_pubkey::Pubkey>) -> &mut Self {
+    pub fn program_data(&mut self, program_data: Option<solana_address::Address>) -> &mut Self {
         self.program_data = program_data;
         self
     }
     /// `[optional argument]`
     #[inline(always)]
-    pub fn new_authority(&mut self, new_authority: Pubkey) -> &mut Self {
+    pub fn new_authority(&mut self, new_authority: Address) -> &mut Self {
         self.new_authority = Some(new_authority);
         self
     }
@@ -392,7 +390,7 @@ impl<'a, 'b> SetAuthorityCpiBuilder<'a, 'b> {
     }
     /// `[optional argument]`
     #[inline(always)]
-    pub fn new_authority(&mut self, new_authority: Pubkey) -> &mut Self {
+    pub fn new_authority(&mut self, new_authority: Address) -> &mut Self {
         self.instruction.new_authority = Some(new_authority);
         self
     }
@@ -459,7 +457,7 @@ struct SetAuthorityCpiBuilderInstruction<'a, 'b> {
     authority: Option<&'b solana_account_info::AccountInfo<'a>>,
     program: Option<&'b solana_account_info::AccountInfo<'a>>,
     program_data: Option<&'b solana_account_info::AccountInfo<'a>>,
-    new_authority: Option<Pubkey>,
+    new_authority: Option<Address>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(&'b solana_account_info::AccountInfo<'a>, bool, bool)>,
 }

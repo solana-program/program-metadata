@@ -26,11 +26,11 @@
         "rust:semver": "cargo semver-checks"
     },
     "devDependencies": {
-        "@codama/renderers-js": "^1.7.0",
-        "@codama/renderers-rust": "^1.2.9",
+        "@codama/renderers-js": "^2.2.0",
+        "@codama/renderers-rust": "^3.1.0",
         "@iarna/toml": "^2.2.5",
-        "@solana/prettier-config-solana": "0.0.6",
-        "codama": "^1.5.0",
+        "@solana-config/prettier": "0.1.2",
+        "codama": "^1.6.0",
         "typescript": "^5.5.2",
         "zx": "^7.2.3"
     },
@@ -38,5 +38,5 @@
         "node": ">=v20.0.0"
     },
     "packageManager": "pnpm@10.15.1",
-    "prettier": "@solana/prettier-config-solana"
+    "prettier": "@solana-config/prettier"
 }
