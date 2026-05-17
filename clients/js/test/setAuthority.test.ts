@@ -434,7 +434,6 @@ test('the authority cannot be changed on immutable metadata accounts', async t =
 
     // When the explicit authority attempts to set another authority on the
     // metadata account after setting it to be immutable.
-    // And given the explicit authority is set on the metadata account.
     const setAnotherAuthorityIx = getSetAuthorityInstruction({
         account: metadata,
         authority,
@@ -442,13 +441,11 @@ test('the authority cannot be changed on immutable metadata accounts', async t =
         programData,
         newAuthority: anotherAuthority.address,
     });
-
-    const transactionMessage = pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setAuthorityIx, setImmutableIx, setAnotherAuthorityIx], tx),
+    const transactionMessage = pipe(await createDefaultTransaction(client, authority), tx =>
+        appendTransactionMessageInstructions([setAuthorityIx, setImmutableIx, setAnotherAuthorityIx], tx),
     );
     const promise = signAndSendTransaction(client, transactionMessage);
-    
+
     // Then we expect the transaction to fail.
     const error = await t.throwsAsync(promise);
     t.true(isProgramMetadataError(error.cause, transactionMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT));
