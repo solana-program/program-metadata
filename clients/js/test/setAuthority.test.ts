@@ -17,6 +17,9 @@ import {
     fetchMetadata,
     getAllocateInstruction,
     getSetAuthorityInstruction,
+    getSetImmutableInstruction,
+    isProgramMetadataError,
+    PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT,
 } from '../src';
 import {
     createCanonicalMetadata,
@@ -391,4 +394,59 @@ test('the authority cannot remove itself on buffer accounts', async t => {
     // Then we expect the transaction to fail.
     const error = await t.throwsAsync(promise);
     t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ARGUMENT));
+});
+
+test('the authority cannot be changed on immutable metadata accounts', async t => {
+    // Given the following authorities and deployed program.
+    const client = createDefaultSolanaClient();
+    const [authority, explicitAuthority, anotherAuthority] = await Promise.all([
+        generateKeyPairSignerWithSol(client),
+        generateKeyPairSigner(),
+        generateKeyPairSigner(),
+    ]);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And the following initialized canonical metadata account.
+    const [metadata] = await createCanonicalMetadata(client, {
+        authority,
+        program,
+        programData,
+        seed: 'dummy',
+        data: getUtf8Encoder().encode('Hello, World!'),
+    });
+
+    // And given the explicit authority is set on the metadata account.
+    const setAuthorityIx = getSetAuthorityInstruction({
+        account: metadata,
+        authority,
+        program,
+        programData,
+        newAuthority: explicitAuthority.address,
+    });
+
+    // And the explicit authority sets the metadata account to be immutable.
+    const setImmutableIx = getSetImmutableInstruction({
+        metadata,
+        authority: explicitAuthority,
+        program,
+        programData,
+    });
+
+    // When the explicit authority attempts to set another authority on the
+    // metadata account after setting it to be immutable.
+    const setAnotherAuthorityIx = getSetAuthorityInstruction({
+        account: metadata,
+        authority,
+        program,
+        programData,
+        newAuthority: anotherAuthority.address,
+    });
+    const transactionMessage = pipe(await createDefaultTransaction(client, authority), tx =>
+        appendTransactionMessageInstructions([setAuthorityIx, setImmutableIx, setAnotherAuthorityIx], tx),
+    );
+    const promise = signAndSendTransaction(client, transactionMessage);
+
+    // Then we expect the transaction to fail.
+    const error = await t.throwsAsync(promise);
+    t.true(isProgramMetadataError(error.cause, transactionMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT));
 });

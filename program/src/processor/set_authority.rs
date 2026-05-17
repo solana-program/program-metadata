@@ -1,6 +1,7 @@
 use pinocchio::{account::AccountView, error::ProgramError, Address, ProgramResult};
 
 use crate::{
+    error::ProgramMetadataError,
     processor::validate_authority,
     state::{buffer::Buffer, header::Header, AccountDiscriminator, Zeroable},
 };
@@ -59,6 +60,10 @@ pub fn set_authority(accounts: &mut [AccountView], instruction_data: &[u8]) -> P
 
             if !header.canonical() {
                 return Err(ProgramError::InvalidAccountData);
+            }
+
+            if !header.mutable() {
+                return Err(ProgramMetadataError::ImmutableMetadataAccount.into());
             }
 
             validate_authority(header, authority, program, program_data)?;
