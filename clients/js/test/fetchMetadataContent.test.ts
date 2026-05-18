@@ -1,5 +1,5 @@
 import { address, generateKeyPairSigner, getUtf8Encoder } from '@solana/kit';
-import test from 'ava';
+import { expect, it } from 'vitest';
 import {
     Compression,
     Encoding,
@@ -11,7 +11,7 @@ import {
 } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('it fetches and parses direct IDLs from canonical metadata accounts', async t => {
+it('fetches and parses direct IDLs from canonical metadata accounts', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -32,14 +32,14 @@ test('it fetches and parses direct IDLs from canonical metadata accounts', async
     const result = await fetchAndParseMetadataContent(client.rpc, program, 'idl');
 
     // Then we expect the following IDL to be fetched and parsed.
-    t.deepEqual(result, {
+    expect(result).toEqual({
         kind: 'rootNode',
         standard: 'codama',
         version: '1.0.0',
     });
 });
 
-test('it fetches and parses direct IDLs from non-canonical metadata accounts', async t => {
+it('fetches and parses direct IDLs from non-canonical metadata accounts', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -59,15 +59,14 @@ test('it fetches and parses direct IDLs from non-canonical metadata accounts', a
     const result = await fetchAndParseMetadataContent(client.rpc, program, 'idl', authority.address);
 
     // Then we expect the following IDL to be fetched and parsed.
-    t.deepEqual(result, {
+    expect(result).toEqual({
         kind: 'rootNode',
         standard: 'codama',
         version: '1.0.0',
     });
 });
 
-test('it fetches and parses multiple direct IDLs from metadata accounts', async t => {
-    t.timeout(30_000);
+it('fetches and parses multiple direct IDLs from metadata accounts', async () => {
     // Given the following deployed program.
     const client = await createTestClient();
     const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
@@ -124,7 +123,7 @@ test('it fetches and parses multiple direct IDLs from metadata accounts', async 
     ]);
 
     // Then we expect the following IDLs to be fetched and parsed.
-    t.deepEqual(result, [
+    expect(result).toEqual([
         {
             kind: 'rootNode',
             standard: 'codama',
@@ -136,4 +135,4 @@ test('it fetches and parses multiple direct IDLs from metadata accounts', async 
             version: '1.0.1',
         },
     ]);
-});
+}, 30_000);

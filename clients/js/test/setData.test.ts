@@ -7,7 +7,7 @@ import {
     SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION,
     SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_REALLOC,
 } from '@solana/kit';
-import test from 'ava';
+import { expect, test } from 'vitest';
 import {
     Compression,
     DataSource,
@@ -21,7 +21,7 @@ import {
 } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol, REALLOC_LIMIT } from './_setup';
 
-test('the program authority of a canonical metadata account can update its data using instruction data', async t => {
+test('the program authority of a canonical metadata account can update its data using instruction data', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -66,7 +66,7 @@ test('the program authority of a canonical metadata account can update its data 
 
     // Then we expect the metadata account have the new data.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
         format: Format.Json,
@@ -75,7 +75,7 @@ test('the program authority of a canonical metadata account can update its data 
     });
 });
 
-test('the explicit authority of a canonical metadata account can update its data using instruction data', async t => {
+test('the explicit authority of a canonical metadata account can update its data using instruction data', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
@@ -131,7 +131,7 @@ test('the explicit authority of a canonical metadata account can update its data
 
     // Then we expect the metadata account have the new data.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
         format: Format.Json,
@@ -140,7 +140,7 @@ test('the explicit authority of a canonical metadata account can update its data
     });
 });
 
-test('the authority of a non-canonical metadata account can update its data using instruction data', async t => {
+test('the authority of a non-canonical metadata account can update its data using instruction data', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -183,7 +183,7 @@ test('the authority of a non-canonical metadata account can update its data usin
 
     // Then we expect the metadata account have the new data.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
         format: Format.Json,
@@ -192,7 +192,7 @@ test('the authority of a non-canonical metadata account can update its data usin
     });
 });
 
-test('the program authority of a canonical metadata account can update its data using a pre-allocated buffer', async t => {
+test('the program authority of a canonical metadata account can update its data using a pre-allocated buffer', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -243,7 +243,7 @@ test('the program authority of a canonical metadata account can update its data 
 
     // Then we expect the metadata account have the new data.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
         format: Format.Json,
@@ -252,7 +252,7 @@ test('the program authority of a canonical metadata account can update its data 
     });
 });
 
-test('the explicit authority of a canonical metadata account can update its data using a pre-allocated buffer', async t => {
+test('the explicit authority of a canonical metadata account can update its data using a pre-allocated buffer', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
@@ -314,7 +314,7 @@ test('the explicit authority of a canonical metadata account can update its data
 
     // Then we expect the metadata account have the new data.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
         format: Format.Json,
@@ -323,7 +323,7 @@ test('the explicit authority of a canonical metadata account can update its data
     });
 });
 
-test('the authority of a non-canonical metadata account can update its data using a pre-allocated buffer', async t => {
+test('the authority of a non-canonical metadata account can update its data using a pre-allocated buffer', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -372,7 +372,7 @@ test('the authority of a non-canonical metadata account can update its data usin
 
     // Then we expect the metadata account have the new data.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
         format: Format.Json,
@@ -381,7 +381,7 @@ test('the authority of a non-canonical metadata account can update its data usin
     });
 });
 
-test('an immutable canonical metadata account cannot be updated', async t => {
+test('an immutable canonical metadata account cannot be updated', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -424,16 +424,16 @@ test('an immutable canonical metadata account cannot be updated', async t => {
     ]);
 
     // Then we expect the transaction to fail with the IMMUTABLE_METADATA_ACCOUNT program error.
-    const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION));
+    const error = await promise.catch((e: unknown) => e);
+    expect(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)).toBe(true);
     if (!isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)) return;
     const result = error.context.transactionPlanResult as SingleTransactionPlanResult;
-    t.true(
+    expect(
         isProgramMetadataError(error.cause, result.plannedMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT),
-    );
+    ).toBe(true);
 });
 
-test('an immutable non-canonical metadata account cannot be updated', async t => {
+test('an immutable non-canonical metadata account cannot be updated', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -473,16 +473,16 @@ test('an immutable non-canonical metadata account cannot be updated', async t =>
     ]);
 
     // Then we expect the transaction to fail with the IMMUTABLE_METADATA_ACCOUNT program error.
-    const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION));
+    const error = await promise.catch((e: unknown) => e);
+    expect(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)).toBe(true);
     if (!isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)) return;
     const result = error.context.transactionPlanResult as SingleTransactionPlanResult;
-    t.true(
+    expect(
         isProgramMetadataError(error.cause, result.plannedMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT),
-    );
+    ).toBe(true);
 });
 
-test('The metadata account needs to be extended for data changes that add more than 1KB', async t => {
+test('The metadata account needs to be extended for data changes that add more than 1KB', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -536,16 +536,17 @@ test('The metadata account needs to be extended for data changes that add more t
     const promise = client.sendTransaction([transferIx, setDataIx]);
 
     // Then we expect a program error.
-    const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error));
-    t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_REALLOC));
+    const error = await promise.catch((e: unknown) => e);
+    expect(isSolanaError(error)).toBe(true);
+    if (!isSolanaError(error)) return;
+    expect(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_REALLOC)).toBe(true);
 
     // But when we extend the account and try again.
     await client.sendTransaction([transferIx, extendIx, setDataIx]);
 
     // Then we expect the metadata account have the new data.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
         format: Format.Json,

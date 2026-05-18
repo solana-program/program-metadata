@@ -5,11 +5,11 @@ import {
     isSolanaError,
     SOLANA_ERROR__INSTRUCTION_ERROR__INCORRECT_AUTHORITY,
 } from '@solana/kit';
-import test from 'ava';
+import { expect, it, test } from 'vitest';
 import { Compression, DataSource, Encoding, findCanonicalPda, findNonCanonicalPda, Format } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('it can close canonical metadata accounts', async t => {
+it('can close canonical metadata accounts', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -36,10 +36,10 @@ test('it can close canonical metadata accounts', async t => {
 
     // Then we expect the metadata account to no longer exist.
     const account = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
-    t.false(account.exists);
+    expect(account.exists).toBe(false);
 });
 
-test('the set authority of a canonical metadata can close the account', async t => {
+test('the set authority of a canonical metadata can close the account', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
@@ -81,10 +81,10 @@ test('the set authority of a canonical metadata can close the account', async t 
 
     // Then we expect the metadata account to no longer exist.
     const account = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
-    t.false(account.exists);
+    expect(account.exists).toBe(false);
 });
 
-test('the current upgrade authority of program can close its canonical metadata account even when an authority is set on the account', async t => {
+test('the current upgrade authority of program can close its canonical metadata account even when an authority is set on the account', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
@@ -128,10 +128,10 @@ test('the current upgrade authority of program can close its canonical metadata 
 
     // Then we expect the metadata account to no longer exist.
     const account = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
-    t.false(account.exists);
+    expect(account.exists).toBe(false);
 });
 
-test('it can close non-canonical metadata accounts', async t => {
+it('can close non-canonical metadata accounts', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -157,10 +157,10 @@ test('it can close non-canonical metadata accounts', async t => {
 
     // Then we expect the metadata account to no longer exist.
     const account = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
-    t.false(account.exists);
+    expect(account.exists).toBe(false);
 });
 
-test('it can close canonical buffers', async t => {
+it('can close canonical buffers', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -185,10 +185,10 @@ test('it can close canonical buffers', async t => {
 
     // Then we expect the buffer account to no longer exist.
     const account = await client.programMetadata.accounts.buffer.fetchMaybe(buffer);
-    t.false(account.exists);
+    expect(account.exists).toBe(false);
 });
 
-test('it can close non-canonical buffers', async t => {
+it('can close non-canonical buffers', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -212,10 +212,10 @@ test('it can close non-canonical buffers', async t => {
 
     // Then we expect the buffer account to no longer exist.
     const account = await client.programMetadata.accounts.buffer.fetchMaybe(buffer);
-    t.false(account.exists);
+    expect(account.exists).toBe(false);
 });
 
-test('it can close keypair buffers', async t => {
+it('can close keypair buffers', async () => {
     // Given the following payer.
     const client = await createTestClient();
     const payer = await generateKeyPairSignerWithSol(client);
@@ -233,10 +233,10 @@ test('it can close keypair buffers', async t => {
 
     // Then we expect the buffer account to no longer exist.
     const account = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
-    t.false(account.exists);
+    expect(account.exists).toBe(false);
 });
 
-test('it cannot close a keypair buffer with a different authority set using the buffer keypair', async t => {
+it('cannot close a keypair buffer with a different authority set using the buffer keypair', async () => {
     // Given the following payer.
     const client = await createTestClient();
     const payer = await generateKeyPairSignerWithSol(client);
@@ -259,12 +259,13 @@ test('it cannot close a keypair buffer with a different authority set using the 
         .sendTransaction();
 
     // Then we expect a program error.
-    const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error));
-    t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INCORRECT_AUTHORITY));
+    const error = await promise.catch((e: unknown) => e);
+    expect(isSolanaError(error)).toBe(true);
+    if (!isSolanaError(error)) return;
+    expect(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INCORRECT_AUTHORITY)).toBe(true);
 });
 
-test('it can close a keypair buffer with its authority', async t => {
+it('can close a keypair buffer with its authority', async () => {
     // Given the following payer.
     const client = await createTestClient();
     const payer = await generateKeyPairSignerWithSol(client);
@@ -288,5 +289,5 @@ test('it can close a keypair buffer with its authority', async t => {
 
     // Then we expect the buffer account to no longer exist.
     const account = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
-    t.false(account.exists);
+    expect(account.exists).toBe(false);
 });

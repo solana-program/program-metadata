@@ -17,13 +17,4 @@ export default defineConfig(() => [
 
   // CLI.
   { ...SHARED_OPTIONS, format: 'cjs', entry: { cli: './src/cli/index.ts' } },
-
-  // Tests.
-  {
-    ...SHARED_OPTIONS,
-    bundle: false,
-    entry: ['./test/**/*.ts'],
-    format: 'cjs',
-    outDir: './dist/test',
-  },
 ]);
