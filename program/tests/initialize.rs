@@ -212,6 +212,133 @@ fn test_initialize_from_buffer() {
 }
 
 #[test]
+fn fail_initialize_already_initialized_metadata() {
+    let authority_key = Pubkey::new_unique();
+
+    let program_data_key = Pubkey::new_unique();
+    let program_data_account = setup_program_data_account(Some(&authority_key));
+
+    let program_key = Pubkey::new_unique();
+    let program_account = setup_program_account(&program_data_key);
+
+    let mut seed = [0u8; SEED_LEN];
+    seed[0..3].copy_from_slice("idl".as_bytes());
+
+    let (metadata_key, _) =
+        Pubkey::find_program_address(&[program_key.as_ref(), &seed], &PROGRAM_ID);
+
+    let data = [1u8; 10];
+    let metadata_account = create_funded_account(
+        minimum_balance_for(Header::LEN + data.len()),
+        system_program::ID,
+    );
+
+    let instruction = initialize(
+        &authority_key,
+        &program_key,
+        Some(&program_data_key),
+        InitializeArgs {
+            canonical: true,
+            seed,
+            encoding: 0,
+            compression: 0,
+            format: 0,
+            data_source: 0,
+        },
+        Some(&data),
+    )
+    .unwrap();
+
+    process_instructions(
+        &[
+            (&instruction, &[Check::success()]),
+            // second attempt should fail since the metadata account is already initialized
+            (
+                &instruction,
+                &[Check::err(ProgramError::AccountAlreadyInitialized)],
+            ),
+        ],
+        &[
+            (metadata_key, metadata_account),
+            (PROGRAM_ID, Account::default()),
+            (authority_key, Account::default()),
+            (program_key, program_account),
+            (program_data_key, program_data_account),
+            keyed_account_for_system_program(),
+        ],
+    );
+}
+
+#[test]
+fn fail_initialize_from_buffer_with_instruction_data() {
+    let authority_key = Pubkey::new_unique();
+
+    let program_data_key = Pubkey::new_unique();
+    let program_data_account = setup_program_data_account(Some(&authority_key));
+
+    let program_key = Pubkey::new_unique();
+    let program_account = setup_program_account(&program_data_key);
+
+    let mut seed = [0u8; SEED_LEN];
+    seed[0..3].copy_from_slice("idl".as_bytes());
+
+    let (metadata_key, _) =
+        Pubkey::find_program_address(&[program_key.as_ref(), &seed], &PROGRAM_ID);
+
+    let buffer_data = [7u8; 12];
+    let buffer_account = create_funded_account(
+        minimum_balance_for(Buffer::LEN + buffer_data.len()),
+        system_program::ID,
+    );
+
+    process_instructions(
+        &[
+            (
+                &allocate(
+                    &metadata_key,
+                    &authority_key,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                    Some(&seed),
+                )
+                .unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &write(&metadata_key, &authority_key, None, 0, &buffer_data).unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &initialize(
+                    &authority_key,
+                    &program_key,
+                    Some(&program_data_key),
+                    InitializeArgs {
+                        canonical: true,
+                        seed,
+                        encoding: 0,
+                        compression: 0,
+                        format: 0,
+                        data_source: 0,
+                    },
+                    Some(&[8u8; 4]), // instruction data
+                )
+                .unwrap(),
+                &[Check::err(ProgramError::InvalidInstructionData)],
+            ),
+        ],
+        &[
+            (metadata_key, buffer_account),
+            (PROGRAM_ID, Account::default()),
+            (authority_key, Account::default()),
+            (program_key, program_account),
+            (program_data_key, program_data_account),
+            keyed_account_for_system_program(),
+        ],
+    );
+}
+
+#[test]
 fn fail_initialize_with_wrong_metadata_pda() {
     let authority_key = Pubkey::new_unique();
 
@@ -259,6 +386,53 @@ fn fail_initialize_with_wrong_metadata_pda() {
 }
 
 #[test]
+fn fail_initialize_without_rent_exemption() {
+    let authority_key = Pubkey::new_unique();
+
+    let program_data_key = Pubkey::new_unique();
+    let program_data_account = setup_program_data_account(Some(&authority_key));
+
+    let program_key = Pubkey::new_unique();
+    let program_account = setup_program_account(&program_data_key);
+
+    let mut seed = [0u8; SEED_LEN];
+    seed[0..3].copy_from_slice("idl".as_bytes());
+
+    let (metadata_key, _) =
+        Pubkey::find_program_address(&[program_key.as_ref(), &seed], &PROGRAM_ID);
+    let metadata_account = create_funded_account(0, system_program::ID);
+
+    process_instruction(
+        (
+            &initialize(
+                &authority_key,
+                &program_key,
+                Some(&program_data_key),
+                InitializeArgs {
+                    canonical: true,
+                    seed,
+                    encoding: 0,
+                    compression: 0,
+                    format: 0,
+                    data_source: 0,
+                },
+                Some(&[1u8; 10]),
+            )
+            .unwrap(),
+            &[Check::err(ProgramError::AccountNotRentExempt)],
+        ),
+        &[
+            (metadata_key, metadata_account),
+            (PROGRAM_ID, Account::default()),
+            (authority_key, Account::default()),
+            (program_key, program_account),
+            (program_data_key, program_data_account),
+            keyed_account_for_system_program(),
+        ],
+    );
+}
+
+#[test]
 fn fail_initialize_without_data() {
     let authority_key = Pubkey::new_unique();
 
@@ -294,6 +468,54 @@ fn fail_initialize_without_data() {
             )
             .unwrap(),
             &[Check::err(ProgramError::InvalidInstructionData)],
+        ),
+        &[
+            (metadata_key, metadata_account),
+            (PROGRAM_ID, Account::default()),
+            (authority_key, Account::default()),
+            (program_key, program_account),
+            (program_data_key, program_data_account),
+            keyed_account_for_system_program(),
+        ],
+    );
+}
+
+#[test]
+fn fail_initialize_with_invalid_encoding() {
+    let authority_key = Pubkey::new_unique();
+
+    let program_data_key = Pubkey::new_unique();
+    let program_data_account = setup_program_data_account(Some(&authority_key));
+
+    let program_key = Pubkey::new_unique();
+    let program_account = setup_program_account(&program_data_key);
+
+    let mut seed = [0u8; SEED_LEN];
+    seed[0..3].copy_from_slice("idl".as_bytes());
+
+    let (metadata_key, _) =
+        Pubkey::find_program_address(&[program_key.as_ref(), &seed], &PROGRAM_ID);
+    let metadata_account =
+        create_funded_account(minimum_balance_for(Header::LEN + 10), system_program::ID);
+
+    process_instruction(
+        (
+            &initialize(
+                &authority_key,
+                &program_key,
+                Some(&program_data_key),
+                InitializeArgs {
+                    canonical: true,
+                    seed,
+                    encoding: 99,
+                    compression: 0,
+                    format: 0,
+                    data_source: 0,
+                },
+                Some(&[1u8; 10]),
+            )
+            .unwrap(),
+            &[Check::err(ProgramError::InvalidAccountData)],
         ),
         &[
             (metadata_key, metadata_account),

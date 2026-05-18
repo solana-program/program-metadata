@@ -6,7 +6,10 @@ use solana_account::Account;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use solana_sdk_ids::system_program;
-use spl_program_metadata::state::{buffer::Buffer, header::Header, SEED_LEN};
+use spl_program_metadata::{
+    error::ProgramMetadataError,
+    state::{buffer::Buffer, header::Header, SEED_LEN},
+};
 
 #[test]
 fn test_set_authority_metadata() {
@@ -101,6 +104,104 @@ fn test_set_authority_metadata() {
 }
 
 #[test]
+fn test_remove_metadata_authority() {
+    let authority_key = Pubkey::new_unique();
+    let new_authority_key = Pubkey::new_unique();
+
+    let program_data_key = Pubkey::new_unique();
+    let program_data_account = setup_program_data_account(Some(&authority_key));
+
+    let program_key = Pubkey::new_unique();
+    let program_account = setup_program_account(&program_data_key);
+
+    let mut seed = [0u8; SEED_LEN];
+    seed[0..3].copy_from_slice("idl".as_bytes());
+
+    let (metadata_key, _) =
+        Pubkey::find_program_address(&[program_key.as_ref(), &seed], &PROGRAM_ID);
+
+    let initial_data = [1u8; 5];
+    let updated_data = [8u8; 7];
+    let metadata_account = create_funded_account(
+        minimum_balance_for(Header::LEN + updated_data.len()),
+        system_program::ID,
+    );
+
+    process_instructions(
+        &[
+            (
+                &initialize(
+                    &authority_key,
+                    &program_key,
+                    Some(&program_data_key),
+                    InitializeArgs {
+                        canonical: true,
+                        seed,
+                        encoding: 0,
+                        compression: 0,
+                        format: 0,
+                        data_source: 0,
+                    },
+                    Some(&initial_data),
+                )
+                .unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &set_authority(
+                    &metadata_key,
+                    &authority_key,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                    Some(&new_authority_key),
+                )
+                .unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &set_authority(&metadata_key, &new_authority_key, None, None, None).unwrap(),
+                &[Check::success()],
+            ),
+            // Set data with the program upgrade authority after removing the
+            // metadata authority to ensure the program upgrade authority can
+            // still update the metadata.
+            (
+                &set_data(
+                    &metadata_key,
+                    &authority_key,
+                    None,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                    SetDataArgs {
+                        encoding: 0,
+                        compression: 0,
+                        format: 0,
+                        data_source: Some(0),
+                    },
+                    Some(&updated_data),
+                )
+                .unwrap(),
+                &[
+                    Check::success(),
+                    Check::account(&metadata_key)
+                        .data_slice(Header::LEN, &updated_data)
+                        .build(),
+                ],
+            ),
+        ],
+        &[
+            (metadata_key, metadata_account),
+            (PROGRAM_ID, Account::default()),
+            (authority_key, Account::default()),
+            (new_authority_key, Account::default()),
+            (program_key, program_account),
+            (program_data_key, program_data_account),
+            keyed_account_for_system_program(),
+        ],
+    );
+}
+
+#[test]
 fn test_set_authority_buffer() {
     let buffer_key = Pubkey::new_unique();
     let new_authority_key = Pubkey::new_unique();
@@ -147,6 +248,80 @@ fn test_set_authority_buffer() {
             (buffer_key, buffer_account),
             (PROGRAM_ID, Account::default()),
             (new_authority_key, Account::default()),
+            keyed_account_for_system_program(),
+        ],
+    );
+}
+
+#[test]
+fn fail_set_authority_immutable_metadata() {
+    let authority_key = Pubkey::new_unique();
+    let new_authority_key = Pubkey::new_unique();
+
+    let program_data_key = Pubkey::new_unique();
+    let program_data_account = setup_program_data_account(Some(&authority_key));
+
+    let program_key = Pubkey::new_unique();
+    let program_account = setup_program_account(&program_data_key);
+
+    let mut seed = [0u8; SEED_LEN];
+    seed[0..3].copy_from_slice("idl".as_bytes());
+
+    let (metadata_key, _) =
+        Pubkey::find_program_address(&[program_key.as_ref(), &seed], &PROGRAM_ID);
+    let metadata_account =
+        create_funded_account(minimum_balance_for(Header::LEN + 5), system_program::ID);
+
+    process_instructions(
+        &[
+            (
+                &initialize(
+                    &authority_key,
+                    &program_key,
+                    Some(&program_data_key),
+                    InitializeArgs {
+                        canonical: true,
+                        seed,
+                        encoding: 0,
+                        compression: 0,
+                        format: 0,
+                        data_source: 0,
+                    },
+                    Some(&[1u8; 5]),
+                )
+                .unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &set_immutable(
+                    &metadata_key,
+                    &authority_key,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                )
+                .unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &set_authority(
+                    &metadata_key,
+                    &authority_key,
+                    Some(&program_key),
+                    Some(&program_data_key),
+                    Some(&new_authority_key),
+                )
+                .unwrap(),
+                &[Check::err(ProgramError::Custom(
+                    ProgramMetadataError::ImmutableMetadataAccount as u32,
+                ))],
+            ),
+        ],
+        &[
+            (metadata_key, metadata_account),
+            (PROGRAM_ID, Account::default()),
+            (authority_key, Account::default()),
+            (program_key, program_account),
+            (program_data_key, program_data_account),
             keyed_account_for_system_program(),
         ],
     );

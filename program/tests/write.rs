@@ -116,6 +116,47 @@ fn test_write_from_buffer() {
 }
 
 #[test]
+fn test_write_with_non_zero_offset_and_overwrite() {
+    let buffer_key = Pubkey::new_unique();
+    let initial_data: [u8; 3] = [9, 8, 7];
+    let updated_data: [u8; 2] = [1, 2];
+    let buffer_account =
+        create_funded_account(minimum_balance_for(Buffer::LEN + 8), system_program::ID);
+
+    process_instructions(
+        &[
+            (
+                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &write(&buffer_key, &buffer_key, None, 5, &initial_data).unwrap(),
+                &[
+                    Check::success(),
+                    Check::account(&buffer_key)
+                        .data_slice(Buffer::LEN, &[0, 0, 0, 0, 0, 9, 8, 7])
+                        .build(),
+                ],
+            ),
+            (
+                &write(&buffer_key, &buffer_key, None, 6, &updated_data).unwrap(),
+                &[
+                    Check::success(),
+                    Check::account(&buffer_key)
+                        .data_slice(Buffer::LEN, &[0, 0, 0, 0, 0, 9, 1, 2])
+                        .build(),
+                ],
+            ),
+        ],
+        &[
+            (buffer_key, buffer_account),
+            (PROGRAM_ID, Account::default()),
+            keyed_account_for_system_program(),
+        ],
+    );
+}
+
+#[test]
 fn fail_write_with_wrong_authority() {
     let buffer_key = Pubkey::new_unique();
     let wrong_authority_key = Pubkey::new_unique();
@@ -140,6 +181,36 @@ fn fail_write_with_wrong_authority() {
             (buffer_key, buffer_account),
             (PROGRAM_ID, Account::default()),
             (wrong_authority_key, Account::default()),
+            keyed_account_for_system_program(),
+        ],
+    );
+}
+
+#[test]
+fn fail_write_from_wrong_owner_source_buffer() {
+    // A source buffer owned by a different program should not be
+    // allowed to write to the target buffer.
+    let source_key = Pubkey::new_unique();
+
+    let target_key = Pubkey::new_unique();
+    let target_account =
+        create_funded_account(minimum_balance_for(Buffer::LEN), system_program::ID);
+
+    process_instructions(
+        &[
+            (
+                &allocate(&target_key, &target_key, None, None, None).unwrap(),
+                &[Check::success()],
+            ),
+            (
+                &write(&target_key, &target_key, Some(&source_key), 0, &[]).unwrap(),
+                &[Check::err(ProgramError::InvalidAccountOwner)],
+            ),
+        ],
+        &[
+            (source_key, Account::default()),
+            (target_key, target_account),
+            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
