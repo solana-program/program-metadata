@@ -1,5 +1,6 @@
 import { address, generateKeyPairSigner, getUtf8Encoder, lamports } from '@solana/kit';
 import { expect, test } from 'vitest';
+
 import {
     AccountDiscriminator,
     Compression,

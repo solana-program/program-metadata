@@ -1,5 +1,6 @@
 import { address, generateKeyPairSigner, getUtf8Encoder } from '@solana/kit';
 import { expect, it } from 'vitest';
+
 import { AccountDiscriminator, Buffer, findCanonicalPda, findNonCanonicalPda } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 

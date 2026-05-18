@@ -1,5 +1,6 @@
 import { getUtf8Encoder, none } from '@solana/kit';
 import { expect, it } from 'vitest';
+
 import { AccountDiscriminator, Compression, DataSource, Encoding, findCanonicalPda, Format, Metadata } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 

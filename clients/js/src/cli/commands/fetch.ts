@@ -1,6 +1,7 @@
 import { Address, isSolanaError } from '@solana/kit';
-import picocolors from 'picocolors';
 import { Option } from 'commander';
+import picocolors from 'picocolors';
+
 import { Compression, Encoding, fetchMetadataFromSeeds, Seed } from '../../generated';
 import { unpackAndFetchData, unpackDirectData } from '../../packData';
 import { programArgument, seedArgument } from '../arguments';

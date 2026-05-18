@@ -1,6 +1,7 @@
 import { Address, address } from '@solana/kit';
-import { logErrorAndExit } from './logs';
+
 import { Encoding } from '../generated';
+import { logErrorAndExit } from './logs';
 
 export const addressParser =
     (identifier: string) =>

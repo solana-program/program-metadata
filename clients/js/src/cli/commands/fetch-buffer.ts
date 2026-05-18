@@ -1,6 +1,7 @@
 import { Address } from '@solana/kit';
 import { Option } from 'commander';
 import picocolors from 'picocolors';
+
 import { Compression, Encoding, fetchMaybeBuffer } from '../../generated';
 import { unpackDirectData } from '../../packData';
 import { bufferArgument } from '../arguments';

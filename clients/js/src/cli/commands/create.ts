@@ -1,5 +1,6 @@
 import { Address } from '@solana/kit';
 import picocolors from 'picocolors';
+
 import { getCreateMetadataInstructionPlan } from '../../createMetadata';
 import { fetchMaybeMetadata, Seed } from '../../generated';
 import { fileArgument, programArgument, seedArgument } from '../arguments';

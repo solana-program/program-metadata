@@ -1,4 +1,5 @@
 import { Address } from '@solana/kit';
+
 import { bufferArgument } from '../arguments';
 import { logCommand } from '../logs';
 import { GlobalOptions, NewAuthorityOption, newAuthorityOption } from '../options';

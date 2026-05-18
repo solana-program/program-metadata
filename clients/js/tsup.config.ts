@@ -1,20 +1,21 @@
 import { env } from 'node:process';
+
 import { defineConfig, Options } from 'tsup';
 
 const SHARED_OPTIONS: Options = {
-  define: { __VERSION__: `"${env.npm_package_version}"` },
-  entry: ['./src/index.ts'],
-  outDir: './dist/src',
-  outExtension: ({ format }) => ({ js: format === 'cjs' ? '.js' : '.mjs' }),
-  sourcemap: true,
-  treeshake: true,
+    define: { __VERSION__: `"${env.npm_package_version}"` },
+    entry: ['./src/index.ts'],
+    outDir: './dist/src',
+    outExtension: ({ format }) => ({ js: format === 'cjs' ? '.js' : '.mjs' }),
+    sourcemap: true,
+    treeshake: true,
 };
 
 export default defineConfig(() => [
-  // Source.
-  { ...SHARED_OPTIONS, format: 'cjs' },
-  { ...SHARED_OPTIONS, format: 'esm' },
+    // Source.
+    { ...SHARED_OPTIONS, format: 'cjs' },
+    { ...SHARED_OPTIONS, format: 'esm' },
 
-  // CLI.
-  { ...SHARED_OPTIONS, format: 'cjs', entry: { cli: './src/cli/index.ts' } },
+    // CLI.
+    { ...SHARED_OPTIONS, entry: { cli: './src/cli/index.ts' }, format: 'cjs' },
 ]);
