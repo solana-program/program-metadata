@@ -35,7 +35,7 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
         metadata,
         program,
         seed,
-        authority: isCanonical ? undefined : client.authority.address,
+        authority: isCanonical ? undefined : client.identity.address,
     });
 
     const [metadataAccount, writeInput] = await Promise.all([
@@ -47,11 +47,11 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
         logErrorAndExit(`Metadata account ${picocolors.bold(metadataAccount.address)} does not exist.`);
     }
 
-    await client.planAndExecute(
-        await getUpdateMetadataInstructionPlan(client, {
+    await client.runOrExport(
+        getUpdateMetadataInstructionPlan(client, {
             ...writeInput,
             payer: client.payer,
-            authority: client.authority,
+            authority: client.identity,
             program,
             programData,
             metadata: metadataAccount,

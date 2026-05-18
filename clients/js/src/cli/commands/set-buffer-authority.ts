@@ -1,5 +1,4 @@
-import { Address, sequentialInstructionPlan } from '@solana/kit';
-import { getSetAuthorityInstruction } from '../../generated';
+import { Address } from '@solana/kit';
 import { bufferArgument } from '../arguments';
 import { logCommand } from '../logs';
 import { GlobalOptions, NewAuthorityOption, newAuthorityOption } from '../options';
@@ -24,13 +23,11 @@ export async function doSetBufferAuthority(buffer: Address, _: Options, cmd: Cus
         'new authority': options.newAuthority,
     });
 
-    await client.planAndExecute(
-        sequentialInstructionPlan([
-            getSetAuthorityInstruction({
-                account: buffer,
-                authority: client.authority,
-                newAuthority: options.newAuthority,
-            }),
-        ]),
+    await client.runOrExport(
+        client.programMetadata.instructions.setAuthority({
+            account: buffer,
+            authority: client.identity,
+            newAuthority: options.newAuthority,
+        }),
     );
 }

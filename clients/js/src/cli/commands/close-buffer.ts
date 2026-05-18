@@ -1,5 +1,5 @@
-import { Address, sequentialInstructionPlan } from '@solana/kit';
-import { fetchMaybeBuffer, getCloseInstruction } from '../../generated';
+import { Address } from '@solana/kit';
+import { fetchMaybeBuffer } from '../../generated';
 import { bufferArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions } from '../options';
@@ -31,13 +31,11 @@ export async function doCloseBuffer(buffer: Address, _: Options, cmd: CustomComm
         logErrorAndExit(`Buffer account not found: "${buffer}"`);
     }
 
-    await client.planAndExecute(
-        sequentialInstructionPlan([
-            getCloseInstruction({
-                account: buffer,
-                authority: client.authority,
-                destination: options.recipient ?? client.payer.address,
-            }),
-        ]),
+    await client.runOrExport(
+        client.programMetadata.instructions.close({
+            account: buffer,
+            authority: client.identity,
+            destination: options.recipient ?? client.payer.address,
+        }),
     );
 }

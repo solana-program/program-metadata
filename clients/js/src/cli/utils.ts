@@ -7,43 +7,47 @@ import {
     AccountRole,
     Address,
     address,
-    BASE_ACCOUNT_SIZE,
-    ClientWithGetMinimumBalance,
+    ClientWithRpc,
     ClientWithTransactionPlanning,
     Commitment,
     compileTransaction,
+    createClient,
     createKeyPairSignerFromBytes,
     createNoopSigner,
     createSolanaRpc,
     createSolanaRpcSubscriptions,
+    extendClient,
     flattenTransactionPlan,
-    GetMinimumBalanceConfig,
+    GetAccountInfoApi,
+    GetLatestBlockhashApi,
     getTransactionEncoder,
-    InstructionPlan,
-    Lamports,
-    lamports,
+    InstructionPlanInput,
     MessageSigner,
     pipe,
     Rpc,
     RpcSubscriptions,
+    setTransactionMessageComputeUnitLimit,
     setTransactionMessageLifetimeUsingBlockhash,
     SolanaRpcApi,
     SolanaRpcSubscriptionsApi,
     TransactionMessage,
-    TransactionMessageWithFeePayer,
     TransactionPlan,
     TransactionPlanExecutor,
-    TransactionPlanner,
     TransactionSigner,
 } from '@solana/kit';
+import { solanaRpc } from '@solana/kit-plugin-rpc';
+import { identity, payer } from '@solana/kit-plugin-signer';
 import { Command } from 'commander';
 import picocolors from 'picocolors';
 import { parse as parseYaml } from 'yaml';
-import { Buffer, DataSource, Encoding, fetchBuffer, Format, Seed } from '../generated';
-import { createDefaultTransactionPlannerAndExecutor, getPdaDetails, PdaDetails } from '../internals';
+
+import { Buffer, DataSource, Encoding, fetchBuffer, findMetadataPda, Format, Seed, SeedArgs } from '../generated';
 import { decodeData, packDirectData, PackedData, packExternalData, packUrlData } from '../packData';
+import { getProgramAuthority } from '../utils';
+import { programMetadataProgram } from '../plugin';
 import { logErrorAndExit, logExports, logSuccess, logWarning } from './logs';
 import {
+    ExportEncodingOption,
     ExportOption,
     GlobalOptions,
     KeypairOption,
@@ -52,11 +56,6 @@ import {
     RpcOption,
     WriteOptions,
 } from './options';
-import {
-    COMPUTE_BUDGET_PROGRAM_ADDRESS,
-    ComputeBudgetInstruction,
-    identifyComputeBudgetInstruction,
-} from '@solana-program/compute-budget';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const DATA_SOURCE_OPTIONS =
@@ -73,68 +72,76 @@ export class CustomCommand extends Command {
     }
 }
 
-export type Client = ReadonlyClient &
-    ClientWithGetMinimumBalance &
-    ClientWithTransactionPlanning & {
-        authority: TransactionSigner & MessageSigner;
-        executor: TransactionPlanExecutor;
-        payer: TransactionSigner & MessageSigner;
-        planAndExecute: (instructionPlan: InstructionPlan) => Promise<void>;
-        planner: TransactionPlanner;
-    };
+/**
+ * The CLI client returned by {@link getClient}: a Solana RPC client extended
+ * with the program metadata plugin (`client.programMetadata.*`), plus a few
+ * CLI-only fields (`configs`, `runOrExport`).
+ */
+export type Client = Awaited<ReturnType<typeof getClient>>;
 
-export async function getClient(options: GlobalOptions): Promise<Client> {
-    const readonlyClient = getReadonlyClient(options);
-    const [authority, payer] = await getKeyPairSigners(options, readonlyClient.configs);
-    const { planner, executor } = createDefaultTransactionPlannerAndExecutor({
-        priorityFees: options.priorityFees,
-        payer,
-        rpc: readonlyClient.rpc,
-        rpcSubscriptions: readonlyClient.rpcSubscriptions,
-        concurrency: 5,
-    });
-    const planAndExecute = async (instructionPlan: InstructionPlan) => {
-        const transactionPlan = await planner(instructionPlan);
-        if (options.export) {
-            await exportTransactionPlan(transactionPlan, readonlyClient, options);
-        } else {
-            await executeTransactionPlan(transactionPlan, executor);
-        }
-    };
-    const getMinimumBalance = async (space: number, config?: GetMinimumBalanceConfig): Promise<Lamports> => {
-        if (config?.withoutHeader) {
-            const headerBalance = await readonlyClient.rpc.getMinimumBalanceForRentExemption(0n).send();
-            const lamportsPerByte = BigInt(headerBalance) / BigInt(BASE_ACCOUNT_SIZE);
-            return lamports(lamportsPerByte * BigInt(space));
-        }
-        return await readonlyClient.rpc.getMinimumBalanceForRentExemption(BigInt(space)).send();
-    };
-    const planTransaction: ClientWithTransactionPlanning['planTransaction'] = async (input, config) => {
-        const transactionPlan = await planner(input as InstructionPlan, config);
-        if (transactionPlan.kind !== 'single') {
-            throw new Error('Expected a single transaction plan');
-        }
-        return transactionPlan.message;
-    };
-    const planTransactions: ClientWithTransactionPlanning['planTransactions'] = async (input, config) =>
-        await planner(input as InstructionPlan, config);
-    return {
-        ...readonlyClient,
-        authority,
-        executor,
-        getMinimumBalance,
-        payer,
-        planAndExecute,
-        planner,
-        planTransaction,
-        planTransactions,
-    };
+export async function getClient(options: GlobalOptions) {
+    const configs = getSolanaConfigs();
+    const rpcUrl = getRpcUrl(options, configs);
+    const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
+    const [identitySigner, payerSigner] = await getKeyPairSigners(options, configs);
+
+    return createClient()
+        .use(payer(payerSigner))
+        .use(identity(identitySigner))
+        .use(
+            solanaRpc({
+                rpcUrl,
+                rpcSubscriptionsUrl,
+                transactionConfig: { microLamportsPerComputeUnit: options.priorityFees },
+            }),
+        )
+        .use(programMetadataProgram())
+        .use(cliConfigs(configs))
+        .use(cliRunOrExport(options));
+}
+
+/**
+ * Plugin that attaches the parsed `~/.config/solana/cli/config.yml` to the
+ * client so commands that need to introspect Solana config defaults can read
+ * them without re-parsing the file.
+ */
+function cliConfigs(configs: SolanaConfigs) {
+    return <T extends object>(client: T) => extendClient(client, { configs });
+}
+
+/**
+ * Plugin that attaches a `runOrExport` helper to the client. The helper plans
+ * the given instruction(s) and then either executes them through the client's
+ * transaction plan executor or exports them as encoded transactions, depending
+ * on whether `--export` was passed.
+ */
+function cliRunOrExport(options: ExportOption & ExportEncodingOption) {
+    return <
+        T extends ClientWithRpc<GetLatestBlockhashApi> &
+            ClientWithTransactionPlanning & {
+                transactionPlanExecutor: TransactionPlanExecutor;
+            },
+    >(
+        client: T,
+    ) =>
+        extendClient(client, {
+            runOrExport: async (input: InstructionPlanInput | Promise<InstructionPlanInput>): Promise<void> => {
+                const transactionPlan = await client.planTransactions(await input);
+                if (options.export) {
+                    await exportTransactionPlan(transactionPlan, client, options);
+                } else {
+                    // TODO: progress + error handling.
+                    await client.transactionPlanExecutor(transactionPlan);
+                    logSuccess('Operation executed successfully');
+                }
+            },
+        });
 }
 
 async function exportTransactionPlan(
     transactionPlan: TransactionPlan,
-    client: Pick<Client, 'rpc'>,
-    options: GlobalOptions,
+    client: ClientWithRpc<GetLatestBlockhashApi>,
+    options: ExportOption & ExportEncodingOption,
 ) {
     const singleTransactions = flattenTransactionPlan(transactionPlan);
     const transactionEncoder = getTransactionEncoder();
@@ -147,7 +154,7 @@ async function exportTransactionPlan(
         const message = pipe(
             singleTransactions[i].message,
             m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-            m => removeComputeUnitLimitInstruction(m),
+            m => setTransactionMessageComputeUnitLimit(undefined, m),
         );
         const prefix = picocolors.yellow(`[Transaction #${i + 1}]`);
         if (options.exportEncoding === 'instruction-list') {
@@ -181,32 +188,6 @@ function logInstructions(message: TransactionMessage): void {
             console.log(`${decodeData(ix.data, Encoding.Base58)}\n`);
         }
     });
-}
-
-function removeComputeUnitLimitInstruction<
-    TTransactionMessage extends TransactionMessage & TransactionMessageWithFeePayer,
->(message: TTransactionMessage): TTransactionMessage {
-    const index = getSetComputeUnitLimitInstructionIndex(message);
-    if (index === -1) return message;
-    return {
-        ...message,
-        instructions: message.instructions.filter((_, i) => i !== index),
-    };
-}
-
-export function getSetComputeUnitLimitInstructionIndex(transactionMessage: TransactionMessage) {
-    return transactionMessage.instructions.findIndex(ix => {
-        return (
-            ix.programAddress === COMPUTE_BUDGET_PROGRAM_ADDRESS &&
-            identifyComputeBudgetInstruction(ix.data as Uint8Array) === ComputeBudgetInstruction.SetComputeUnitLimit
-        );
-    });
-}
-
-async function executeTransactionPlan(transactionPlan: TransactionPlan, executor: TransactionPlanExecutor) {
-    // TODO: progress + error handling
-    await executor(transactionPlan);
-    logSuccess('Operation executed successfully');
 }
 
 export type ReadonlyClient = {
@@ -302,13 +283,42 @@ export function getFormatFromFile(file: string | undefined): Format {
     }
 }
 
+export type PdaDetails = {
+    metadata: Address;
+    isCanonical: boolean;
+    programData?: Address;
+};
+
+/**
+ * Fetches the on-chain state of `program` to determine whether the metadata
+ * account is canonical (i.e. the caller's authority matches the program's
+ * upgrade authority) and returns the resolved metadata PDA along with the
+ * associated program-data account when applicable.
+ */
+export async function getPdaDetails(input: {
+    rpc: Rpc<GetAccountInfoApi>;
+    program: Address;
+    authority: TransactionSigner | Address;
+    seed: SeedArgs;
+}): Promise<PdaDetails> {
+    const authorityAddress = typeof input.authority === 'string' ? input.authority : input.authority.address;
+    const { authority, programData } = await getProgramAuthority(input.rpc, input.program);
+    const isCanonical = !!authority && authority === authorityAddress;
+    const [metadata] = await findMetadataPda({
+        program: input.program,
+        authority: isCanonical ? null : authorityAddress,
+        seed: input.seed,
+    });
+    return { metadata, isCanonical, programData };
+}
+
 export async function getPdaDetailsForWriting(
     client: Client,
     options: NonCanonicalWriteOption,
     program: Address,
     seed: Seed,
 ): Promise<PdaDetails> {
-    const details = await getPdaDetails({ ...client, program, seed });
+    const details = await getPdaDetails({ rpc: client.rpc, authority: client.identity, program, seed });
     assertValidIsCanonical(details.isCanonical, options);
     const isCanonical = !options.nonCanonical;
     return {

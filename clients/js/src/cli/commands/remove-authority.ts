@@ -1,9 +1,8 @@
-import { Address, sequentialInstructionPlan } from '@solana/kit';
-import { getSetAuthorityInstruction, Seed } from '../../generated';
-import { getPdaDetails } from '../../internals';
+import { Address } from '@solana/kit';
+import { Seed } from '../../generated';
 import { programArgument, seedArgument } from '../arguments';
 import { GlobalOptions } from '../options';
-import { CustomCommand, getClient } from '../utils';
+import { CustomCommand, getClient, getPdaDetails } from '../utils';
 import { logCommand } from '../logs';
 
 export function setRemoveAuthorityCommand(program: CustomCommand): void {
@@ -22,7 +21,7 @@ async function doRemoveAuthority(seed: Seed, program: Address, _: Options, cmd: 
     const { metadata, programData } = await getPdaDetails({
         rpc: client.rpc,
         program,
-        authority: client.authority,
+        authority: client.identity,
         seed,
     });
 
@@ -32,15 +31,13 @@ async function doRemoveAuthority(seed: Seed, program: Address, _: Options, cmd: 
         seed,
     });
 
-    await client.planAndExecute(
-        sequentialInstructionPlan([
-            getSetAuthorityInstruction({
-                account: metadata,
-                authority: client.authority,
-                newAuthority: null,
-                program,
-                programData,
-            }),
-        ]),
+    await client.runOrExport(
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority: client.identity,
+            newAuthority: null,
+            program,
+            programData,
+        }),
     );
 }

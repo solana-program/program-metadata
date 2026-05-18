@@ -1,5 +1,4 @@
 import { generateKeyPairSigner } from '@solana/kit';
-import { getCreateBufferInstructionPlan } from '../../createBuffer';
 import { fileArgument } from '../arguments';
 import { GlobalOptions, setWriteOptions, WriteOptions } from '../options';
 import { CustomCommand, getClient, getWriteInput } from '../utils';
@@ -22,14 +21,13 @@ export async function doCreateBuffer(file: string | undefined, _: Options, cmd: 
 
     logCommand(`Creating new buffer and setting authority...`, {
         buffer: buffer.address,
-        authority: client.authority.address,
+        authority: client.identity.address,
     });
 
-    await client.planAndExecute(
-        await getCreateBufferInstructionPlan(client, {
+    await client.runOrExport(
+        client.programMetadata.instructions.createBuffer({
             newBuffer: buffer,
-            authority: client.authority,
-            payer: client.payer,
+            authority: client.identity,
             sourceBuffer: writeInput.buffer,
             closeSourceBuffer: writeInput.closeBuffer,
             data: writeInput.buffer?.data.data ?? writeInput.data,

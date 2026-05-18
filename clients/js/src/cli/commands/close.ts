@@ -1,5 +1,5 @@
-import { Address, sequentialInstructionPlan } from '@solana/kit';
-import { getCloseInstruction, Seed } from '../../generated';
+import { Address } from '@solana/kit';
+import { Seed } from '../../generated';
 import { programArgument, seedArgument } from '../arguments';
 import { GlobalOptions, NonCanonicalWriteOption, nonCanonicalWriteOption } from '../options';
 import { CustomCommand, getClient, getPdaDetailsForWriting } from '../utils';
@@ -25,18 +25,16 @@ async function doClose(seed: Seed, program: Address, _: Options, cmd: CustomComm
         metadata,
         program,
         seed,
-        authority: isCanonical ? undefined : client.authority.address,
+        authority: isCanonical ? undefined : client.identity.address,
     });
 
-    await client.planAndExecute(
-        sequentialInstructionPlan([
-            getCloseInstruction({
-                account: metadata,
-                authority: client.authority,
-                program,
-                programData,
-                destination: client.payer.address,
-            }),
-        ]),
+    await client.runOrExport(
+        client.programMetadata.instructions.close({
+            account: metadata,
+            authority: client.identity,
+            program,
+            programData,
+            destination: client.payer.address,
+        }),
     );
 }

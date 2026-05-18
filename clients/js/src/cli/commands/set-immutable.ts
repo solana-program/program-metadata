@@ -1,5 +1,5 @@
-import { Address, sequentialInstructionPlan } from '@solana/kit';
-import { getSetImmutableInstruction, Seed } from '../../generated';
+import { Address } from '@solana/kit';
+import { Seed } from '../../generated';
 import { programArgument, seedArgument } from '../arguments';
 import { logCommand } from '../logs';
 import { GlobalOptions, NonCanonicalWriteOption, nonCanonicalWriteOption } from '../options';
@@ -25,17 +25,15 @@ async function doSetImmutable(seed: Seed, program: Address, _: Options, cmd: Cus
         metadata,
         program,
         seed,
-        authority: isCanonical ? undefined : client.authority.address,
+        authority: isCanonical ? undefined : client.identity.address,
     });
 
-    await client.planAndExecute(
-        sequentialInstructionPlan([
-            getSetImmutableInstruction({
-                metadata,
-                authority: client.authority,
-                program,
-                programData,
-            }),
-        ]),
+    await client.runOrExport(
+        client.programMetadata.instructions.setImmutable({
+            metadata,
+            authority: client.identity,
+            program,
+            programData,
+        }),
     );
 }
