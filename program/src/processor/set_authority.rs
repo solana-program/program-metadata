@@ -53,6 +53,13 @@ pub fn set_authority(accounts: &mut [AccountView], instruction_data: &[u8]) -> P
             let new_authority: Address = new_authority
                 .try_into()
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+            // Since the `authority` is a `Zeroable` type, make sure a new authority
+            // is provided.
+            if new_authority.is_zero() {
+                return Err(ProgramError::InvalidArgument);
+            }
+
             buffer.authority = new_authority.into();
         }
         Some(AccountDiscriminator::Metadata) => {
@@ -74,6 +81,12 @@ pub fn set_authority(accounts: &mut [AccountView], instruction_data: &[u8]) -> P
                 let new_authority: Address = new_authority
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
+                // Although the `authority` can be removed, passing the argument to remove
+                // the authority as `Some(Address::ZERO)` is not allowed; the
+                // `has_new_authority` flag must be set to `0` to remove the authority.
+                if new_authority.is_zero() {
+                    return Err(ProgramError::InvalidArgument);
+                }
                 new_authority.into()
             };
         }
