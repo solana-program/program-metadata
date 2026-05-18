@@ -1,65 +1,47 @@
 import {
     address,
-    appendTransactionMessageInstruction,
-    appendTransactionMessageInstructions,
     generateKeyPairSigner,
     getUtf8Encoder,
     isSolanaError,
-    pipe,
     SOLANA_ERROR__INSTRUCTION_ERROR__INCORRECT_AUTHORITY,
 } from '@solana/kit';
 import test from 'ava';
-import { fetchMaybeMetadata, getCloseInstruction, getSetAuthorityInstruction } from '../src';
-import {
-    createCanonicalBuffer,
-    createCanonicalMetadata,
-    createDefaultSolanaClient,
-    createDefaultTransaction,
-    createDeployedProgram,
-    createKeypairBuffer,
-    createNonCanonicalBuffer,
-    createNonCanonicalMetadata,
-    generateKeyPairSignerWithSol,
-    signAndSendTransaction,
-} from './_setup';
+import { Compression, DataSource, Encoding, findCanonicalPda, findNonCanonicalPda, Format } from '../src';
+import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
 test('it can close canonical metadata accounts', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
     // When the program authority closes the metadata account.
-    const closeIx = getCloseInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        destination: authority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstruction(closeIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .close({ account: metadata, authority, program, programData, destination: authority.address })
+        .sendTransaction();
 
     // Then we expect the metadata account to no longer exist.
-    const account = await fetchMaybeMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
     t.false(account.exists);
 });
 
 test('the set authority of a canonical metadata can close the account', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -67,43 +49,44 @@ test('the set authority of a canonical metadata can close the account', async t 
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given an explicit authority is set on the metadata account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        newAuthority: explicitAuthority.address,
-        program,
-        programData,
-    });
-
-    // When the explicit authority closes the metadata account.
-    const closeIx = getCloseInstruction({
-        account: metadata,
-        authority: explicitAuthority,
-        destination: explicitAuthority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setAuthorityIx, closeIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When an explicit authority is set on the metadata account
+    // and that explicit authority closes the account.
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            newAuthority: explicitAuthority.address,
+            program,
+            programData,
+        }),
+        client.programMetadata.instructions.close({
+            account: metadata,
+            authority: explicitAuthority,
+            destination: explicitAuthority.address,
+        }),
+    ]);
 
     // Then we expect the metadata account to no longer exist.
-    const account = await fetchMaybeMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
     t.false(account.exists);
 });
 
 test('the current upgrade authority of program can close its canonical metadata account even when an authority is set on the account', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -111,203 +94,169 @@ test('the current upgrade authority of program can close its canonical metadata 
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given an explicit authority is set on the metadata account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        newAuthority: explicitAuthority.address,
-        program,
-        programData,
-    });
-
-    // When the program authority closes the metadata account.
-    const closeIx = getCloseInstruction({
-        account: metadata,
-        authority,
-        destination: authority.address,
-        program,
-        programData,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setAuthorityIx, closeIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When an explicit authority is set on the metadata account
+    // and the program authority closes it anyway.
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            newAuthority: explicitAuthority.address,
+            program,
+            programData,
+        }),
+        client.programMetadata.instructions.close({
+            account: metadata,
+            authority,
+            destination: authority.address,
+            program,
+            programData,
+        }),
+    ]);
 
     // Then we expect the metadata account to no longer exist.
-    const account = await fetchMaybeMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
     t.false(account.exists);
 });
 
 test('it can close non-canonical metadata accounts', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenKEGQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // And the following initialized non-canonical metadata account.
-    const [metadata] = await createNonCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
     // When the metadata authority closes the metadata account.
-    const closeIx = getCloseInstruction({
-        account: metadata,
-        authority,
-        program,
-        destination: authority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstruction(closeIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .close({ account: metadata, authority, program, destination: authority.address })
+        .sendTransaction();
 
     // Then we expect the metadata account to no longer exist.
-    const account = await fetchMaybeMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
     t.false(account.exists);
 });
 
 test('it can close canonical buffers', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following pre-allocated canonical buffer.
-    const [buffer] = await createCanonicalBuffer(client, {
-        authority,
-        program,
-        programData,
-        seed: 'dummy',
-        data: getUtf8Encoder().encode('Hello, World!'),
-    });
+    await client.programMetadata.instructions
+        .createCanonicalBuffer({
+            authority,
+            program,
+            programData,
+            seed: 'dummy',
+            data: getUtf8Encoder().encode('Hello, World!'),
+        })
+        .sendTransaction();
+    const [buffer] = await findCanonicalPda({ program, seed: 'dummy' });
 
     // When the program authority closes the buffer account.
-    const closeIx = getCloseInstruction({
-        account: buffer,
-        authority,
-        program,
-        programData,
-        destination: authority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstruction(closeIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .close({ account: buffer, authority, program, programData, destination: authority.address })
+        .sendTransaction();
 
     // Then we expect the buffer account to no longer exist.
-    const account = await fetchMaybeMetadata(client.rpc, buffer);
+    const account = await client.programMetadata.accounts.buffer.fetchMaybe(buffer);
     t.false(account.exists);
 });
 
 test('it can close non-canonical buffers', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // And the following pre-allocated non-canonical buffer.
-    const [buffer] = await createNonCanonicalBuffer(client, {
-        authority,
-        program,
-        seed: 'dummy',
-        data: getUtf8Encoder().encode('Hello, World!'),
-    });
+    await client.programMetadata.instructions
+        .createNonCanonicalBuffer({
+            authority,
+            program,
+            seed: 'dummy',
+            data: getUtf8Encoder().encode('Hello, World!'),
+        })
+        .sendTransaction();
+    const [buffer] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
     // When the buffer authority closes the buffer account.
-    const closeIx = getCloseInstruction({
-        account: buffer,
-        authority,
-        program,
-        destination: authority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstruction(closeIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .close({ account: buffer, authority, program, destination: authority.address })
+        .sendTransaction();
 
     // Then we expect the buffer account to no longer exist.
-    const account = await fetchMaybeMetadata(client.rpc, buffer);
+    const account = await client.programMetadata.accounts.buffer.fetchMaybe(buffer);
     t.false(account.exists);
 });
 
 test('it can close keypair buffers', async t => {
     // Given the following payer.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const payer = await generateKeyPairSignerWithSol(client);
 
     // And the following pre-allocated keypair buffer.
-    const buffer = await createKeypairBuffer(client, {
-        payer,
-        data: getUtf8Encoder().encode('Hello, World!'),
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, payer, data: getUtf8Encoder().encode('Hello, World!') })
+        .sendTransaction();
 
     // When the buffer closes its own account.
-    const closeIx = getCloseInstruction({
-        account: buffer.address,
-        authority: buffer,
-        destination: payer.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, payer),
-        tx => appendTransactionMessageInstruction(closeIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .close({ account: buffer.address, authority: buffer, destination: payer.address })
+        .sendTransaction();
 
     // Then we expect the buffer account to no longer exist.
-    const account = await fetchMaybeMetadata(client.rpc, buffer.address);
+    const account = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
     t.false(account.exists);
 });
 
 test('it cannot close a keypair buffer with a different authority set using the buffer keypair', async t => {
     // Given the following payer.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const payer = await generateKeyPairSignerWithSol(client);
 
     // And the following pre-allocated keypair buffer.
-    const buffer = await createKeypairBuffer(client, {
-        payer,
-        data: getUtf8Encoder().encode('Hello, World!'),
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, payer, data: getUtf8Encoder().encode('Hello, World!') })
+        .sendTransaction();
 
     // And we set a different authority on the buffer account.
     const bufferAuthority = await generateKeyPairSigner();
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: buffer.address,
-        authority: buffer,
-        newAuthority: bufferAuthority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, payer),
-        tx => appendTransactionMessageInstruction(setAuthorityIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .setAuthority({ account: buffer.address, authority: buffer, newAuthority: bufferAuthority.address })
+        .sendTransaction();
 
     // When the buffer keypair tries to close its own account.
-    const closeIx = getCloseInstruction({
-        account: buffer.address,
-        authority: buffer,
-        destination: payer.address,
-    });
-    const promise = pipe(
-        await createDefaultTransaction(client, payer),
-        tx => appendTransactionMessageInstruction(closeIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    const promise = client.programMetadata.instructions
+        .close({ account: buffer.address, authority: buffer, destination: payer.address })
+        .sendTransaction();
 
     // Then we expect a program error.
     const error = await t.throwsAsync(promise);
@@ -317,41 +266,27 @@ test('it cannot close a keypair buffer with a different authority set using the 
 
 test('it can close a keypair buffer with its authority', async t => {
     // Given the following payer.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const payer = await generateKeyPairSignerWithSol(client);
 
     // And the following pre-allocated keypair buffer.
-    const buffer = await createKeypairBuffer(client, {
-        payer,
-        data: getUtf8Encoder().encode('Hello, World!'),
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, payer, data: getUtf8Encoder().encode('Hello, World!') })
+        .sendTransaction();
 
     // And we set a different authority on the buffer account.
     const bufferAuthority = await generateKeyPairSigner();
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: buffer.address,
-        authority: buffer,
-        newAuthority: bufferAuthority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, payer),
-        tx => appendTransactionMessageInstruction(setAuthorityIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .setAuthority({ account: buffer.address, authority: buffer, newAuthority: bufferAuthority.address })
+        .sendTransaction();
 
     // When the authority closes the buffer account.
-    const closeIx = getCloseInstruction({
-        account: buffer.address,
-        authority: bufferAuthority,
-        destination: payer.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, payer),
-        tx => appendTransactionMessageInstruction(closeIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .close({ account: buffer.address, authority: bufferAuthority, destination: payer.address })
+        .sendTransaction();
 
     // Then we expect the buffer account to no longer exist.
-    const account = await fetchMaybeMetadata(client.rpc, buffer.address);
+    const account = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
     t.false(account.exists);
 });

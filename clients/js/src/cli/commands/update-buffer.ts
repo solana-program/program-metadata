@@ -1,4 +1,4 @@
-import { Address, lamports } from '@solana/kit';
+import { Address } from '@solana/kit';
 import { fetchMaybeBuffer } from '../../generated';
 import { getUpdateBufferInstructionPlan } from '../../updateBuffer';
 import { bufferArgument, fileArgument } from '../arguments';
@@ -34,17 +34,12 @@ export async function doUpdateBuffer(buffer: Address, file: string | undefined, 
     const currentData = bufferAccount.data.data;
     const newData = writeInput.buffer?.data.data ?? writeInput.data;
     const sizeDifference = newData.length - currentData.length;
-    const extraRent =
-        sizeDifference > 0
-            ? await client.rpc.getMinimumBalanceForRentExemption(BigInt(sizeDifference)).send()
-            : lamports(0n);
 
     await client.planAndExecute(
-        getUpdateBufferInstructionPlan({
+        await getUpdateBufferInstructionPlan(client, {
             buffer,
             authority: client.authority,
             payer: client.payer,
-            extraRent,
             sizeDifference,
             sourceBuffer: writeInput.buffer,
             closeSourceBuffer: writeInput.closeBuffer,

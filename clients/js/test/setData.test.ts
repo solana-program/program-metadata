@@ -1,11 +1,10 @@
-import { getTransferSolInstruction } from '@solana-program/system';
 import {
     address,
-    appendTransactionMessageInstructions,
     generateKeyPairSigner,
     getUtf8Encoder,
     isSolanaError,
-    pipe,
+    SingleTransactionPlanResult,
+    SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION,
     SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_REALLOC,
 } from '@solana/kit';
 import test from 'ava';
@@ -13,38 +12,24 @@ import {
     Compression,
     DataSource,
     Encoding,
-    fetchMetadata,
+    findCanonicalPda,
+    findNonCanonicalPda,
     Format,
-    getExtendInstruction,
-    getSetAuthorityInstruction,
-    getSetDataInstruction,
-    getSetImmutableInstruction,
     isProgramMetadataError,
     Metadata,
     PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT,
 } from '../src';
-import {
-    createCanonicalMetadata,
-    createDefaultSolanaClient,
-    createDefaultTransaction,
-    createDeployedProgram,
-    createKeypairBuffer,
-    createNonCanonicalMetadata,
-    generateKeyPairSignerWithSol,
-    getRentWithoutHeader,
-    REALLOC_LIMIT,
-    signAndSendTransaction,
-} from './_setup';
+import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol, REALLOC_LIMIT } from './_setup';
 
 test('the program authority of a canonical metadata account can update its data using instruction data', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
     const originalData = getUtf8Encoder().encode('Original data');
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
@@ -55,36 +40,32 @@ test('the program authority of a canonical metadata account can update its data 
         dataSource: DataSource.Direct,
         data: originalData,
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given we fund the metadata account for the extra space needed for the new data.
+    // When the program authority funds and updates the data of the metadata account using instruction data.
     const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-    const extraRent = await getRentWithoutHeader(client, newData.length - originalData.length);
-    const transferIx = getTransferSolInstruction({
-        source: authority,
-        destination: metadata,
-        amount: extraRent,
-    });
-
-    // When the program authority updates the data of the metadata account using instruction data.
-    const setDataIx = getSetDataInstruction({
-        metadata,
-        authority,
-        program,
-        programData,
-        encoding: Encoding.Utf8,
-        compression: Compression.Gzip,
-        format: Format.Json,
-        dataSource: DataSource.Url,
-        data: newData,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([transferIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    const extraRent = await client.getMinimumBalance(newData.length - originalData.length, { withoutHeader: true });
+    await client.sendTransaction([
+        client.system.instructions.transferSol({
+            source: authority,
+            destination: metadata,
+            amount: extraRent,
+        }),
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority,
+            program,
+            programData,
+            encoding: Encoding.Utf8,
+            compression: Compression.Gzip,
+            format: Format.Json,
+            dataSource: DataSource.Url,
+            data: newData,
+        }),
+    ]);
 
     // Then we expect the metadata account have the new data.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
@@ -96,7 +77,7 @@ test('the program authority of a canonical metadata account can update its data 
 
 test('the explicit authority of a canonical metadata account can update its data using instruction data', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -105,7 +86,7 @@ test('the explicit authority of a canonical metadata account can update its data
 
     // And the following initialized canonical metadata account.
     const originalData = getUtf8Encoder().encode('Original data');
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
@@ -116,45 +97,40 @@ test('the explicit authority of a canonical metadata account can update its data
         dataSource: DataSource.Direct,
         data: originalData,
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given an explicit authority is set on the metadata account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: explicitAuthority.address,
-    });
-
-    // And given we fund the metadata account for the extra space needed for the new data.
+    // When the program authority sets an explicit authority,
+    // funds the metadata account and that explicit authority updates the data.
     const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-    const extraRent = await getRentWithoutHeader(client, newData.length - originalData.length);
-    const transferIx = getTransferSolInstruction({
-        source: authority,
-        destination: metadata,
-        amount: extraRent,
-    });
-
-    // When the explicit authority updates the data of the metadata account using instruction data.
-    const setDataIx = getSetDataInstruction({
-        metadata,
-        authority: explicitAuthority,
-        program,
-        programData,
-        encoding: Encoding.Utf8,
-        compression: Compression.Gzip,
-        format: Format.Json,
-        dataSource: DataSource.Url,
-        data: newData,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setAuthorityIx, transferIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    const extraRent = await client.getMinimumBalance(newData.length - originalData.length, { withoutHeader: true });
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: explicitAuthority.address,
+        }),
+        client.system.instructions.transferSol({
+            source: authority,
+            destination: metadata,
+            amount: extraRent,
+        }),
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority: explicitAuthority,
+            program,
+            programData,
+            encoding: Encoding.Utf8,
+            compression: Compression.Gzip,
+            format: Format.Json,
+            dataSource: DataSource.Url,
+            data: newData,
+        }),
+    ]);
 
     // Then we expect the metadata account have the new data.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
@@ -166,13 +142,13 @@ test('the explicit authority of a canonical metadata account can update its data
 
 test('the authority of a non-canonical metadata account can update its data using instruction data', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenKEGQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // And the following initialized non-canonical metadata account.
     const originalData = getUtf8Encoder().encode('Original data');
-    const [metadata] = await createNonCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'dummy',
@@ -182,35 +158,31 @@ test('the authority of a non-canonical metadata account can update its data usin
         dataSource: DataSource.Direct,
         data: originalData,
     });
+    const [metadata] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
-    // And given we fund the metadata account for the extra space needed for the new data.
+    // When the metadata authority funds and updates the account data using instruction data.
     const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-    const extraRent = await getRentWithoutHeader(client, newData.length - originalData.length);
-    const transferIx = getTransferSolInstruction({
-        source: authority,
-        destination: metadata,
-        amount: extraRent,
-    });
-
-    // When the metadata authority updates the account data using instruction data.
-    const setDataIx = getSetDataInstruction({
-        metadata,
-        authority,
-        program,
-        encoding: Encoding.Utf8,
-        compression: Compression.Gzip,
-        format: Format.Json,
-        dataSource: DataSource.Url,
-        data: newData,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([transferIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    const extraRent = await client.getMinimumBalance(newData.length - originalData.length, { withoutHeader: true });
+    await client.sendTransaction([
+        client.system.instructions.transferSol({
+            source: authority,
+            destination: metadata,
+            amount: extraRent,
+        }),
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority,
+            program,
+            encoding: Encoding.Utf8,
+            compression: Compression.Gzip,
+            format: Format.Json,
+            dataSource: DataSource.Url,
+            data: newData,
+        }),
+    ]);
 
     // Then we expect the metadata account have the new data.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
@@ -222,13 +194,13 @@ test('the authority of a non-canonical metadata account can update its data usin
 
 test('the program authority of a canonical metadata account can update its data using a pre-allocated buffer', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
     const originalData = getUtf8Encoder().encode('Original data');
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
@@ -239,40 +211,38 @@ test('the program authority of a canonical metadata account can update its data 
         dataSource: DataSource.Direct,
         data: originalData,
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
     // And the following pre-allocated buffer account with written data.
     const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-    const buffer = await createKeypairBuffer(client, {
-        payer: authority,
-        data: newData,
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, data: newData })
+        .sendTransaction();
 
     // When the program authority updates the data of the metadata account using the buffer.
-    const extraRent = await getRentWithoutHeader(client, newData.length - originalData.length);
-    const fundMetadataIx = getTransferSolInstruction({
-        source: authority,
-        destination: metadata,
-        amount: extraRent,
-    });
-    const setDataIx = getSetDataInstruction({
-        metadata,
-        authority,
-        buffer: buffer.address,
-        program,
-        programData,
-        encoding: Encoding.Utf8,
-        compression: Compression.Gzip,
-        format: Format.Json,
-        dataSource: DataSource.Url,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setDataIx, fundMetadataIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    const extraRent = await client.getMinimumBalance(newData.length - originalData.length, { withoutHeader: true });
+    await client.sendTransaction([
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority,
+            buffer: buffer.address,
+            program,
+            programData,
+            encoding: Encoding.Utf8,
+            compression: Compression.Gzip,
+            format: Format.Json,
+            dataSource: DataSource.Url,
+        }),
+        client.system.instructions.transferSol({
+            source: authority,
+            destination: metadata,
+            amount: extraRent,
+        }),
+    ]);
 
     // Then we expect the metadata account have the new data.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
@@ -284,7 +254,7 @@ test('the program authority of a canonical metadata account can update its data 
 
 test('the explicit authority of a canonical metadata account can update its data using a pre-allocated buffer', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -293,7 +263,7 @@ test('the explicit authority of a canonical metadata account can update its data
 
     // And the following initialized canonical metadata account.
     const originalData = getUtf8Encoder().encode('Original data');
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
@@ -304,49 +274,46 @@ test('the explicit authority of a canonical metadata account can update its data
         dataSource: DataSource.Direct,
         data: originalData,
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
     // And the following pre-allocated buffer account with written data.
     const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-    const buffer = await createKeypairBuffer(client, {
-        payer: authority,
-        data: newData,
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, data: newData })
+        .sendTransaction();
 
-    // And given an explicit authority is set on the metadata account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: explicitAuthority.address,
-    });
-
-    // When the explicit authority updates the data of the metadata account using the buffer.
-    const extraRent = await getRentWithoutHeader(client, newData.length - originalData.length);
-    const fundMetadataIx = getTransferSolInstruction({
-        source: authority,
-        destination: metadata,
-        amount: extraRent,
-    });
-    const setDataIx = getSetDataInstruction({
-        metadata,
-        authority: explicitAuthority,
-        buffer: buffer.address,
-        program,
-        programData,
-        encoding: Encoding.Utf8,
-        compression: Compression.Gzip,
-        format: Format.Json,
-        dataSource: DataSource.Url,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([setAuthorityIx, fundMetadataIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When the program authority sets an explicit authority,
+    // funds the metadata account and that explicit authority updates the data using the buffer.
+    const extraRent = await client.getMinimumBalance(newData.length - originalData.length, { withoutHeader: true });
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: explicitAuthority.address,
+        }),
+        client.system.instructions.transferSol({
+            source: authority,
+            destination: metadata,
+            amount: extraRent,
+        }),
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority: explicitAuthority,
+            buffer: buffer.address,
+            program,
+            programData,
+            encoding: Encoding.Utf8,
+            compression: Compression.Gzip,
+            format: Format.Json,
+            dataSource: DataSource.Url,
+        }),
+    ]);
 
     // Then we expect the metadata account have the new data.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
@@ -358,13 +325,13 @@ test('the explicit authority of a canonical metadata account can update its data
 
 test('the authority of a non-canonical metadata account can update its data using a pre-allocated buffer', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenKEGQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // And the following initialized non-canonical metadata account.
     const originalData = getUtf8Encoder().encode('Original data');
-    const [metadata] = await createNonCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'dummy',
@@ -374,39 +341,37 @@ test('the authority of a non-canonical metadata account can update its data usin
         dataSource: DataSource.Direct,
         data: originalData,
     });
+    const [metadata] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
     // And the following pre-allocated buffer account with written data.
     const newData = getUtf8Encoder().encode('https://example.com/new-data.json');
-    const buffer = await createKeypairBuffer(client, {
-        payer: authority,
-        data: newData,
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, data: newData })
+        .sendTransaction();
 
-    // When the metadata authority updates the account using the pre-allocated buffer.
-    const extraRent = await getRentWithoutHeader(client, newData.length - originalData.length);
-    const fundMetadataIx = getTransferSolInstruction({
-        source: authority,
-        destination: metadata,
-        amount: extraRent,
-    });
-    const setDataIx = getSetDataInstruction({
-        metadata,
-        authority,
-        buffer: buffer.address,
-        program,
-        encoding: Encoding.Utf8,
-        compression: Compression.Gzip,
-        format: Format.Json,
-        dataSource: DataSource.Url,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([fundMetadataIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When the metadata authority funds and updates the account using the pre-allocated buffer.
+    const extraRent = await client.getMinimumBalance(newData.length - originalData.length, { withoutHeader: true });
+    await client.sendTransaction([
+        client.system.instructions.transferSol({
+            source: authority,
+            destination: metadata,
+            amount: extraRent,
+        }),
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority,
+            buffer: buffer.address,
+            program,
+            encoding: Encoding.Utf8,
+            compression: Compression.Gzip,
+            format: Format.Json,
+            dataSource: DataSource.Url,
+        }),
+    ]);
 
     // Then we expect the metadata account have the new data.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,
@@ -418,100 +383,114 @@ test('the authority of a non-canonical metadata account can update its data usin
 
 test('an immutable canonical metadata account cannot be updated', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Original data'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given the metadata account is immutable.
-    const setImmutableIx = getSetImmutableInstruction({
-        metadata,
-        authority,
-        program,
-        programData,
-    });
+    // When the program authority makes the metadata account immutable
+    // and tries to update its data in the same transaction.
+    const promise = client.sendTransaction([
+        client.programMetadata.instructions.setImmutable({
+            metadata,
+            authority,
+            program,
+            programData,
+        }),
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority,
+            program,
+            programData,
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            format: Format.Json,
+            dataSource: DataSource.Direct,
+            data: getUtf8Encoder().encode('New data'),
+        }),
+    ]);
 
-    // When the program authority tries to update the data of the metadata account.
-    const setDataIx = getSetDataInstruction({
-        metadata,
-        authority,
-        program,
-        programData,
-        encoding: Encoding.Utf8,
-        compression: Compression.None,
-        format: Format.Json,
-        dataSource: DataSource.Direct,
-        data: getUtf8Encoder().encode('New data'),
-    });
-    const transactionMessage = pipe(await createDefaultTransaction(client, authority), tx =>
-        appendTransactionMessageInstructions([setImmutableIx, setDataIx], tx),
-    );
-    const promise = signAndSendTransaction(client, transactionMessage);
-
-    // Then we expect the transaction to fail.
+    // Then we expect the transaction to fail with the IMMUTABLE_METADATA_ACCOUNT program error.
     const error = await t.throwsAsync(promise);
-    t.true(isProgramMetadataError(error.cause, transactionMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT));
+    t.true(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION));
+    if (!isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)) return;
+    const result = error.context.transactionPlanResult as SingleTransactionPlanResult;
+    t.true(
+        isProgramMetadataError(error.cause, result.plannedMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT),
+    );
 });
 
 test('an immutable non-canonical metadata account cannot be updated', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenKEGQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // And the following initialized non-canonical metadata account.
-    const [metadata] = await createNonCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Original data'),
     });
+    const [metadata] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
-    // And given the metadata account is immutable.
-    const setImmutableIx = getSetImmutableInstruction({
-        metadata,
-        authority,
-        program,
-    });
+    // When the metadata authority makes the metadata account immutable
+    // and tries to update its data in the same transaction.
+    const promise = client.sendTransaction([
+        client.programMetadata.instructions.setImmutable({
+            metadata,
+            authority,
+            program,
+        }),
+        client.programMetadata.instructions.setData({
+            metadata,
+            authority,
+            program,
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            format: Format.Json,
+            dataSource: DataSource.Direct,
+            data: getUtf8Encoder().encode('New data'),
+        }),
+    ]);
 
-    // When the metadata authority tries to update the data.
-    const setDataIx = getSetDataInstruction({
-        metadata,
-        authority,
-        program,
-        encoding: Encoding.Utf8,
-        compression: Compression.None,
-        format: Format.Json,
-        dataSource: DataSource.Direct,
-        data: getUtf8Encoder().encode('New data'),
-    });
-    const transactionMessage = pipe(await createDefaultTransaction(client, authority), tx =>
-        appendTransactionMessageInstructions([setImmutableIx, setDataIx], tx),
-    );
-    const promise = signAndSendTransaction(client, transactionMessage);
-
-    // Then we expect the transaction to fail.
+    // Then we expect the transaction to fail with the IMMUTABLE_METADATA_ACCOUNT program error.
     const error = await t.throwsAsync(promise);
-    t.true(isProgramMetadataError(error.cause, transactionMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT));
+    t.true(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION));
+    if (!isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)) return;
+    const result = error.context.transactionPlanResult as SingleTransactionPlanResult;
+    t.true(
+        isProgramMetadataError(error.cause, result.plannedMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT),
+    );
 });
 
 test('The metadata account needs to be extended for data changes that add more than 1KB', async t => {
     // Given the following authority and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
     const program = address('TokenKEGQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 
     // And the following initialized metadata account with 200 bytes of data.
     const originalData = getUtf8Encoder().encode('x'.repeat(200));
-    const [metadata] = await createNonCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'dummy',
@@ -521,28 +500,28 @@ test('The metadata account needs to be extended for data changes that add more t
         dataSource: DataSource.Direct,
         data: originalData,
     });
+    const [metadata] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
     // And the following pre-allocated buffer account with written data.
     const newData = getUtf8Encoder().encode('x'.repeat(originalData.length + REALLOC_LIMIT + 1));
-    const buffer = await createKeypairBuffer(client, {
-        payer: authority,
-        data: newData,
-    });
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: buffer, authority: buffer, data: newData })
+        .sendTransactions();
 
     // And given the following instructions to fund extra rent, extend extra space and update the data.
-    const extraSize = newData.length - originalData.length;
-    const extraRent = await getRentWithoutHeader(client, extraSize);
-    const transferIx = getTransferSolInstruction({
+    const extraRent = await client.getMinimumBalance(newData.length - originalData.length, { withoutHeader: true });
+    const transferIx = client.system.instructions.transferSol({
         source: authority,
         destination: metadata,
         amount: extraRent,
     });
-    const extendIx = getExtendInstruction({
+    const extendIx = client.programMetadata.instructions.extend({
         account: metadata,
         authority,
         length: REALLOC_LIMIT,
     });
-    const setDataIx = getSetDataInstruction({
+    const setDataIx = client.programMetadata.instructions.setData({
         metadata,
         authority,
         program,
@@ -554,11 +533,7 @@ test('The metadata account needs to be extended for data changes that add more t
     });
 
     // When we try to update the data without extending the account.
-    const promise = pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([transferIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    const promise = client.sendTransaction([transferIx, setDataIx]);
 
     // Then we expect a program error.
     const error = await t.throwsAsync(promise);
@@ -566,14 +541,10 @@ test('The metadata account needs to be extended for data changes that add more t
     t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_REALLOC));
 
     // But when we extend the account and try again.
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([transferIx, extendIx, setDataIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.sendTransaction([transferIx, extendIx, setDataIx]);
 
     // Then we expect the metadata account have the new data.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.like(account.data, <Metadata>{
         encoding: Encoding.Utf8,
         compression: Compression.Gzip,

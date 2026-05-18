@@ -2,7 +2,8 @@ import { getTransferSolInstruction } from '@solana-program/system';
 import {
     Account,
     Address,
-    Lamports,
+    ClientWithGetMinimumBalance,
+    lamports,
     parallelInstructionPlan,
     ReadonlyUint8Array,
     sequentialInstructionPlan,
@@ -12,21 +13,27 @@ import { Buffer, getCloseInstruction, getTrimInstruction, getWriteInstruction } 
 import { REALLOC_LIMIT } from './internals';
 import { getExtendInstructionPlan, getWriteInstructionPlan } from './utils';
 
-export function getUpdateBufferInstructionPlan(input: {
-    buffer: Address;
-    authority: TransactionSigner;
-    payer: TransactionSigner;
-    extraRent: Lamports;
-    sizeDifference: number | bigint;
-    sourceBuffer?: Account<Buffer>;
-    closeSourceBuffer?: Address | boolean;
-    data?: ReadonlyUint8Array;
-}) {
+export async function getUpdateBufferInstructionPlan(
+    client: ClientWithGetMinimumBalance,
+    input: {
+        buffer: Address;
+        authority: TransactionSigner;
+        payer: TransactionSigner;
+        sizeDifference: number | bigint;
+        sourceBuffer?: Account<Buffer>;
+        closeSourceBuffer?: Address | boolean;
+        data?: ReadonlyUint8Array;
+    },
+) {
     if (!input.data && !input.sourceBuffer) {
         throw new Error('Either `data` or `sourceBuffer` must be provided to update a buffer.');
     }
 
     const data = (input.sourceBuffer?.data.data ?? input.data) as ReadonlyUint8Array;
+    const extraRent =
+        input.sizeDifference > 0
+            ? await client.getMinimumBalance(Number(input.sizeDifference), { withoutHeader: true })
+            : lamports(0n);
 
     return sequentialInstructionPlan([
         ...(input.sizeDifference > 0
@@ -34,7 +41,7 @@ export function getUpdateBufferInstructionPlan(input: {
                   getTransferSolInstruction({
                       source: input.payer,
                       destination: input.buffer,
-                      amount: input.extraRent,
+                      amount: extraRent,
                   }),
               ]
             : []),

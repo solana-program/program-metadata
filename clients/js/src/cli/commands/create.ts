@@ -48,8 +48,7 @@ export async function doCreate(seed: Seed, program: Address, file: string | unde
     }
 
     await client.planAndExecute(
-        await getCreateMetadataInstructionPlan({
-            ...client,
+        await getCreateMetadataInstructionPlan(client, {
             ...writeInput,
             payer: client.payer,
             authority: client.authority,
@@ -57,7 +56,6 @@ export async function doCreate(seed: Seed, program: Address, file: string | unde
             programData,
             seed,
             metadata,
-            planner: client.planner,
         }),
     );
 }

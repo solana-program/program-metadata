@@ -1,6 +1,5 @@
 import { generateKeyPairSigner } from '@solana/kit';
 import { getCreateBufferInstructionPlan } from '../../createBuffer';
-import { getAccountSize } from '../../utils';
 import { fileArgument } from '../arguments';
 import { GlobalOptions, setWriteOptions, WriteOptions } from '../options';
 import { CustomCommand, getClient, getWriteInput } from '../utils';
@@ -26,18 +25,14 @@ export async function doCreateBuffer(file: string | undefined, _: Options, cmd: 
         authority: client.authority.address,
     });
 
-    const data = writeInput.buffer?.data.data ?? writeInput.data;
-    const rent = await client.rpc.getMinimumBalanceForRentExemption(getAccountSize(data.length)).send();
-
     await client.planAndExecute(
-        getCreateBufferInstructionPlan({
+        await getCreateBufferInstructionPlan(client, {
             newBuffer: buffer,
             authority: client.authority,
             payer: client.payer,
-            rent,
             sourceBuffer: writeInput.buffer,
             closeSourceBuffer: writeInput.closeBuffer,
-            data,
+            data: writeInput.buffer?.data.data ?? writeInput.data,
         }),
     );
 }

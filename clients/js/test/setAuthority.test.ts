@@ -1,11 +1,10 @@
 import {
-    appendTransactionMessageInstruction,
-    appendTransactionMessageInstructions,
     generateKeyPairSigner,
     getUtf8Encoder,
     isSolanaError,
     none,
-    pipe,
+    SingleTransactionPlanResult,
+    SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION,
     SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA,
     SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ARGUMENT,
     some,
@@ -13,28 +12,20 @@ import {
 import test from 'ava';
 import {
     ACCOUNT_HEADER_LENGTH,
-    fetchBuffer,
-    fetchMetadata,
-    getAllocateInstruction,
-    getSetAuthorityInstruction,
-    getSetImmutableInstruction,
+    Compression,
+    DataSource,
+    Encoding,
+    findCanonicalPda,
+    findNonCanonicalPda,
+    Format,
     isProgramMetadataError,
     PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT,
 } from '../src';
-import {
-    createCanonicalMetadata,
-    createDefaultSolanaClient,
-    createDefaultTransaction,
-    createDeployedProgram,
-    createNonCanonicalMetadata,
-    generateKeyPairSignerWithSol,
-    signAndSendTransaction,
-} from './_setup';
-import { getTransferSolInstruction } from '@solana-program/system';
+import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
 test('the program authority can set another authority on canonical metadata accounts', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, newAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -42,36 +33,32 @@ test('the program authority can set another authority on canonical metadata acco
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
     // When the program authority sets a new authority on the metadata account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: newAuthority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstruction(setAuthorityIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    await client.programMetadata.instructions
+        .setAuthority({ account: metadata, authority, program, programData, newAuthority: newAuthority.address })
+        .sendTransaction();
 
     // Then we expect the metadata account to record the new authority.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.deepEqual(account.data.authority, some(newAuthority.address));
 });
 
 test('the program authority can update an existing authority on canonical metadata accounts', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthorityA, explicitAuthorityB] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -80,45 +67,46 @@ test('the program authority can update an existing authority on canonical metada
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given an explicit authority A is set on the metadata account.
-    const firstSetAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: explicitAuthorityA.address,
-    });
-
-    // When the program authority sets another authority B on the metadata account.
-    const secondSetAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: explicitAuthorityB.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([firstSetAuthorityIx, secondSetAuthorityIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When the program authority sets explicit authority A
+    // and then replaces it with explicit authority B.
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: explicitAuthorityA.address,
+        }),
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: explicitAuthorityB.address,
+        }),
+    ]);
 
     // Then we expect the metadata account to record the latest explicit authority.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.deepEqual(account.data.authority, some(explicitAuthorityB.address));
 });
 
 test('the program authority can remove an existing authority on canonical metadata accounts', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -126,45 +114,46 @@ test('the program authority can remove an existing authority on canonical metada
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given an explicit authority is set on the metadata account.
-    const firstSetAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: explicitAuthority.address,
-    });
-
-    // When the program authority removes the explicit authority from the metadata account.
-    const secondSetAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: null,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([firstSetAuthorityIx, secondSetAuthorityIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When the program authority sets an explicit authority
+    // and then removes it from the metadata account.
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: explicitAuthority.address,
+        }),
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: null,
+        }),
+    ]);
 
     // Then we expect the metadata account to have no explicit authority.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.deepEqual(account.data.authority, none());
 });
 
 test('an explicitly set authority can update itself on canonical metadata accounts', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthorityA, explicitAuthorityB] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -173,45 +162,46 @@ test('an explicitly set authority can update itself on canonical metadata accoun
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given an explicit authority A is set on the metadata account.
-    const firstSetAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: explicitAuthorityA.address,
-    });
-
-    // When the explicit authority A sets another authority B on the metadata account.
-    const secondSetAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority: explicitAuthorityA,
-        program,
-        programData,
-        newAuthority: explicitAuthorityB.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([firstSetAuthorityIx, secondSetAuthorityIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When the program authority sets explicit authority A,
+    // and then explicit authority A sets explicit authority B.
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: explicitAuthorityA.address,
+        }),
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority: explicitAuthorityA,
+            program,
+            programData,
+            newAuthority: explicitAuthorityB.address,
+        }),
+    ]);
 
     // Then we expect the metadata account to record the latest explicit authority.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.deepEqual(account.data.authority, some(explicitAuthorityB.address));
 });
 
 test('an explicitly set authority can remove itself on canonical metadata accounts', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -219,45 +209,46 @@ test('an explicitly set authority can remove itself on canonical metadata accoun
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given an explicit authority is set on the metadata account.
-    const firstSetAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: explicitAuthority.address,
-    });
-
-    // When the explicit authority removes itself from the metadata account.
-    const secondSetAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority: explicitAuthority,
-        program,
-        programData,
-        newAuthority: null,
-    });
-    await pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstructions([firstSetAuthorityIx, secondSetAuthorityIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When the program authority sets an explicit authority,
+    // and then that explicit authority removes itself.
+    await client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: explicitAuthority.address,
+        }),
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority: explicitAuthority,
+            program,
+            programData,
+            newAuthority: null,
+        }),
+    ]);
 
     // Then we expect the metadata account to have no explicit authority.
-    const account = await fetchMetadata(client.rpc, metadata);
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     t.deepEqual(account.data.authority, none());
 });
 
 test('the authority of a non-canonical metadata account cannot set another authority on the account', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, newAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -265,26 +256,22 @@ test('the authority of a non-canonical metadata account cannot set another autho
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized non-canonical metadata account.
-    const [metadata] = await createNonCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
     // When the authority attempts to set a new authority on the metadata account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: newAuthority.address,
-    });
-    const promise = pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstruction(setAuthorityIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    const promise = client.programMetadata.instructions
+        .setAuthority({ account: metadata, authority, program, programData, newAuthority: newAuthority.address })
+        .sendTransaction();
 
     // Then we expect the transaction to fail.
     const error = await t.throwsAsync(promise);
@@ -293,31 +280,27 @@ test('the authority of a non-canonical metadata account cannot set another autho
 
 test('the authority of a non-canonical metadata account cannot remove itself on the account', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
-    const [authority] = await Promise.all([generateKeyPairSignerWithSol(client)]);
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized non-canonical metadata account.
-    const [metadata] = await createNonCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findNonCanonicalPda({ authority: authority.address, program, seed: 'dummy' });
 
     // When the authority attempts to remove itself from the metadata account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: null,
-    });
-    const promise = pipe(
-        await createDefaultTransaction(client, authority),
-        tx => appendTransactionMessageInstruction(setAuthorityIx, tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    const promise = client.programMetadata.instructions
+        .setAuthority({ account: metadata, authority, program, programData, newAuthority: null })
+        .sendTransaction();
 
     // Then we expect the transaction to fail.
     const error = await t.throwsAsync(promise);
@@ -326,70 +309,60 @@ test('the authority of a non-canonical metadata account cannot remove itself on 
 
 test('the authority can update itself on buffer accounts', async t => {
     // Given the following buffer and authorities.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [payer, buffer, newAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
         generateKeyPairSigner(),
     ]);
 
-    // And the following initialized buffer account.
-    const bufferRent = await client.rpc.getMinimumBalanceForRentExemption(BigInt(ACCOUNT_HEADER_LENGTH)).send();
-    const fundBufferIx = getTransferSolInstruction({
-        source: payer,
-        destination: buffer.address,
-        amount: bufferRent,
-    });
-    const allocateBufferIx = getAllocateInstruction({
-        buffer: buffer.address,
-        authority: buffer,
-    });
-
-    // When the current authority sets another authority on the buffer account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: buffer.address,
-        authority: buffer,
-        newAuthority: newAuthority.address,
-    });
-    await pipe(
-        await createDefaultTransaction(client, payer),
-        tx => appendTransactionMessageInstructions([fundBufferIx, allocateBufferIx, setAuthorityIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When we fund, allocate, and update the authority of the buffer account.
+    const bufferRent = await client.getMinimumBalance(ACCOUNT_HEADER_LENGTH);
+    await client.sendTransaction([
+        client.system.instructions.transferSol({
+            source: payer,
+            destination: buffer.address,
+            amount: bufferRent,
+        }),
+        client.programMetadata.instructions.allocate({
+            buffer: buffer.address,
+            authority: buffer,
+        }),
+        client.programMetadata.instructions.setAuthority({
+            account: buffer.address,
+            authority: buffer,
+            newAuthority: newAuthority.address,
+        }),
+    ]);
 
     // Then we expect the buffer account to record the new authority.
-    const account = await fetchBuffer(client.rpc, buffer.address);
+    const account = await client.programMetadata.accounts.buffer.fetch(buffer.address);
     t.deepEqual(account.data.authority, some(newAuthority.address));
 });
 
 test('the authority cannot remove itself on buffer accounts', async t => {
     // Given the following buffer and authorities.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [payer, buffer] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
 
-    // And the following initialized buffer account.
-    const bufferRent = await client.rpc.getMinimumBalanceForRentExemption(BigInt(ACCOUNT_HEADER_LENGTH)).send();
-    const fundBufferIx = getTransferSolInstruction({
-        source: payer,
-        destination: buffer.address,
-        amount: bufferRent,
-    });
-    const allocateBufferIx = getAllocateInstruction({
-        buffer: buffer.address,
-        authority: buffer,
-    });
-
-    // When the current authority removes itself from the buffer account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: buffer.address,
-        authority: buffer,
-        newAuthority: null,
-    });
-    const promise = pipe(
-        await createDefaultTransaction(client, payer),
-        tx => appendTransactionMessageInstructions([fundBufferIx, allocateBufferIx, setAuthorityIx], tx),
-        tx => signAndSendTransaction(client, tx),
-    );
+    // When we fund, allocate, and attempt to remove the authority of the buffer account.
+    const bufferRent = await client.getMinimumBalance(ACCOUNT_HEADER_LENGTH);
+    const promise = client.sendTransaction([
+        client.system.instructions.transferSol({
+            source: payer,
+            destination: buffer.address,
+            amount: bufferRent,
+        }),
+        client.programMetadata.instructions.allocate({
+            buffer: buffer.address,
+            authority: buffer,
+        }),
+        client.programMetadata.instructions.setAuthority({
+            account: buffer.address,
+            authority: buffer,
+            newAuthority: null,
+        }),
+    ]);
 
     // Then we expect the transaction to fail.
     const error = await t.throwsAsync(promise);
@@ -398,7 +371,7 @@ test('the authority cannot remove itself on buffer accounts', async t => {
 
 test('the authority cannot be changed on immutable metadata accounts', async t => {
     // Given the following authorities and deployed program.
-    const client = createDefaultSolanaClient();
+    const client = await createTestClient();
     const [authority, explicitAuthority, anotherAuthority] = await Promise.all([
         generateKeyPairSignerWithSol(client),
         generateKeyPairSigner(),
@@ -407,46 +380,51 @@ test('the authority cannot be changed on immutable metadata accounts', async t =
     const [program, programData] = await createDeployedProgram(client, authority);
 
     // And the following initialized canonical metadata account.
-    const [metadata] = await createCanonicalMetadata(client, {
+    await client.programMetadata.createMetadata({
         authority,
         program,
         programData,
         seed: 'dummy',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        format: Format.None,
+        dataSource: DataSource.Direct,
         data: getUtf8Encoder().encode('Hello, World!'),
     });
+    const [metadata] = await findCanonicalPda({ program, seed: 'dummy' });
 
-    // And given the explicit authority is set on the metadata account.
-    const setAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: explicitAuthority.address,
-    });
+    // When the program authority sets the explicit authority, the explicit
+    // authority makes the metadata account immutable, then the program
+    // authority tries to set yet another authority — all in one transaction.
+    const promise = client.sendTransaction([
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: explicitAuthority.address,
+        }),
+        client.programMetadata.instructions.setImmutable({
+            metadata,
+            authority: explicitAuthority,
+            program,
+            programData,
+        }),
+        client.programMetadata.instructions.setAuthority({
+            account: metadata,
+            authority,
+            program,
+            programData,
+            newAuthority: anotherAuthority.address,
+        }),
+    ]);
 
-    // And the explicit authority sets the metadata account to be immutable.
-    const setImmutableIx = getSetImmutableInstruction({
-        metadata,
-        authority: explicitAuthority,
-        program,
-        programData,
-    });
-
-    // When the explicit authority attempts to set another authority on the
-    // metadata account after setting it to be immutable.
-    const setAnotherAuthorityIx = getSetAuthorityInstruction({
-        account: metadata,
-        authority,
-        program,
-        programData,
-        newAuthority: anotherAuthority.address,
-    });
-    const transactionMessage = pipe(await createDefaultTransaction(client, authority), tx =>
-        appendTransactionMessageInstructions([setAuthorityIx, setImmutableIx, setAnotherAuthorityIx], tx),
-    );
-    const promise = signAndSendTransaction(client, transactionMessage);
-
-    // Then we expect the transaction to fail.
+    // Then we expect the transaction to fail with the IMMUTABLE_METADATA_ACCOUNT program error.
     const error = await t.throwsAsync(promise);
-    t.true(isProgramMetadataError(error.cause, transactionMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT));
+    t.true(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION));
+    if (!isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)) return;
+    const result = error.context.transactionPlanResult as SingleTransactionPlanResult;
+    t.true(
+        isProgramMetadataError(error.cause, result.plannedMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT),
+    );
 });

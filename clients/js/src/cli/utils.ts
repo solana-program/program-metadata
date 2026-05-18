@@ -7,6 +7,9 @@ import {
     AccountRole,
     Address,
     address,
+    BASE_ACCOUNT_SIZE,
+    ClientWithGetMinimumBalance,
+    ClientWithTransactionPlanning,
     Commitment,
     compileTransaction,
     createKeyPairSignerFromBytes,
@@ -14,8 +17,11 @@ import {
     createSolanaRpc,
     createSolanaRpcSubscriptions,
     flattenTransactionPlan,
+    GetMinimumBalanceConfig,
     getTransactionEncoder,
     InstructionPlan,
+    Lamports,
+    lamports,
     MessageSigner,
     pipe,
     Rpc,
@@ -67,13 +73,15 @@ export class CustomCommand extends Command {
     }
 }
 
-export type Client = ReadonlyClient & {
-    authority: TransactionSigner & MessageSigner;
-    executor: TransactionPlanExecutor;
-    payer: TransactionSigner & MessageSigner;
-    planAndExecute: (instructionPlan: InstructionPlan) => Promise<void>;
-    planner: TransactionPlanner;
-};
+export type Client = ReadonlyClient &
+    ClientWithGetMinimumBalance &
+    ClientWithTransactionPlanning & {
+        authority: TransactionSigner & MessageSigner;
+        executor: TransactionPlanExecutor;
+        payer: TransactionSigner & MessageSigner;
+        planAndExecute: (instructionPlan: InstructionPlan) => Promise<void>;
+        planner: TransactionPlanner;
+    };
 
 export async function getClient(options: GlobalOptions): Promise<Client> {
     const readonlyClient = getReadonlyClient(options);
@@ -93,13 +101,33 @@ export async function getClient(options: GlobalOptions): Promise<Client> {
             await executeTransactionPlan(transactionPlan, executor);
         }
     };
+    const getMinimumBalance = async (space: number, config?: GetMinimumBalanceConfig): Promise<Lamports> => {
+        if (config?.withoutHeader) {
+            const headerBalance = await readonlyClient.rpc.getMinimumBalanceForRentExemption(0n).send();
+            const lamportsPerByte = BigInt(headerBalance) / BigInt(BASE_ACCOUNT_SIZE);
+            return lamports(lamportsPerByte * BigInt(space));
+        }
+        return await readonlyClient.rpc.getMinimumBalanceForRentExemption(BigInt(space)).send();
+    };
+    const planTransaction: ClientWithTransactionPlanning['planTransaction'] = async (input, config) => {
+        const transactionPlan = await planner(input as InstructionPlan, config);
+        if (transactionPlan.kind !== 'single') {
+            throw new Error('Expected a single transaction plan');
+        }
+        return transactionPlan.message;
+    };
+    const planTransactions: ClientWithTransactionPlanning['planTransactions'] = async (input, config) =>
+        await planner(input as InstructionPlan, config);
     return {
         ...readonlyClient,
         authority,
         executor,
+        getMinimumBalance,
         payer,
         planAndExecute,
         planner,
+        planTransaction,
+        planTransactions,
     };
 }
 
@@ -222,7 +250,7 @@ function getSolanaConfigs(): SolanaConfigs {
         logWarning('Solana config file not found');
         return {};
     }
-    return parseYaml(fs.readFileSync(getSolanaConfigPath(), 'utf8'));
+    return parseYaml(fs.readFileSync(getSolanaConfigPath(), 'utf8')) as SolanaConfigs;
 }
 
 function getSolanaConfigPath(): string {

@@ -40,7 +40,7 @@ export async function fetchAllMetadataContent(
     return await unpackAndFetchAllData({ rpc, accounts });
 }
 
-function parseContent(format: Format, content: string) {
+function parseContent(format: Format, content: string): unknown {
     switch (format) {
         case Format.Json:
             return JSON.parse(content);

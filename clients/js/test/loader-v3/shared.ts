@@ -35,7 +35,7 @@ export function expectAddress<T extends string = string>(
         return value.address;
     }
     if (Array.isArray(value)) {
-        return value[0];
+        return value[0] as Address<T>;
     }
     return value as Address<T>;
 }

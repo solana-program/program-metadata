@@ -48,15 +48,13 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
     }
 
     await client.planAndExecute(
-        await getUpdateMetadataInstructionPlan({
-            ...client,
+        await getUpdateMetadataInstructionPlan(client, {
             ...writeInput,
             payer: client.payer,
             authority: client.authority,
             program,
             programData,
             metadata: metadataAccount,
-            planner: client.planner,
         }),
     );
 }
