@@ -10,16 +10,15 @@ To build and test your JavaScript client from the root of the repository, you ma
 pnpm clients:js:test
 ```
 
-This will start a new local validator, if one is not already running, and run the tests for your JavaScript client.
+This will build the program and run the tests for your JavaScript client. Tests run in-memory via [LiteSVM](https://github.com/LiteSVM/litesvm) — no local validator required.
 
 ## Available client scripts.
 
 Alternatively, you can go into the client directory and run the tests directly.
 
 ```sh
-# Build your programs and start the validator.
+# Build your programs so the compiled `.so` file is available for LiteSVM.
 pnpm programs:build
-pnpm validator:restart
 
 # Go into the client directory and run the tests.
 cd clients/js

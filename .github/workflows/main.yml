@@ -185,8 +185,6 @@ jobs:
 
       - name: Setup Environment
         uses: ./.github/actions/setup
-        with:
-          solana: true
 
       - name: Restore Client Artifacts
         uses: actions/cache/restore@v4
