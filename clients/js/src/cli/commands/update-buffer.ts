@@ -1,6 +1,5 @@
 import { Address } from '@solana/kit';
 import { fetchMaybeBuffer } from '../../generated';
-import { getUpdateBufferInstructionPlan } from '../../updateBuffer';
 import { bufferArgument, fileArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions, setWriteOptions, WriteOptions } from '../options';
@@ -35,11 +34,10 @@ export async function doUpdateBuffer(buffer: Address, file: string | undefined, 
     const newData = writeInput.buffer?.data.data ?? writeInput.data;
     const sizeDifference = newData.length - currentData.length;
 
-    await client.planAndExecute(
-        await getUpdateBufferInstructionPlan(client, {
+    await client.runOrExport(
+        client.programMetadata.instructions.updateBuffer({
             buffer,
-            authority: client.authority,
-            payer: client.payer,
+            authority: client.identity,
             sizeDifference,
             sourceBuffer: writeInput.buffer,
             closeSourceBuffer: writeInput.closeBuffer,

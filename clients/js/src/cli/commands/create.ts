@@ -35,7 +35,7 @@ export async function doCreate(seed: Seed, program: Address, file: string | unde
         metadata,
         program,
         seed,
-        authority: isCanonical ? undefined : client.authority.address,
+        authority: isCanonical ? undefined : client.identity.address,
     });
 
     const [metadataAccount, writeInput] = await Promise.all([
@@ -47,11 +47,11 @@ export async function doCreate(seed: Seed, program: Address, file: string | unde
         logErrorAndExit(`Metadata account ${picocolors.bold(metadataAccount.address)} already exists.`);
     }
 
-    await client.planAndExecute(
-        await getCreateMetadataInstructionPlan(client, {
+    await client.runOrExport(
+        getCreateMetadataInstructionPlan(client, {
             ...writeInput,
             payer: client.payer,
-            authority: client.authority,
+            authority: client.identity,
             program,
             programData,
             seed,
