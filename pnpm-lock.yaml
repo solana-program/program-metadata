@@ -17,9 +17,6 @@ importers:
       '@iarna/toml':
         specifier: ^2.2.5
         version: 2.2.5
-      '@solana-config/prettier':
-        specifier: 0.1.2
-        version: 0.1.2(prettier@3.8.1)
       codama:
         specifier: ^1.6.0
         version: 1.6.0
@@ -93,11 +90,6 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
-
-  '@solana-config/prettier@0.1.2':
-    resolution: {integrity: sha512-bOSFYu5YWpeyPBFBWjRTYSdVNIRRjwWKGIUYskGWA0GglBj4TKcGRg2cRCfAJoH7+0DoPW6lbnf6UnjT9QaoJQ==}
-    peerDependencies:
-      prettier: ^3.0.0
 
   '@solana/codecs-core@6.0.0':
     resolution: {integrity: sha512-QAXMupK1nPaIeZgeLTwvC15zeMSbjgupHpcSRoAtcjEs1po4UVPSk7H+IAReRoK2ah2HXHARP3ktzY9x5LY2qQ==}
@@ -589,10 +581,6 @@ snapshots:
     dependencies:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.18.0
-
-  '@solana-config/prettier@0.1.2(prettier@3.8.1)':
-    dependencies:
-      prettier: 3.8.1
 
   '@solana/codecs-core@6.0.0(typescript@5.7.3)':
     dependencies:

@@ -1,5 +1,6 @@
 import { type Address, type MicroLamports } from '@solana/kit';
 import { Option } from 'commander';
+
 import { Compression, Encoding, Format } from '../generated';
 import { logErrorAndExit } from './logs';
 import { addressOrBooleanParser, addressParser, encodingParser } from './parsers';

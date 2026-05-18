@@ -1,4 +1,5 @@
 import { Argument } from 'commander';
+
 import { addressParser } from './parsers';
 
 export const seedArgument = new Argument('<seed>', 'Seed of the metadata account (e.g. "idl" for program IDLs).');

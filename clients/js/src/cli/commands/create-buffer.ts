@@ -1,8 +1,9 @@
 import { generateKeyPairSigner } from '@solana/kit';
+
 import { fileArgument } from '../arguments';
+import { logCommand } from '../logs';
 import { GlobalOptions, setWriteOptions, WriteOptions } from '../options';
 import { CustomCommand, getClient, getWriteInput } from '../utils';
-import { logCommand } from '../logs';
 
 export function setCreateBufferCommand(program: CustomCommand): void {
     program

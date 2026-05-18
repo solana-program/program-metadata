@@ -1,4 +1,5 @@
 import { Address } from '@solana/kit';
+
 import { Seed } from '../../generated';
 import { programArgument, seedArgument } from '../arguments';
 import { logCommand } from '../logs';

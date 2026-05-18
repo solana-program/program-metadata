@@ -1,9 +1,10 @@
 import { Address } from '@solana/kit';
+
 import { Seed } from '../../generated';
 import { programArgument, seedArgument } from '../arguments';
+import { logCommand } from '../logs';
 import { GlobalOptions } from '../options';
 import { CustomCommand, getClient, getPdaDetails } from '../utils';
-import { logCommand } from '../logs';
 
 export function setRemoveAuthorityCommand(program: CustomCommand): void {
     program

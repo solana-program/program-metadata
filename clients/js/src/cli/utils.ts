@@ -43,8 +43,8 @@ import { parse as parseYaml } from 'yaml';
 
 import { Buffer, DataSource, Encoding, fetchBuffer, findMetadataPda, Format, Seed, SeedArgs } from '../generated';
 import { decodeData, packDirectData, PackedData, packExternalData, packUrlData } from '../packData';
-import { getProgramAuthority } from '../utils';
 import { programMetadataProgram } from '../plugin';
+import { getProgramAuthority } from '../utils';
 import { logErrorAndExit, logExports, logSuccess, logWarning } from './logs';
 import {
     ExportEncodingOption,

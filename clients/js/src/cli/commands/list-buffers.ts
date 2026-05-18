@@ -7,16 +7,17 @@ import {
     pipe,
 } from '@solana/kit';
 import { Argument } from 'commander';
+
 import {
     AccountDiscriminator,
     getAccountDiscriminatorEncoder,
     PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from '../../generated';
+import { ACCOUNT_HEADER_LENGTH } from '../../utils';
 import { humanFileSize, logCommand, logTable } from '../logs';
 import { GlobalOptions } from '../options';
 import { addressParser } from '../parsers';
 import { CustomCommand, getKeyPairSigners, getReadonlyClient } from '../utils';
-import { ACCOUNT_HEADER_LENGTH } from '../../utils';
 
 const DISCRIMINATOR_OFFSET = 0n;
 const AUTHORITY_OFFSET = 33n;

@@ -1,5 +1,6 @@
 import { address, getUtf8Encoder, none, some } from '@solana/kit';
 import { expect, it } from 'vitest';
+
 import {
     ACCOUNT_HEADER_LENGTH,
     AccountDiscriminator,

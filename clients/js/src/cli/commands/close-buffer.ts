@@ -1,4 +1,5 @@
 import { Address } from '@solana/kit';
+
 import { fetchMaybeBuffer } from '../../generated';
 import { bufferArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';

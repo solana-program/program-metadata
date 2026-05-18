@@ -1,9 +1,10 @@
 import { Address } from '@solana/kit';
+
 import { Seed } from '../../generated';
 import { programArgument, seedArgument } from '../arguments';
+import { logCommand } from '../logs';
 import { GlobalOptions, NonCanonicalWriteOption, nonCanonicalWriteOption } from '../options';
 import { CustomCommand, getClient, getPdaDetailsForWriting } from '../utils';
-import { logCommand } from '../logs';
 
 export function setCloseCommand(program: CustomCommand): void {
     program

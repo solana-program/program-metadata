@@ -2,17 +2,14 @@
     "name": "@solana-program/program-metadata",
     "version": "0.5.1",
     "description": "JavaScript client for the Program Metadata program",
-    "sideEffects": false,
-    "module": "./dist/src/index.mjs",
-    "main": "./dist/src/index.js",
-    "types": "./dist/types/index.d.ts",
-    "type": "commonjs",
-    "exports": {
-        ".": {
-            "types": "./dist/types/index.d.ts",
-            "import": "./dist/src/index.mjs",
-            "require": "./dist/src/index.js"
-        }
+    "homepage": "https://github.com/solana-program/program-metadata#readme",
+    "bugs": {
+        "url": "https://github.com/solana-program/program-metadata/issues"
+    },
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/solana-program/program-metadata.git"
     },
     "bin": {
         "program-metadata": "./bin/cli.cjs"
@@ -22,32 +19,32 @@
         "./dist/types",
         "./src/"
     ],
-    "scripts": {
-        "build": "rimraf dist && tsup && tsc -p ./tsconfig.declarations.json",
-        "build:docs": "typedoc",
-        "dev": "vitest",
-        "test": "vitest run",
-        "lint": "eslint --ext js,ts,tsx src",
-        "lint:fix": "eslint --fix --ext js,ts,tsx src",
-        "format": "prettier --check src test",
-        "format:fix": "prettier --write src test",
-        "prepublishOnly": "pnpm build"
+    "type": "commonjs",
+    "sideEffects": false,
+    "main": "./dist/src/index.js",
+    "module": "./dist/src/index.mjs",
+    "types": "./dist/types/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/types/index.d.ts",
+            "import": "./dist/src/index.mjs",
+            "require": "./dist/src/index.js"
+        }
     },
     "publishConfig": {
         "access": "public",
         "registry": "https://registry.npmjs.org"
     },
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/solana-program/program-metadata.git"
-    },
-    "bugs": {
-        "url": "https://github.com/solana-program/program-metadata/issues"
-    },
-    "homepage": "https://github.com/solana-program/program-metadata#readme",
-    "license": "MIT",
-    "peerDependencies": {
-        "@solana/kit": "^6.4.0"
+    "scripts": {
+        "build": "rimraf dist && tsup && tsc -p ./tsconfig.declarations.json",
+        "build:docs": "typedoc",
+        "dev": "vitest",
+        "test": "vitest run",
+        "lint": "oxlint",
+        "lint:fix": "oxlint --fix",
+        "format": "oxfmt --check",
+        "format:fix": "oxfmt",
+        "prepublishOnly": "pnpm build"
     },
     "dependencies": {
         "@iarna/toml": "^2.2.5",
@@ -59,21 +56,23 @@
         "yaml": "^2.7.0"
     },
     "devDependencies": {
-        "@solana-config/eslint": "^0.2.3",
+        "@solana-config/oxc": "^0.1.1",
         "@solana/kit": "^6.9.0",
         "@solana/kit-plugin-litesvm": "^0.10.0",
         "@solana/kit-plugin-rpc": "^0.11.1",
         "@solana/kit-plugin-signer": "^0.10.0",
         "@types/node": "^24",
         "@types/pako": "^2.0.3",
-        "@typescript-eslint/eslint-plugin": "^7.16.1",
-        "@typescript-eslint/parser": "^7.16.1",
-        "eslint": "^9.39.2",
-        "prettier": "^3.8.1",
+        "oxfmt": "^0.48.0",
+        "oxlint": "^1.63.0",
+        "oxlint-tsgolint": "^0.23.0",
         "rimraf": "^5.0.5",
         "tsup": "^8.1.2",
         "typedoc": "^0.25.12",
         "typescript": "^5.9.3",
         "vitest": "^4.0.15"
+    },
+    "peerDependencies": {
+        "@solana/kit": "^6.4.0"
     }
 }

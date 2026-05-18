@@ -1,4 +1,5 @@
 import { Address } from '@solana/kit';
+
 import { fetchMaybeMetadata, Seed } from '../../generated';
 import { getWriteMetadataInstructionPlan } from '../../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';

@@ -1,8 +1,9 @@
-import { Address } from '@solana/kit';
 import { Console } from 'node:console';
 import { Transform } from 'node:stream';
 
+import { Address } from '@solana/kit';
 import picocolors from 'picocolors';
+
 import { Encoding } from '../generated';
 import type { ExportEncoding } from './options';
 
