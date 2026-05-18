@@ -1,37 +1,57 @@
+import path from 'node:path';
+
 import { systemProgram } from '@solana-program/system';
 import {
     Address,
     createClient,
     generateKeyPairSigner,
-    getBase64Encoder,
+    getAddressEncoder,
+    getOptionEncoder,
+    getStructEncoder,
+    getU32Encoder,
+    getU64Encoder,
     KeyPairSigner,
+    lamports,
     Lamports,
     sol,
     solToLamports,
+    some,
 } from '@solana/kit';
-import { solanaLocalRpc } from '@solana/kit-plugin-rpc';
+import { litesvm } from '@solana/kit-plugin-litesvm';
 import { airdropSigner, generatedSigner } from '@solana/kit-plugin-signer';
 
 import {
     getProgramDataPda as getLoaderV3ProgramDataPda,
     LOADER_V3_PROGRAM_ADDRESS,
+    PROGRAM_METADATA_PROGRAM_ADDRESS,
     programMetadataProgram,
 } from '../src';
-import { getDeployWithMaxDataLenInstruction as getLoaderV3DeployInstruction } from './loader-v3/deploy';
-import { getInitializeBufferInstruction as getLoaderV3InitializeBufferInstruction } from './loader-v3/initializeBuffer';
-import { getWriteInstruction as getLoaderV3WriteInstruction } from './loader-v3/write';
 
 export const REALLOC_LIMIT = 10_240;
 
-const SMALLER_VALID_PROGRAM_BINARY =
-    'f0VMRgIBAQAAAAAAAAAAAAMA9wABAAAA6AAAAAAAAABAAAAAAAAAAMgBAAAAAAAAAAAAAEAAOAADAEAABgAFAAEAAAAFAAAA6AAAAAAAAADoAAAAAAAAAOgAAAAAAAAACAAAAAAAAAAIAAAAAAAAAAAQAAAAAAAAAQAAAAQAAABgAQAAAAAAAGABAAAAAAAAYAEAAAAAAAA8AAAAAAAAADwAAAAAAAAAABAAAAAAAAACAAAABgAAAPAAAAAAAAAA8AAAAAAAAADwAAAAAAAAAHAAAAAAAAAAcAAAAAAAAAAIAAAAAAAAAJUAAAAAAAAAHgAAAAAAAAAEAAAAAAAAAAYAAAAAAAAAYAEAAAAAAAALAAAAAAAAABgAAAAAAAAABQAAAAAAAACQAQAAAAAAAAoAAAAAAAAADAAAAAAAAAAWAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAQAAEA6AAAAAAAAAAAAAAAAAAAAABlbnRyeXBvaW50AAAudGV4dAAuZHluYW1pYwAuZHluc3ltAC5keW5zdHIALnNoc3RydGFiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAABAAAABgAAAAAAAADoAAAAAAAAAOgAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAHAAAABgAAAAMAAAAAAAAA8AAAAAAAAADwAAAAAAAAAHAAAAAAAAAABAAAAAAAAAAIAAAAAAAAABAAAAAAAAAAEAAAAAsAAAACAAAAAAAAAGABAAAAAAAAYAEAAAAAAAAwAAAAAAAAAAQAAAABAAAACAAAAAAAAAAYAAAAAAAAABgAAAADAAAAAgAAAAAAAACQAQAAAAAAAJABAAAAAAAADAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAgAAAAAwAAAAAAAAAAAAAAAAAAAAAAAACcAQAAAAAAACoAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAA';
+const PROGRAM_METADATA_BINARY_PATH = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    '..',
+    'target',
+    'deploy',
+    'spl_program_metadata.so',
+);
 
 export const createTestClient = () => {
     return createClient()
         .use(generatedSigner())
-        .use(solanaLocalRpc())
+        .use(litesvm())
         .use(airdropSigner(solToLamports(sol('1'))))
         .use(systemProgram())
+        .use(client => {
+            // Load the program-metadata program into the LiteSVM instance from
+            // its compiled `.so` file. This must run after the `litesvm()`
+            // plugin so that `client.svm` is available.
+            client.svm.addProgramFromFile(PROGRAM_METADATA_PROGRAM_ADDRESS, PROGRAM_METADATA_BINARY_PATH);
+            return client;
+        })
         .use(programMetadataProgram());
 };
 
@@ -49,60 +69,67 @@ export const generateKeyPairSignerWithSol = async (
 export const getBalance = async (client: TestClient, address: Address) =>
     (await client.rpc.getBalance(address, { commitment: 'confirmed' }).send()).value;
 
+/**
+ * Encoders mirroring the on-chain loader-v3 account layouts. See
+ * {@link getProgramAuthority} in `src/utils.ts` for the corresponding
+ * decoders.
+ */
+const getLoaderV3ProgramAccountEncoder = () =>
+    getStructEncoder([
+        ['discriminator', getU32Encoder()],
+        ['programData', getAddressEncoder()],
+    ]);
+
+const getLoaderV3ProgramDataAccountEncoder = () =>
+    getStructEncoder([
+        ['discriminator', getU32Encoder()],
+        ['slot', getU64Encoder()],
+        ['authority', getOptionEncoder(getAddressEncoder())],
+    ]);
+
+/**
+ * Fabricates a "deployed" loader-v3 program inside the LiteSVM instance by
+ * writing the `program` and `programData` accounts directly. The deployed
+ * program is never actually invoked — only its account data is read by the
+ * program-metadata program for the canonicity check.
+ */
 export const createDeployedProgram = async (
     client: TestClient,
     authority: KeyPairSigner,
-    payer?: KeyPairSigner,
 ): Promise<[Address, Address]> => {
-    // Prepare all inputs.
-    payer = payer ?? authority;
-    const data = getBase64Encoder().encode(SMALLER_VALID_PROGRAM_BINARY);
-    const dataSize = BigInt(37 + data.length);
-    const programSize = 36n;
-    const [buffer, program, dataRent, programRent] = await Promise.all([
-        generateKeyPairSigner(),
-        generateKeyPairSigner(),
-        client.getMinimumBalance(Number(dataSize)),
-        client.getMinimumBalance(Number(programSize)),
-    ]);
+    const program = await generateKeyPairSigner();
     const [programData] = await getLoaderV3ProgramDataPda(program.address);
 
-    // Create the buffer, write the program binary to it, create the program
-    // account and deploy the program from the buffer.
-    await client.sendTransactions([
-        client.system.instructions.createAccount({
-            payer,
-            newAccount: buffer,
-            lamports: dataRent,
-            space: dataSize,
-            programAddress: LOADER_V3_PROGRAM_ADDRESS,
-        }),
-        getLoaderV3InitializeBufferInstruction({
-            sourceAccount: buffer.address,
-            bufferAuthority: authority.address,
-        }),
-        getLoaderV3WriteInstruction({
-            bufferAccount: buffer.address,
-            bufferAuthority: authority,
-            offset: 0,
-            bytes: data,
-        }),
-        client.system.instructions.createAccount({
-            payer,
-            newAccount: program,
-            lamports: programRent,
-            space: programSize,
-            programAddress: LOADER_V3_PROGRAM_ADDRESS,
-        }),
-        getLoaderV3DeployInstruction({
-            payerAccount: payer,
-            programDataAccount: programData,
-            programAccount: program.address,
-            bufferAccount: buffer.address,
-            authority,
-            maxDataLen: data.length,
-        }),
-    ]);
+    const programAccountData = getLoaderV3ProgramAccountEncoder().encode({
+        discriminator: 2,
+        programData,
+    });
+    const programDataAccountData = getLoaderV3ProgramDataAccountEncoder().encode({
+        discriminator: 3,
+        slot: 0n,
+        authority: some(authority.address),
+    });
+
+    const programSpace = BigInt(programAccountData.length);
+    const programDataSpace = BigInt(programDataAccountData.length);
+
+    client.svm.setAccount({
+        address: program.address,
+        data: programAccountData,
+        executable: true,
+        lamports: lamports(client.svm.minimumBalanceForRentExemption(programSpace)),
+        programAddress: LOADER_V3_PROGRAM_ADDRESS,
+        space: programSpace,
+    });
+
+    client.svm.setAccount({
+        address: programData,
+        data: programDataAccountData,
+        executable: false,
+        lamports: lamports(client.svm.minimumBalanceForRentExemption(programDataSpace)),
+        programAddress: LOADER_V3_PROGRAM_ADDRESS,
+        space: programDataSpace,
+    });
 
     return [program.address, programData];
 };
