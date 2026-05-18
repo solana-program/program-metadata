@@ -6,7 +6,19 @@ export default {
     scripts: {
         js: {
             from: '@codama/renderers-js',
-            args: ['clients/js', { syncPackageJson: true, kitImportStrategy: 'rootOnly' }],
+            args: [
+                'clients/js',
+                {
+                    syncPackageJson: true,
+                    kitImportStrategy: 'rootOnly',
+                    prettierOptions: {
+                        arrowParens: 'avoid',
+                        printWidth: 120,
+                        singleQuote: true,
+                        tabWidth: 4,
+                    },
+                },
+            ],
         },
         rust: [
             {
