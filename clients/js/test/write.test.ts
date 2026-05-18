@@ -1,9 +1,9 @@
 import { address, generateKeyPairSigner, getUtf8Encoder } from '@solana/kit';
-import test from 'ava';
+import { expect, it } from 'vitest';
 import { AccountDiscriminator, Buffer, findCanonicalPda, findNonCanonicalPda } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('it writes to canonical PDA buffers', async t => {
+it('writes to canonical PDA buffers', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -22,10 +22,14 @@ test('it writes to canonical PDA buffers', async t => {
 
     // Then we expect the buffer account to contain the written data.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetch(buffer);
-    t.like(bufferAccount.data, <Partial<Buffer>>{ discriminator: AccountDiscriminator.Buffer, canonical: true, data });
+    expect(bufferAccount.data).toMatchObject(<Partial<Buffer>>{
+        discriminator: AccountDiscriminator.Buffer,
+        canonical: true,
+        data,
+    });
 });
 
-test('it writes to non-canonical PDA buffers', async t => {
+it('writes to non-canonical PDA buffers', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -44,10 +48,14 @@ test('it writes to non-canonical PDA buffers', async t => {
 
     // Then we expect the buffer account to contain the written data.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetch(buffer);
-    t.like(bufferAccount.data, <Partial<Buffer>>{ discriminator: AccountDiscriminator.Buffer, canonical: false, data });
+    expect(bufferAccount.data).toMatchObject(<Partial<Buffer>>{
+        discriminator: AccountDiscriminator.Buffer,
+        canonical: false,
+        data,
+    });
 });
 
-test('it writes to keypair buffers', async t => {
+it('writes to keypair buffers', async () => {
     // Given the following payer.
     const client = await createTestClient();
     const payer = await generateKeyPairSignerWithSol(client);
@@ -66,10 +74,10 @@ test('it writes to keypair buffers', async t => {
 
     // Then we expect the buffer account to contain the written data.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetch(buffer.address);
-    t.like(bufferAccount.data, <Partial<Buffer>>{ discriminator: AccountDiscriminator.Buffer, data });
+    expect(bufferAccount.data).toMatchObject(<Partial<Buffer>>{ discriminator: AccountDiscriminator.Buffer, data });
 });
 
-test('it appends to the end of buffers when doing multiple writes', async t => {
+it('appends to the end of buffers when doing multiple writes', async () => {
     // Given the following payer.
     const client = await createTestClient();
     const payer = await generateKeyPairSignerWithSol(client);
@@ -105,13 +113,13 @@ test('it appends to the end of buffers when doing multiple writes', async t => {
 
     // Then we expect the buffer account to contain the written data.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetch(buffer.address);
-    t.like(bufferAccount.data, <Partial<Buffer>>{
+    expect(bufferAccount.data).toMatchObject(<Partial<Buffer>>{
         discriminator: AccountDiscriminator.Buffer,
         data: new Uint8Array([...dataChunk1, ...dataChunk2]),
     });
 });
 
-test('it writes to buffers using other buffers', async t => {
+it('writes to buffers using other buffers', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -139,5 +147,9 @@ test('it writes to buffers using other buffers', async t => {
 
     // Then we expect the buffer account to contain the data from the source buffer.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetch(buffer);
-    t.like(bufferAccount.data, <Partial<Buffer>>{ discriminator: AccountDiscriminator.Buffer, canonical: true, data });
+    expect(bufferAccount.data).toMatchObject(<Partial<Buffer>>{
+        discriminator: AccountDiscriminator.Buffer,
+        canonical: true,
+        data,
+    });
 });

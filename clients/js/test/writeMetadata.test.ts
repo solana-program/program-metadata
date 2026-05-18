@@ -1,9 +1,9 @@
 import { getUtf8Encoder, none } from '@solana/kit';
-import test from 'ava';
+import { expect, it } from 'vitest';
 import { AccountDiscriminator, Compression, DataSource, Encoding, findCanonicalPda, Format, Metadata } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('it creates a new metadata account if it does not exist', async t => {
+it('creates a new metadata account if it does not exist', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -12,7 +12,7 @@ test('it creates a new metadata account if it does not exist', async t => {
     // And given the following canonical metadata account does not exist.
     const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
     const initialAccount = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
-    t.false(initialAccount.exists);
+    expect(initialAccount.exists).toBe(false);
 
     // When we upload this canonical metadata account.
     const data = getUtf8Encoder().encode('Some data');
@@ -30,7 +30,7 @@ test('it creates a new metadata account if it does not exist', async t => {
 
     // Then we expect the metadata account to be created.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: none(),
@@ -46,7 +46,7 @@ test('it creates a new metadata account if it does not exist', async t => {
     });
 });
 
-test('it updates a metadata account if it exists', async t => {
+it('updates a metadata account if it exists', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -82,7 +82,7 @@ test('it updates a metadata account if it exists', async t => {
     // Then we expect the metadata account to be updated.
     const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: none(),

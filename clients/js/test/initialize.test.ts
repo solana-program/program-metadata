@@ -1,5 +1,5 @@
 import { address, getUtf8Encoder, none, some } from '@solana/kit';
-import test from 'ava';
+import { expect, it } from 'vitest';
 import {
     ACCOUNT_HEADER_LENGTH,
     AccountDiscriminator,
@@ -14,7 +14,7 @@ import {
 } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('it initializes a non canonical PDA with direct data from instruction data', async t => {
+it('initializes a non canonical PDA with direct data from instruction data', async () => {
     // Given the following authority and program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -46,7 +46,7 @@ test('it initializes a non canonical PDA with direct data from instruction data'
 
     // Then we expect the following metadata account to be created.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: some(authority.address),
@@ -62,7 +62,7 @@ test('it initializes a non canonical PDA with direct data from instruction data'
     });
 });
 
-test('it initializes a non canonical PDA with url data from instruction data', async t => {
+it('initializes a non canonical PDA with url data from instruction data', async () => {
     // Given the following authority and program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -94,7 +94,7 @@ test('it initializes a non canonical PDA with url data from instruction data', a
 
     // Then we expect a URL metadata account to be created.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: some(authority.address),
@@ -110,7 +110,7 @@ test('it initializes a non canonical PDA with url data from instruction data', a
     });
 });
 
-test('it initializes a non canonical PDA with external data from instruction data', async t => {
+it('initializes a non canonical PDA with external data from instruction data', async () => {
     // Given the following authority and program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -147,7 +147,7 @@ test('it initializes a non canonical PDA with external data from instruction dat
 
     // Then we expect an external metadata account to be created.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: some(authority.address),
@@ -163,7 +163,7 @@ test('it initializes a non canonical PDA with external data from instruction dat
     });
 });
 
-test('it initializes a canonical PDA from instruction data', async t => {
+it('initializes a canonical PDA from instruction data', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -196,7 +196,7 @@ test('it initializes a canonical PDA from instruction data', async t => {
 
     // Then we expect the following metadata account to be created.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: none(),
@@ -212,7 +212,7 @@ test('it initializes a canonical PDA from instruction data', async t => {
     });
 });
 
-test('it initializes a canonical PDA from a pre-allocated buffer', async t => {
+it('initializes a canonical PDA from a pre-allocated buffer', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -243,7 +243,7 @@ test('it initializes a canonical PDA from a pre-allocated buffer', async t => {
 
     // Then we expect the buffer account to now be a metadata account.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: none(),
@@ -259,7 +259,7 @@ test('it initializes a canonical PDA from a pre-allocated buffer', async t => {
     });
 });
 
-test('it initializes a non-canonical PDA from a pre-allocated buffer', async t => {
+it('initializes a non-canonical PDA from a pre-allocated buffer', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -289,7 +289,7 @@ test('it initializes a non-canonical PDA from a pre-allocated buffer', async t =
 
     // Then we expect the buffer account to now be a metadata account.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: some(authority.address),

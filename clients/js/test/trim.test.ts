@@ -1,5 +1,5 @@
 import { address, generateKeyPairSigner, getUtf8Encoder, lamports } from '@solana/kit';
-import test from 'ava';
+import { expect, test } from 'vitest';
 import {
     AccountDiscriminator,
     Compression,
@@ -12,7 +12,7 @@ import {
 } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol, getBalance } from './_setup';
 
-test('the program authority of a canonical metadata account can trim it', async t => {
+test('the program authority of a canonical metadata account can trim it', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const rentForAccountHeader = await client.getMinimumBalance(0);
@@ -62,7 +62,7 @@ test('the program authority of a canonical metadata account can trim it', async 
 
     // Then we expect the metadata account to be trimmed.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         data: reducedData,
     });
@@ -70,10 +70,10 @@ test('the program authority of a canonical metadata account can trim it', async 
     // And we expect the destination account to have the rent difference.
     const rentDifference = await client.getMinimumBalance(100, { withoutHeader: true });
     const destinationBalance = await getBalance(client, destination.address);
-    t.is(destinationBalance, lamports(rentForAccountHeader + rentDifference));
+    expect(destinationBalance).toBe(lamports(rentForAccountHeader + rentDifference));
 });
 
-test('the explicit authority of a canonical metadata account can trim it', async t => {
+test('the explicit authority of a canonical metadata account can trim it', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const rentForAccountHeader = await client.getMinimumBalance(0);
@@ -127,7 +127,7 @@ test('the explicit authority of a canonical metadata account can trim it', async
 
     // Then we expect the metadata account to be trimmed.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         data: reducedData,
     });
@@ -135,10 +135,10 @@ test('the explicit authority of a canonical metadata account can trim it', async
     // And we expect the destination account to have the rent difference.
     const rentDifference = await client.getMinimumBalance(100, { withoutHeader: true });
     const destinationBalance = await getBalance(client, destination.address);
-    t.is(destinationBalance, lamports(rentForAccountHeader + rentDifference));
+    expect(destinationBalance).toBe(lamports(rentForAccountHeader + rentDifference));
 });
 
-test('the metadata authority of a non-canonical metadata account can trim it', async t => {
+test('the metadata authority of a non-canonical metadata account can trim it', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const rentForAccountHeader = await client.getMinimumBalance(0);
@@ -183,7 +183,7 @@ test('the metadata authority of a non-canonical metadata account can trim it', a
 
     // Then we expect the metadata account to be trimmed.
     const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(metadataAccount.data, <Metadata>{
+    expect(metadataAccount.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         data: reducedData,
     });
@@ -191,5 +191,5 @@ test('the metadata authority of a non-canonical metadata account can trim it', a
     // And we expect the destination account to have the rent difference.
     const rentDifference = await client.getMinimumBalance(100, { withoutHeader: true });
     const destinationBalance = await getBalance(client, destination.address);
-    t.is(destinationBalance, lamports(rentForAccountHeader + rentDifference));
+    expect(destinationBalance).toBe(lamports(rentForAccountHeader + rentDifference));
 });

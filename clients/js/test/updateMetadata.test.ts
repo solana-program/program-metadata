@@ -1,5 +1,5 @@
 import { address, generateKeyPairSigner, getUtf8Encoder, none, some } from '@solana/kit';
-import test from 'ava';
+import { expect, it } from 'vitest';
 import {
     AccountDiscriminator,
     Compression,
@@ -12,7 +12,7 @@ import {
 } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('it updates a canonical metadata account', async t => {
+it('updates a canonical metadata account', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -48,7 +48,7 @@ test('it updates a canonical metadata account', async t => {
     // Then we expect the metadata account to be updated.
     const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: none(),
@@ -64,7 +64,7 @@ test('it updates a canonical metadata account', async t => {
     });
 });
 
-test('it updates a canonical metadata account with data larger than a transaction size', async t => {
+it('updates a canonical metadata account with data larger than a transaction size', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -100,7 +100,7 @@ test('it updates a canonical metadata account with data larger than a transactio
     // Then we expect the metadata account to be updated.
     const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: none(),
@@ -116,7 +116,7 @@ test('it updates a canonical metadata account with data larger than a transactio
     });
 });
 
-test('it updates a canonical metadata account using an existing buffer', async t => {
+it('updates a canonical metadata account using an existing buffer', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -158,7 +158,7 @@ test('it updates a canonical metadata account using an existing buffer', async t
     // Then we expect the metadata account to be updated.
     const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: none(),
@@ -174,7 +174,7 @@ test('it updates a canonical metadata account using an existing buffer', async t
     });
 });
 
-test('it updates a non-canonical metadata account', async t => {
+it('updates a non-canonical metadata account', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -208,7 +208,7 @@ test('it updates a non-canonical metadata account', async t => {
     // Then we expect the metadata account to be updated.
     const [metadata] = await findNonCanonicalPda({ program, authority: authority.address, seed: 'idl' });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: some(authority.address),
@@ -224,7 +224,7 @@ test('it updates a non-canonical metadata account', async t => {
     });
 });
 
-test('it updates a non-canonical metadata account with data larger than a transaction size', async t => {
+it('updates a non-canonical metadata account with data larger than a transaction size', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -258,7 +258,7 @@ test('it updates a non-canonical metadata account with data larger than a transa
     // Then we expect the metadata account to be updated.
     const [metadata] = await findNonCanonicalPda({ program, authority: authority.address, seed: 'idl' });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: some(authority.address),
@@ -274,7 +274,7 @@ test('it updates a non-canonical metadata account with data larger than a transa
     });
 });
 
-test('it updates a non-canonical metadata account using an existing buffer', async t => {
+it('updates a non-canonical metadata account using an existing buffer', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -314,7 +314,7 @@ test('it updates a non-canonical metadata account using an existing buffer', asy
     // Then we expect the metadata account to be updated.
     const [metadata] = await findNonCanonicalPda({ program, authority: authority.address, seed: 'idl' });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: some(authority.address),
@@ -330,7 +330,7 @@ test('it updates a non-canonical metadata account using an existing buffer', asy
     });
 });
 
-test('it cannot update a metadata account if no data or buffer is provided', async t => {
+it('cannot update a metadata account if no data or buffer is provided', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -360,12 +360,10 @@ test('it cannot update a metadata account if no data or buffer is provided', asy
     });
 
     // Then we expect the following error to be thrown.
-    await t.throwsAsync(promise, {
-        message: 'Either `buffer` or `data` must be provided to update a metadata account.',
-    });
+    await expect(promise).rejects.toThrow('Either `buffer` or `data` must be provided to update a metadata account.');
 });
 
-test('it can close a new buffer after using it to update a new metadata account', async t => {
+it('can close a new buffer after using it to update a new metadata account', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -402,7 +400,7 @@ test('it can close a new buffer after using it to update a new metadata account'
     // Then we expect the metadata account to be updated.
     const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.like(account.data, <Metadata>{
+    expect(account.data).toMatchObject(<Metadata>{
         discriminator: AccountDiscriminator.Metadata,
         program,
         authority: none(),
@@ -418,7 +416,7 @@ test('it can close a new buffer after using it to update a new metadata account'
     });
 });
 
-test('it can close an existing buffer after using it to update a new metadata account', async t => {
+it('can close an existing buffer after using it to update a new metadata account', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -461,5 +459,5 @@ test('it can close an existing buffer after using it to update a new metadata ac
 
     // Then we expect the buffer account to no longer exist.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
-    t.false(bufferAccount.exists);
+    expect(bufferAccount.exists).toBe(false);
 });

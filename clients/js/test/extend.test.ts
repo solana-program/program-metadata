@@ -1,5 +1,5 @@
 import { address, assertAccountExists, fetchEncodedAccount, generateKeyPairSigner, getUtf8Encoder } from '@solana/kit';
-import test from 'ava';
+import { expect, test } from 'vitest';
 import {
     ACCOUNT_HEADER_LENGTH,
     Compression,
@@ -11,7 +11,7 @@ import {
 } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('the program authority of a canonical metadata account can extend it', async t => {
+test('the program authority of a canonical metadata account can extend it', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -52,10 +52,10 @@ test('the program authority of a canonical metadata account can extend it', asyn
     // Then we expect the metadata account to be extended.
     const metadataAccount = await fetchEncodedAccount(client.rpc, metadata);
     assertAccountExists(metadataAccount);
-    t.is(metadataAccount.data.length, ACCOUNT_HEADER_LENGTH + 300);
+    expect(metadataAccount.data.length).toBe(ACCOUNT_HEADER_LENGTH + 300);
 });
 
-test('the explicit authority of a canonical metadata account can extend it', async t => {
+test('the explicit authority of a canonical metadata account can extend it', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const [programAuthority, authority] = await Promise.all([
@@ -106,10 +106,10 @@ test('the explicit authority of a canonical metadata account can extend it', asy
     // Then we expect the metadata account to be extended.
     const metadataAccount = await fetchEncodedAccount(client.rpc, metadata);
     assertAccountExists(metadataAccount);
-    t.is(metadataAccount.data.length, ACCOUNT_HEADER_LENGTH + 300);
+    expect(metadataAccount.data.length).toBe(ACCOUNT_HEADER_LENGTH + 300);
 });
 
-test('the metadata authority of a non-canonical metadata account can extend it', async t => {
+test('the metadata authority of a non-canonical metadata account can extend it', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -147,5 +147,5 @@ test('the metadata authority of a non-canonical metadata account can extend it',
     // Then we expect the metadata account to be extended.
     const metadataAccount = await fetchEncodedAccount(client.rpc, metadata);
     assertAccountExists(metadataAccount);
-    t.is(metadataAccount.data.length, ACCOUNT_HEADER_LENGTH + 300);
+    expect(metadataAccount.data.length).toBe(ACCOUNT_HEADER_LENGTH + 300);
 });

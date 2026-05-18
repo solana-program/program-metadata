@@ -1,9 +1,9 @@
 import { address, generateKeyPairSigner, getUtf8Encoder } from '@solana/kit';
-import test from 'ava';
+import { expect, test } from 'vitest';
 import { Compression, DataSource, Encoding, findCanonicalPda, findNonCanonicalPda, Format } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('the program authority can of a canonical metadata account can make it immutable', async t => {
+test('the program authority can of a canonical metadata account can make it immutable', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -30,10 +30,10 @@ test('the program authority can of a canonical metadata account can make it immu
 
     // Then we expect the metadata account to be immutable.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.deepEqual(account.data.mutable, false);
+    expect(account.data.mutable).toEqual(false);
 });
 
-test('the explicit authority of a canonical metadata account can make it immutable', async t => {
+test('the explicit authority of a canonical metadata account can make it immutable', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
@@ -76,10 +76,10 @@ test('the explicit authority of a canonical metadata account can make it immutab
 
     // Then we expect the metadata account to be immutable.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.deepEqual(account.data.mutable, false);
+    expect(account.data.mutable).toEqual(false);
 });
 
-test('the authority of a non-canonical metadata account can make it immutable', async t => {
+test('the authority of a non-canonical metadata account can make it immutable', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -103,5 +103,5 @@ test('the authority of a non-canonical metadata account can make it immutable', 
 
     // Then we expect the metadata account to be immutable.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.deepEqual(account.data.mutable, false);
+    expect(account.data.mutable).toEqual(false);
 });

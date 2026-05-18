@@ -9,7 +9,7 @@ import {
     SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ARGUMENT,
     some,
 } from '@solana/kit';
-import test from 'ava';
+import { expect, test } from 'vitest';
 import {
     ACCOUNT_HEADER_LENGTH,
     Compression,
@@ -23,7 +23,7 @@ import {
 } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('the program authority can set another authority on canonical metadata accounts', async t => {
+test('the program authority can set another authority on canonical metadata accounts', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, newAuthority] = await Promise.all([
@@ -53,10 +53,10 @@ test('the program authority can set another authority on canonical metadata acco
 
     // Then we expect the metadata account to record the new authority.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.deepEqual(account.data.authority, some(newAuthority.address));
+    expect(account.data.authority).toEqual(some(newAuthority.address));
 });
 
-test('the program authority can update an existing authority on canonical metadata accounts', async t => {
+test('the program authority can update an existing authority on canonical metadata accounts', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthorityA, explicitAuthorityB] = await Promise.all([
@@ -101,10 +101,10 @@ test('the program authority can update an existing authority on canonical metada
 
     // Then we expect the metadata account to record the latest explicit authority.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.deepEqual(account.data.authority, some(explicitAuthorityB.address));
+    expect(account.data.authority).toEqual(some(explicitAuthorityB.address));
 });
 
-test('the program authority can remove an existing authority on canonical metadata accounts', async t => {
+test('the program authority can remove an existing authority on canonical metadata accounts', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
@@ -148,10 +148,10 @@ test('the program authority can remove an existing authority on canonical metada
 
     // Then we expect the metadata account to have no explicit authority.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.deepEqual(account.data.authority, none());
+    expect(account.data.authority).toEqual(none());
 });
 
-test('an explicitly set authority can update itself on canonical metadata accounts', async t => {
+test('an explicitly set authority can update itself on canonical metadata accounts', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthorityA, explicitAuthorityB] = await Promise.all([
@@ -196,10 +196,10 @@ test('an explicitly set authority can update itself on canonical metadata accoun
 
     // Then we expect the metadata account to record the latest explicit authority.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.deepEqual(account.data.authority, some(explicitAuthorityB.address));
+    expect(account.data.authority).toEqual(some(explicitAuthorityB.address));
 });
 
-test('an explicitly set authority can remove itself on canonical metadata accounts', async t => {
+test('an explicitly set authority can remove itself on canonical metadata accounts', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthority] = await Promise.all([
@@ -243,10 +243,10 @@ test('an explicitly set authority can remove itself on canonical metadata accoun
 
     // Then we expect the metadata account to have no explicit authority.
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
-    t.deepEqual(account.data.authority, none());
+    expect(account.data.authority).toEqual(none());
 });
 
-test('the authority of a non-canonical metadata account cannot set another authority on the account', async t => {
+test('the authority of a non-canonical metadata account cannot set another authority on the account', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, newAuthority] = await Promise.all([
@@ -274,11 +274,13 @@ test('the authority of a non-canonical metadata account cannot set another autho
         .sendTransaction();
 
     // Then we expect the transaction to fail.
-    const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA));
+    const error = await promise.catch((e: unknown) => e);
+    expect(isSolanaError(error)).toBe(true);
+    if (!isSolanaError(error)) return;
+    expect(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA)).toBe(true);
 });
 
-test('the authority of a non-canonical metadata account cannot remove itself on the account', async t => {
+test('the authority of a non-canonical metadata account cannot remove itself on the account', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -303,11 +305,13 @@ test('the authority of a non-canonical metadata account cannot remove itself on 
         .sendTransaction();
 
     // Then we expect the transaction to fail.
-    const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA));
+    const error = await promise.catch((e: unknown) => e);
+    expect(isSolanaError(error)).toBe(true);
+    if (!isSolanaError(error)) return;
+    expect(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ACCOUNT_DATA)).toBe(true);
 });
 
-test('the authority can update itself on buffer accounts', async t => {
+test('the authority can update itself on buffer accounts', async () => {
     // Given the following buffer and authorities.
     const client = await createTestClient();
     const [payer, buffer, newAuthority] = await Promise.all([
@@ -337,10 +341,10 @@ test('the authority can update itself on buffer accounts', async t => {
 
     // Then we expect the buffer account to record the new authority.
     const account = await client.programMetadata.accounts.buffer.fetch(buffer.address);
-    t.deepEqual(account.data.authority, some(newAuthority.address));
+    expect(account.data.authority).toEqual(some(newAuthority.address));
 });
 
-test('the authority cannot remove itself on buffer accounts', async t => {
+test('the authority cannot remove itself on buffer accounts', async () => {
     // Given the following buffer and authorities.
     const client = await createTestClient();
     const [payer, buffer] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -365,11 +369,13 @@ test('the authority cannot remove itself on buffer accounts', async t => {
     ]);
 
     // Then we expect the transaction to fail.
-    const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ARGUMENT));
+    const error = await promise.catch((e: unknown) => e);
+    expect(isSolanaError(error)).toBe(true);
+    if (!isSolanaError(error)) return;
+    expect(isSolanaError(error.cause, SOLANA_ERROR__INSTRUCTION_ERROR__INVALID_ARGUMENT)).toBe(true);
 });
 
-test('the authority cannot be changed on immutable metadata accounts', async t => {
+test('the authority cannot be changed on immutable metadata accounts', async () => {
     // Given the following authorities and deployed program.
     const client = await createTestClient();
     const [authority, explicitAuthority, anotherAuthority] = await Promise.all([
@@ -420,11 +426,11 @@ test('the authority cannot be changed on immutable metadata accounts', async t =
     ]);
 
     // Then we expect the transaction to fail with the IMMUTABLE_METADATA_ACCOUNT program error.
-    const error = await t.throwsAsync(promise);
-    t.true(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION));
+    const error = await promise.catch((e: unknown) => e);
+    expect(isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)).toBe(true);
     if (!isSolanaError(error, SOLANA_ERROR__FAILED_TO_SEND_TRANSACTION)) return;
     const result = error.context.transactionPlanResult as SingleTransactionPlanResult;
-    t.true(
+    expect(
         isProgramMetadataError(error.cause, result.plannedMessage, PROGRAM_METADATA_ERROR__IMMUTABLE_METADATA_ACCOUNT),
-    );
+    ).toBe(true);
 });

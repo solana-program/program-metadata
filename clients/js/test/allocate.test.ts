@@ -1,9 +1,9 @@
 import { address, generateKeyPairSigner, none, some } from '@solana/kit';
-import test from 'ava';
+import { expect, it } from 'vitest';
 import { ACCOUNT_HEADER_LENGTH, AccountDiscriminator, Buffer, findCanonicalPda, findNonCanonicalPda } from '../src';
 import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
 
-test('it allocates a canonical PDA buffer', async t => {
+it('allocates a canonical PDA buffer', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -25,7 +25,7 @@ test('it allocates a canonical PDA buffer', async t => {
 
     // Then we expect the following buffer account to be created.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetch(buffer);
-    t.like(bufferAccount.data, <Buffer>{
+    expect(bufferAccount.data).toMatchObject(<Buffer>{
         discriminator: AccountDiscriminator.Buffer,
         program: some(program),
         authority: some(authority.address),
@@ -35,7 +35,7 @@ test('it allocates a canonical PDA buffer', async t => {
     });
 });
 
-test('it allocates a non-canonical PDA buffer', async t => {
+it('allocates a non-canonical PDA buffer', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();
     const authority = await generateKeyPairSignerWithSol(client);
@@ -57,7 +57,7 @@ test('it allocates a non-canonical PDA buffer', async t => {
 
     // Then we expect the following buffer account to be created.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetch(buffer);
-    t.like(bufferAccount.data, <Buffer>{
+    expect(bufferAccount.data).toMatchObject(<Buffer>{
         discriminator: AccountDiscriminator.Buffer,
         program: some(program),
         authority: some(authority.address),
@@ -67,7 +67,7 @@ test('it allocates a non-canonical PDA buffer', async t => {
     });
 });
 
-test('it allocates a keypair buffer', async t => {
+it('allocates a keypair buffer', async () => {
     // Given the following payer and buffer keypairs.
     const client = await createTestClient();
     const [payer, buffer] = await Promise.all([generateKeyPairSignerWithSol(client), generateKeyPairSigner()]);
@@ -84,7 +84,7 @@ test('it allocates a keypair buffer', async t => {
 
     // Then we expect the following buffer account to be created.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetch(buffer.address);
-    t.like(bufferAccount.data, <Buffer>{
+    expect(bufferAccount.data).toMatchObject(<Buffer>{
         discriminator: AccountDiscriminator.Buffer,
         program: none(),
         authority: some(buffer.address),
