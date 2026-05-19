@@ -269,16 +269,10 @@ Like this you can for example have multiple programs point to the same metadata 
 
 ## Building
 
-To build the program locally, first install the required packages using:
+To build the program locally, run:
 
 ```sh
-pnpm install
-```
-
-and then run:
-
-```sh
-pnpm programs:build
+make build-sbf-program
 ```
 
 ## Testing
@@ -288,13 +282,13 @@ The repository includes two types of tests: program tests and JS client tests.
 To run the program tests:
 
 ```sh
-pnpm programs:test
+make test-program
 ```
 
 To run the JS tests:
 
 ```sh
-pnpm clients:js:test
+make test-js-clients-js
 ```
 
 ## License
