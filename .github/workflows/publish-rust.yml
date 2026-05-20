@@ -10,6 +10,7 @@ on:
         type: choice
         options:
           - clients/rust
+          - program
       level:
         description: Level
         required: true
