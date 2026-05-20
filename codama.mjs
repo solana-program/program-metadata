@@ -1,4 +1,7 @@
+import { execSync } from 'node:child_process';
 import * as c from 'codama';
+
+const nightly = execSync('make rust-toolchain-nightly').toString().trim();
 
 export default {
     idl: 'program/idl.json',
@@ -91,7 +94,7 @@ export default {
                     'clients/rust',
                     {
                         formatCode: true,
-                        toolchain: '+nightly-2026-01-22',
+                        toolchain: `+${nightly}`,
                         anchorTraits: false,
                         linkOverrides: {
                             definedTypes: {
