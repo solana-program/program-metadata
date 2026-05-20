@@ -12,72 +12,72 @@ find-pattern-dir = $(findstring $(call pattern-dir,$1)-,$1)
 make-path = $(subst $(call find-pattern-dir,$1),$(subst -,/,$(call find-pattern-dir,$1)),$1)
 
 rust-toolchain-nightly:
-    @echo ${RUST_TOOLCHAIN_NIGHTLY}
+	@echo ${RUST_TOOLCHAIN_NIGHTLY}
 
 solana-cli-version:
-    @echo ${SOLANA_CLI_VERSION}
+	@echo ${SOLANA_CLI_VERSION}
 
 cargo-nightly:
-    cargo $(nightly) $(ARGS)
+	cargo $(nightly) $(ARGS)
 
 audit:
-    cargo audit \
-        --ignore RUSTSEC-2022-0093 \
-        --ignore RUSTSEC-2024-0344 \
-        --ignore RUSTSEC-2026-0009 \
-        --ignore RUSTSEC-2026-0037 \
-        --ignore RUSTSEC-2026-0049 \
-        --ignore RUSTSEC-2026-0098 \
-        --ignore RUSTSEC-2026-0099 \
-        --ignore RUSTSEC-2026-0104 \
-        $(ARGS)
+	cargo audit \
+		--ignore RUSTSEC-2022-0093 \
+		--ignore RUSTSEC-2024-0344 \
+		--ignore RUSTSEC-2026-0009 \
+		--ignore RUSTSEC-2026-0037 \
+		--ignore RUSTSEC-2026-0049 \
+		--ignore RUSTSEC-2026-0098 \
+		--ignore RUSTSEC-2026-0099 \
+		--ignore RUSTSEC-2026-0104 \
+		$(ARGS)
 
 spellcheck:
-    cargo spellcheck --code 1 $(ARGS)
+	cargo spellcheck --code 1 $(ARGS)
 
 clippy-%:
-    cargo $(nightly) clippy --manifest-path $(call make-path,$*)/Cargo.toml \
-        --all-targets \
-        --all-features \
-            -- \
-            --deny=warnings \
-            --deny=clippy::arithmetic_side_effects $(ARGS)
+	cargo $(nightly) clippy --manifest-path $(call make-path,$*)/Cargo.toml \
+		--all-targets \
+		--all-features \
+		-- \
+		--deny=warnings \
+		--deny=clippy::arithmetic_side_effects $(ARGS)
 
 format-check-js-%:
-    cd $(call make-path,$*) && pnpm install && pnpm format $(ARGS)
+	cd $(call make-path,$*) && pnpm install && pnpm format $(ARGS)
 
 format-check-%:
-    cargo $(nightly) fmt --check --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
+	cargo $(nightly) fmt --check --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 powerset-%:
-    cargo $(nightly) hack check --feature-powerset --all-targets --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
+	cargo $(nightly) hack check --feature-powerset --all-targets --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 format-rust:
-    cargo $(nightly) fmt --all $(ARGS)
+	cargo $(nightly) fmt --all $(ARGS)
 
 build-sbf-%:
-    cargo build-sbf --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
+	cargo build-sbf --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 build-doc-%:
-    RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo $(nightly) doc --all-features --no-deps --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
+	RUSTDOCFLAGS="--cfg docsrs -D warnings" cargo $(nightly) doc --all-features --no-deps --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 test-doc-%:
-    cargo $(nightly) test --doc --all-features --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
+	cargo $(nightly) test --doc --all-features --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 # The JS client uses LiteSVM in-process, so we don't need to start a local
 # validator. Programs are picked up from ./target/deploy via the LiteSVM
 # plugin in test/_setup.ts.
 test-js-%:
-    cd $(call make-path,$*) && pnpm install && pnpm build && pnpm test $(ARGS)
+	cd $(call make-path,$*) && pnpm install && pnpm build && pnpm test $(ARGS)
 
 test-%:
-    SBF_OUT_DIR=$(PWD)/target/deploy cargo test --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
+	SBF_OUT_DIR=$(PWD)/target/deploy cargo test --manifest-path $(call make-path,$*)/Cargo.toml $(ARGS)
 
 lint-js-%:
-    cd $(call make-path,$*) && pnpm install && pnpm lint $(ARGS)
+	cd $(call make-path,$*) && pnpm install && pnpm lint $(ARGS)
 
 generate-clients:
-    pnpm codama run --all $(ARGS)
+	pnpm codama run --all $(ARGS)
 
 # Helpers for publishing
 tag-name = $(lastword $(subst /, ,$(call make-path,$1)))
@@ -86,16 +86,16 @@ package-version = $(subst ",,$(shell jq -r '.version' $(call make-path,$1)/packa
 crate-version = $(subst ",,$(shell toml get $(call make-path,$1)/Cargo.toml package.version))
 
 git-tag-js-%:
-    @echo "$(call tag-name,$*)@v$(call package-version,$*)"
+	@echo "$(call tag-name,$*)@v$(call package-version,$*)"
 
 publish-js-%:
-    cd "$(call make-path,$*)" && pnpm install && pnpm version $(LEVEL) --no-git-tag-version  $(call preid-arg,$(LEVEL),$(TAG)) && pnpm publish --no-git-checks --tag $(TAG)
+	cd "$(call make-path,$*)" && pnpm install && pnpm version $(LEVEL) --no-git-tag-version  $(call preid-arg,$(LEVEL),$(TAG)) && pnpm publish --no-git-checks --tag $(TAG)
 
 git-tag-rust-%:
-    @echo "$(call tag-name,$*)@v$(call crate-version,$*)"
+	@echo "$(call tag-name,$*)@v$(call crate-version,$*)"
 
 publish-rust-dry-run-%:
-    cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}"
+	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}"
 
 publish-rust-%:
-    cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}" --execute --no-confirm --dependent-version fix
+	cd "$(call make-path,$*)" && cargo release $(LEVEL) --tag-name "$(call tag-name,$*)@v{{version}}" --execute --no-confirm --dependent-version fix
