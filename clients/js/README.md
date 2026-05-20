@@ -7,7 +7,7 @@ A generated JavaScript library for the Program Metadata program.
 To build and test your JavaScript client from the root of the repository, you may use the following command.
 
 ```sh
-pnpm clients:js:test
+make test-js-clients-js
 ```
 
 This will build the program and run the tests for your JavaScript client. Tests run in-memory via [LiteSVM](https://github.com/LiteSVM/litesvm) — no local validator required.
@@ -18,7 +18,7 @@ Alternatively, you can go into the client directory and run the tests directly.
 
 ```sh
 # Build your programs so the compiled `.so` file is available for LiteSVM.
-pnpm programs:build
+make build-sbf-program
 
 # Go into the client directory and run the tests.
 cd clients/js
