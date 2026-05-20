@@ -1,5 +1,4 @@
 use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use solana_sdk_ids::system_program;
 
@@ -11,7 +10,7 @@ pub fn initialize(
     program_data: Option<&Pubkey>,
     args: InitializeArgs,
     instruction_data: Option<&[u8]>,
-) -> Result<Instruction, ProgramError> {
+) -> Instruction {
     let seeds: &[&[u8]] = if args.canonical {
         &[program.as_ref(), args.seed.as_ref()]
     } else {
@@ -39,11 +38,11 @@ pub fn initialize(
         data.extend_from_slice(instruction_data);
     }
 
-    Ok(Instruction {
+    Instruction {
         program_id: PROGRAM_ID,
         accounts,
         data,
-    })
+    }
 }
 
 pub struct InitializeArgs {

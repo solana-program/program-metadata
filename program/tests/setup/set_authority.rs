@@ -1,28 +1,29 @@
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
-use solana_sdk_ids::system_program;
-use spl_program_metadata::{instruction::ProgramMetadataInstruction, state::SEED_LEN};
+use spl_program_metadata::instruction::ProgramMetadataInstruction;
 
 use super::PROGRAM_ID;
 
-pub fn allocate(
-    buffer: &Pubkey,
+pub fn set_authority(
+    account: &Pubkey,
     authority: &Pubkey,
     program: Option<&Pubkey>,
     program_data: Option<&Pubkey>,
-    seed: Option<&[u8; SEED_LEN]>,
+    new_authority: Option<&Pubkey>,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new(*buffer, false),
+        AccountMeta::new(*account, false),
         AccountMeta::new_readonly(*authority, true),
         AccountMeta::new_readonly(*program.unwrap_or(&PROGRAM_ID), false),
         AccountMeta::new_readonly(*program_data.unwrap_or(&PROGRAM_ID), false),
-        AccountMeta::new_readonly(system_program::ID, false),
     ];
 
-    let mut data = vec![ProgramMetadataInstruction::Allocate as u8];
-    if let Some(seed) = seed {
-        data.extend_from_slice(seed);
+    let mut data = vec![
+        ProgramMetadataInstruction::SetAuthority as u8,
+        new_authority.is_some() as u8,
+    ];
+    if let Some(new_authority) = new_authority {
+        data.extend_from_slice(new_authority.as_ref());
     }
 
     Instruction {

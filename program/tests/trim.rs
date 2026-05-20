@@ -48,8 +48,7 @@ fn test_trim_canonical() {
                         data_source: 0,
                     },
                     Some(&[1u8; 10]),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -71,8 +70,7 @@ fn test_trim_canonical() {
                     Some(&program_key),
                     Some(&program_data_key),
                     &destination_key,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -145,8 +143,7 @@ fn test_trim_non_canonical() {
                         data_source: 0,
                     },
                     Some(&[1u8; 10]),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -168,8 +165,7 @@ fn test_trim_non_canonical() {
                     Some(&program_key),
                     Some(&program_data_key),
                     &destination_key,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -216,7 +212,7 @@ fn test_trim_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
                     // data lenght
@@ -230,7 +226,7 @@ fn test_trim_buffer() {
                 ],
             ),
             (
-                &trim(&buffer_key, &buffer_key, None, None, &destination_key).unwrap(),
+                &trim(&buffer_key, &buffer_key, None, None, &destination_key),
                 &[
                     Check::success(),
                     // data lenght
@@ -285,8 +281,7 @@ fn fail_trim_non_rent_exempt_account() {
                 None,
                 None,
                 &destination_key,
-            )
-            .unwrap(),
+            ),
             &[
                 Check::err(ProgramError::AccountNotRentExempt),
                 Check::account(&destination_key)
@@ -299,6 +294,66 @@ fn fail_trim_non_rent_exempt_account() {
             (fake_buffer_key, fake_buffer_account),
             (PROGRAM_ID, Account::default()),
             (destination_key, destination_account),
+            keyed_account_for_system_program(),
+            (rent::ID, rent_sysvar()),
+        ],
+    );
+}
+
+#[test]
+fn fail_trim_with_wrong_authority() {
+    let buffer_key = Pubkey::new_unique();
+    let wrong_authority_key = Pubkey::new_unique();
+    let buffer_account = create_funded_account(
+        minimum_balance_for(Buffer::LEN + EXCESS_LAMPORTS),
+        system_program::ID,
+    );
+
+    let destination_key = Pubkey::new_unique();
+
+    process_instructions(
+        &[
+            (
+                &allocate(&buffer_key, &buffer_key, None, None, None),
+                &[Check::success()],
+            ),
+            (
+                &trim(
+                    &buffer_key,
+                    &wrong_authority_key,
+                    None,
+                    None,
+                    &destination_key,
+                ),
+                &[Check::err(ProgramError::IncorrectAuthority)],
+            ),
+        ],
+        &[
+            (buffer_key, buffer_account),
+            (PROGRAM_ID, Account::default()),
+            (wrong_authority_key, Account::default()),
+            (destination_key, Account::default()),
+            keyed_account_for_system_program(),
+            (rent::ID, rent_sysvar()),
+        ],
+    );
+}
+
+#[test]
+fn fail_trim_account_with_empty_discriminator() {
+    let account_key = Pubkey::new_unique();
+    let account = create_empty_account(Buffer::LEN, PROGRAM_ID);
+    let destination_key = Pubkey::new_unique();
+
+    process_instruction(
+        (
+            &trim(&account_key, &account_key, None, None, &destination_key),
+            &[Check::err(ProgramError::UninitializedAccount)],
+        ),
+        &[
+            (account_key, account),
+            (PROGRAM_ID, Account::default()),
+            (destination_key, Account::default()),
             keyed_account_for_system_program(),
             (rent::ID, rent_sysvar()),
         ],

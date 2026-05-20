@@ -86,7 +86,10 @@ pub fn set_data(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
 
     // Update header and data (if needed).
 
-    if let Some(data) = update_header(metadata, args, data)? {
+    if let Some(data) = update_header(metadata, args, data).map_err(|err| match err {
+        ProgramError::InvalidAccountData => ProgramError::InvalidInstructionData,
+        _ => err,
+    })? {
         // Realloc the metadata account if necessary.
 
         // SAFETY: There are no other active borrows to the `metadata` account data.
