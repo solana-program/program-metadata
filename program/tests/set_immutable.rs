@@ -49,8 +49,7 @@ fn test_set_immutable_canonical() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -59,8 +58,7 @@ fn test_set_immutable_canonical() {
                     &authority_key,
                     Some(&program_key),
                     Some(&program_data_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -77,8 +75,7 @@ fn test_set_immutable_canonical() {
                         data_source: Some(0),
                     },
                     Some(&[2u8; 6]),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::Custom(
                     ProgramMetadataError::ImmutableMetadataAccount as u32,
                 ))],
@@ -135,12 +132,11 @@ fn test_set_immutable_non_canonical() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
-                &set_immutable(&metadata_key, &authority_key, None, None).unwrap(),
+                &set_immutable(&metadata_key, &authority_key, None, None),
                 &[Check::success()],
             ),
             (
@@ -157,8 +153,7 @@ fn test_set_immutable_non_canonical() {
                         data_source: Some(0),
                     },
                     Some(&[2u8; 6]),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::Custom(
                     ProgramMetadataError::ImmutableMetadataAccount as u32,
                 ))],
@@ -214,8 +209,7 @@ fn fail_set_immutable_with_wrong_authority() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -224,8 +218,7 @@ fn fail_set_immutable_with_wrong_authority() {
                     &wrong_authority_key,
                     Some(&program_key),
                     Some(&program_data_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::IncorrectAuthority)],
             ),
         ],
@@ -250,11 +243,11 @@ fn fail_set_immutable_buffer_account() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &set_immutable(&buffer_key, &buffer_key, None, None).unwrap(),
+                &set_immutable(&buffer_key, &buffer_key, None, None),
                 &[Check::err(ProgramError::UninitializedAccount)],
             ),
         ],
@@ -304,8 +297,7 @@ fn fail_set_immutable_twice() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -314,8 +306,7 @@ fn fail_set_immutable_twice() {
                     &authority_key,
                     Some(&program_key),
                     Some(&program_data_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -324,8 +315,7 @@ fn fail_set_immutable_twice() {
                     &authority_key,
                     Some(&program_key),
                     Some(&program_data_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::Custom(
                     ProgramMetadataError::ImmutableMetadataAccount as u32,
                 ))],

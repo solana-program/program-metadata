@@ -1,5 +1,4 @@
 use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use spl_program_metadata::instruction::ProgramMetadataInstruction;
 
@@ -11,7 +10,7 @@ pub fn close(
     program: Option<&Pubkey>,
     program_data: Option<&Pubkey>,
     destination: &Pubkey,
-) -> Result<Instruction, ProgramError> {
+) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*account, false),
         AccountMeta::new_readonly(*authority, true),
@@ -20,9 +19,9 @@ pub fn close(
         AccountMeta::new(*destination, false),
     ];
 
-    Ok(Instruction {
+    Instruction {
         program_id: PROGRAM_ID,
         accounts,
         data: vec![ProgramMetadataInstruction::Close as u8],
-    })
+    }
 }

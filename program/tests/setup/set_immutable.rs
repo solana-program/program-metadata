@@ -1,5 +1,4 @@
 use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use spl_program_metadata::instruction::ProgramMetadataInstruction;
 
@@ -10,7 +9,7 @@ pub fn set_immutable(
     authority: &Pubkey,
     program: Option<&Pubkey>,
     program_data: Option<&Pubkey>,
-) -> Result<Instruction, ProgramError> {
+) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*metadata, false),
         AccountMeta::new_readonly(*authority, true),
@@ -18,9 +17,9 @@ pub fn set_immutable(
         AccountMeta::new_readonly(*program_data.unwrap_or(&PROGRAM_ID), false),
     ];
 
-    Ok(Instruction {
+    Instruction {
         program_id: PROGRAM_ID,
         accounts,
         data: vec![ProgramMetadataInstruction::SetImmutable as u8],
-    })
+    }
 }

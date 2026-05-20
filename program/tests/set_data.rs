@@ -50,8 +50,7 @@ fn test_set_data_instruction_data() {
                         data_source: 0,
                     },
                     Some(&initial_data),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // metadata data
@@ -74,8 +73,7 @@ fn test_set_data_instruction_data() {
                         data_source: Some(0),
                     },
                     Some(&updated_data),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // data length
@@ -145,8 +143,7 @@ fn test_set_data_buffer() {
                         data_source: 0,
                     },
                     Some(&initial_data),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // metadata data
@@ -156,7 +153,7 @@ fn test_set_data_buffer() {
                 ],
             ),
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
                     // account discriminator
@@ -164,7 +161,7 @@ fn test_set_data_buffer() {
                 ],
             ),
             (
-                &write(&buffer_key, &buffer_key, None, 0, &updated_data).unwrap(),
+                &write(&buffer_key, &buffer_key, None, 0, &updated_data),
                 &[
                     Check::success(),
                     // buffer data
@@ -187,8 +184,7 @@ fn test_set_data_buffer() {
                         data_source: Some(0),
                     },
                     None,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // data length
@@ -252,8 +248,7 @@ fn test_set_data_without_replacing_data() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -270,8 +265,7 @@ fn test_set_data_without_replacing_data() {
                         data_source: None,
                     },
                     None,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     Check::account(&metadata_key)
@@ -334,8 +328,7 @@ fn test_set_data_shrinks_metadata_account() {
                         data_source: 0,
                     },
                     Some(&initial_data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -352,8 +345,7 @@ fn test_set_data_shrinks_metadata_account() {
                         data_source: Some(0),
                     },
                     Some(&updated_data),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     Check::account(&metadata_key)
@@ -414,8 +406,7 @@ fn fail_set_data_with_wrong_authority() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -432,8 +423,7 @@ fn fail_set_data_with_wrong_authority() {
                         data_source: Some(0),
                     },
                     Some(&[2u8; 5]),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::IncorrectAuthority)],
             ),
         ],
@@ -490,12 +480,11 @@ fn fail_set_data_from_empty_buffer_as_direct_data() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
@@ -512,8 +501,7 @@ fn fail_set_data_from_empty_buffer_as_direct_data() {
                         data_source: Some(0),
                     },
                     None,
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::Custom(
                     ProgramMetadataError::InvalidDataLength as u32,
                 ))],
@@ -569,8 +557,7 @@ fn fail_set_data_with_invalid_compression() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -587,8 +574,7 @@ fn fail_set_data_with_invalid_compression() {
                         data_source: None,
                     },
                     None,
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::InvalidInstructionData)],
             ),
         ],
@@ -641,8 +627,7 @@ fn fail_set_data_with_invalid_data_source() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -659,8 +644,7 @@ fn fail_set_data_with_invalid_data_source() {
                         data_source: Some(99), // <- invalid data source
                     },
                     Some(&[2u8; 5]),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::InvalidInstructionData)],
             ),
         ],
@@ -716,8 +700,7 @@ fn fail_set_data_from_wrong_owner_buffer() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -734,8 +717,7 @@ fn fail_set_data_from_wrong_owner_buffer() {
                         data_source: Some(0),
                     },
                     None,
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::InvalidAccountOwner)],
             ),
         ],
@@ -788,8 +770,7 @@ fn fail_set_data_with_invalid_encoding() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -806,8 +787,7 @@ fn fail_set_data_with_invalid_encoding() {
                         data_source: None,
                     },
                     None,
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::InvalidInstructionData)],
             ),
         ],

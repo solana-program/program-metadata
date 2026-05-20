@@ -48,8 +48,7 @@ fn test_trim_canonical() {
                         data_source: 0,
                     },
                     Some(&[1u8; 10]),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -71,8 +70,7 @@ fn test_trim_canonical() {
                     Some(&program_key),
                     Some(&program_data_key),
                     &destination_key,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -145,8 +143,7 @@ fn test_trim_non_canonical() {
                         data_source: 0,
                     },
                     Some(&[1u8; 10]),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -168,8 +165,7 @@ fn test_trim_non_canonical() {
                     Some(&program_key),
                     Some(&program_data_key),
                     &destination_key,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -216,7 +212,7 @@ fn test_trim_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
                     // data lenght
@@ -230,7 +226,7 @@ fn test_trim_buffer() {
                 ],
             ),
             (
-                &trim(&buffer_key, &buffer_key, None, None, &destination_key).unwrap(),
+                &trim(&buffer_key, &buffer_key, None, None, &destination_key),
                 &[
                     Check::success(),
                     // data lenght
@@ -285,8 +281,7 @@ fn fail_trim_non_rent_exempt_account() {
                 None,
                 None,
                 &destination_key,
-            )
-            .unwrap(),
+            ),
             &[
                 Check::err(ProgramError::AccountNotRentExempt),
                 Check::account(&destination_key)
@@ -319,7 +314,7 @@ fn fail_trim_with_wrong_authority() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
@@ -329,8 +324,7 @@ fn fail_trim_with_wrong_authority() {
                     None,
                     None,
                     &destination_key,
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::IncorrectAuthority)],
             ),
         ],
@@ -353,7 +347,7 @@ fn fail_trim_account_with_empty_discriminator() {
 
     process_instruction(
         (
-            &trim(&account_key, &account_key, None, None, &destination_key).unwrap(),
+            &trim(&account_key, &account_key, None, None, &destination_key),
             &[Check::err(ProgramError::UninitializedAccount)],
         ),
         &[

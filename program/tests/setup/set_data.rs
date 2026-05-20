@@ -1,5 +1,4 @@
 use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use spl_program_metadata::instruction::ProgramMetadataInstruction;
 
@@ -13,7 +12,7 @@ pub fn set_data(
     program_data: Option<&Pubkey>,
     args: SetDataArgs,
     instruction_data: Option<&[u8]>,
-) -> Result<Instruction, ProgramError> {
+) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*metadata, false),
         AccountMeta::new_readonly(*authority, true),
@@ -36,11 +35,11 @@ pub fn set_data(
         }
     }
 
-    Ok(Instruction {
+    Instruction {
         program_id: PROGRAM_ID,
         accounts,
         data,
-    })
+    }
 }
 
 pub struct SetDataArgs {

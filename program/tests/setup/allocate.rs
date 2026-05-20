@@ -1,5 +1,4 @@
 use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use solana_sdk_ids::system_program;
 use spl_program_metadata::{instruction::ProgramMetadataInstruction, state::SEED_LEN};
@@ -12,7 +11,7 @@ pub fn allocate(
     program: Option<&Pubkey>,
     program_data: Option<&Pubkey>,
     seed: Option<&[u8; SEED_LEN]>,
-) -> Result<Instruction, ProgramError> {
+) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*buffer, false),
         AccountMeta::new_readonly(*authority, true),
@@ -26,9 +25,9 @@ pub fn allocate(
         data.extend_from_slice(seed);
     }
 
-    Ok(Instruction {
+    Instruction {
         program_id: PROGRAM_ID,
         accounts,
         data,
-    })
+    }
 }

@@ -39,8 +39,7 @@ fn test_extend_canonical_buffer() {
                     Some(&program_key),
                     Some(&program_data_key),
                     Some(&seed),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -56,8 +55,7 @@ fn test_extend_canonical_buffer() {
                     Some(&program_key),
                     Some(&program_data_key),
                     EXTEND_LENGTH as u16,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // data lenght
@@ -113,8 +111,7 @@ fn test_extend_non_canonical_buffer() {
                     Some(&program_key),
                     Some(&program_data_key),
                     Some(&seed),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // data lenght
@@ -130,8 +127,7 @@ fn test_extend_non_canonical_buffer() {
                     Some(&program_key),
                     Some(&program_data_key),
                     EXTEND_LENGTH as u16,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // data lenght
@@ -166,7 +162,7 @@ fn test_extend_keypair_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
                     // data lenght
@@ -176,7 +172,7 @@ fn test_extend_keypair_buffer() {
                 ],
             ),
             (
-                &extend(&buffer_key, &buffer_key, None, None, EXTEND_LENGTH as u16).unwrap(),
+                &extend(&buffer_key, &buffer_key, None, None, EXTEND_LENGTH as u16),
                 &[
                     Check::success(),
                     // data lenght
@@ -235,8 +231,7 @@ fn test_extend_metadata() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -246,8 +241,7 @@ fn test_extend_metadata() {
                     Some(&program_key),
                     Some(&program_data_key),
                     EXTEND_LENGTH as u16,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     Check::account(&metadata_key)
@@ -282,7 +276,7 @@ fn fail_extend_with_wrong_authority() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
@@ -292,8 +286,7 @@ fn fail_extend_with_wrong_authority() {
                     None,
                     None,
                     EXTEND_LENGTH as u16,
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::IncorrectAuthority)],
             ),
         ],
@@ -315,11 +308,11 @@ fn fail_extend_without_rent_for_growth() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &extend(&buffer_key, &buffer_key, None, None, 1).unwrap(),
+                &extend(&buffer_key, &buffer_key, None, None, 1),
                 &[Check::err(ProgramError::AccountNotRentExempt)],
             ),
         ],
@@ -337,7 +330,7 @@ fn fail_extend_uninitialized_account() {
 
     process_instruction(
         (
-            &extend(&account_key, &account_key, None, None, EXTEND_LENGTH as u16).unwrap(),
+            &extend(&account_key, &account_key, None, None, EXTEND_LENGTH as u16),
             &[Check::err(ProgramError::InvalidAccountData)],
         ),
         &[
@@ -350,8 +343,7 @@ fn fail_extend_uninitialized_account() {
 #[test]
 fn fail_extend_with_invalid_instruction_data() {
     let buffer_key = Pubkey::new_unique();
-    let mut instruction =
-        extend(&buffer_key, &buffer_key, None, None, EXTEND_LENGTH as u16).unwrap();
+    let mut instruction = extend(&buffer_key, &buffer_key, None, None, EXTEND_LENGTH as u16);
     instruction.data.truncate(1);
 
     process_instruction(

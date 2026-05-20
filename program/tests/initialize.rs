@@ -42,8 +42,7 @@ fn test_initialize_canonical() {
             data_source: 0,
         },
         Some(&[1u8; 10]),
-    )
-    .unwrap();
+    );
 
     process_instruction(
         (
@@ -102,8 +101,7 @@ fn test_initialize_non_canonical() {
             data_source: 0,
         },
         Some(&[1u8; 10]),
-    )
-    .unwrap();
+    );
 
     process_instruction(
         (
@@ -159,15 +157,14 @@ fn test_initialize_from_buffer() {
                     Some(&program_key),
                     Some(&program_data_key),
                     Some(&seed),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     Check::account(&metadata_key).data_slice(0, &[1]).build(),
                 ],
             ),
             (
-                &write(&metadata_key, &authority_key, None, 0, &data).unwrap(),
+                &write(&metadata_key, &authority_key, None, 0, &data),
                 &[
                     Check::success(),
                     Check::account(&metadata_key)
@@ -189,8 +186,7 @@ fn test_initialize_from_buffer() {
                         data_source: 0,
                     },
                     None,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     Check::account(&metadata_key).data_slice(0, &[2]).build(),
@@ -246,8 +242,7 @@ fn fail_initialize_already_initialized_metadata() {
             data_source: 0,
         },
         Some(&data),
-    )
-    .unwrap();
+    );
 
     process_instructions(
         &[
@@ -300,12 +295,11 @@ fn fail_initialize_from_buffer_with_instruction_data() {
                     Some(&program_key),
                     Some(&program_data_key),
                     Some(&seed),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
-                &write(&metadata_key, &authority_key, None, 0, &buffer_data).unwrap(),
+                &write(&metadata_key, &authority_key, None, 0, &buffer_data),
                 &[Check::success()],
             ),
             (
@@ -322,8 +316,7 @@ fn fail_initialize_from_buffer_with_instruction_data() {
                         data_source: 0,
                     },
                     Some(&[8u8; 4]), // instruction data
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::InvalidInstructionData)],
             ),
         ],
@@ -368,8 +361,7 @@ fn fail_initialize_with_wrong_metadata_pda() {
             data_source: 0,
         },
         Some(&[1u8; 10]),
-    )
-    .unwrap();
+    );
     instruction.accounts[0].pubkey = wrong_metadata_key;
 
     process_instruction(
@@ -417,8 +409,7 @@ fn fail_initialize_without_rent_exemption() {
                     data_source: 0,
                 },
                 Some(&[1u8; 10]),
-            )
-            .unwrap(),
+            ),
             &[Check::err(ProgramError::AccountNotRentExempt)],
         ),
         &[
@@ -465,8 +456,7 @@ fn fail_initialize_without_data() {
                     data_source: 0,
                 },
                 None,
-            )
-            .unwrap(),
+            ),
             &[Check::err(ProgramError::InvalidInstructionData)],
         ),
         &[
@@ -513,8 +503,7 @@ fn fail_initialize_with_invalid_encoding() {
                     data_source: 0,
                 },
                 Some(&[1u8; 10]),
-            )
-            .unwrap(),
+            ),
             &[Check::err(ProgramError::InvalidAccountData)],
         ),
         &[
@@ -561,8 +550,7 @@ fn fail_initialize_external_data_with_wrong_length() {
                     data_source: 2,
                 },
                 Some(&[1u8; 10]),
-            )
-            .unwrap(),
+            ),
             &[Check::err(ProgramError::Custom(
                 ProgramMetadataError::InvalidDataLength as u32,
             ))],

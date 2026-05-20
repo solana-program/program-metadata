@@ -1,5 +1,4 @@
 use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use spl_program_metadata::instruction::ProgramMetadataInstruction;
 
@@ -11,7 +10,7 @@ pub fn write(
     source_buffer: Option<&Pubkey>,
     offset: u32,
     data: &[u8],
-) -> Result<Instruction, ProgramError> {
+) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*buffer, false),
         AccountMeta::new_readonly(*authority, true),
@@ -22,9 +21,9 @@ pub fn write(
     instruction_data.extend_from_slice(&offset.to_le_bytes());
     instruction_data.extend_from_slice(data);
 
-    Ok(Instruction {
+    Instruction {
         program_id: PROGRAM_ID,
         accounts,
         data: instruction_data,
-    })
+    }
 }

@@ -51,8 +51,7 @@ fn test_set_authority_metadata() {
                         data_source: 0,
                     },
                     Some(&initial_data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -62,8 +61,7 @@ fn test_set_authority_metadata() {
                     Some(&program_key),
                     Some(&program_data_key),
                     Some(&new_authority_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -80,8 +78,7 @@ fn test_set_authority_metadata() {
                         data_source: Some(0),
                     },
                     Some(&updated_data),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // metadata data
@@ -143,8 +140,7 @@ fn test_remove_metadata_authority() {
                         data_source: 0,
                     },
                     Some(&initial_data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -154,12 +150,11 @@ fn test_remove_metadata_authority() {
                     Some(&program_key),
                     Some(&program_data_key),
                     Some(&new_authority_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
-                &set_authority(&metadata_key, &new_authority_key, None, None, None).unwrap(),
+                &set_authority(&metadata_key, &new_authority_key, None, None, None),
                 &[Check::success()],
             ),
             // Set data with the program upgrade authority after removing the
@@ -179,8 +174,7 @@ fn test_remove_metadata_authority() {
                         data_source: Some(0),
                     },
                     Some(&updated_data),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     Check::account(&metadata_key)
@@ -215,7 +209,7 @@ fn test_set_authority_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
                     // account discriminator
@@ -229,12 +223,11 @@ fn test_set_authority_buffer() {
                     None,
                     None,
                     Some(&new_authority_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
-                &write(&buffer_key, &new_authority_key, None, 0, &data).unwrap(),
+                &write(&buffer_key, &new_authority_key, None, 0, &data),
                 &[
                     Check::success(),
                     // buffer data
@@ -288,8 +281,7 @@ fn fail_set_authority_immutable_metadata() {
                         data_source: 0,
                     },
                     Some(&[1u8; 5]),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -298,8 +290,7 @@ fn fail_set_authority_immutable_metadata() {
                     &authority_key,
                     Some(&program_key),
                     Some(&program_data_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -309,8 +300,7 @@ fn fail_set_authority_immutable_metadata() {
                     Some(&program_key),
                     Some(&program_data_key),
                     Some(&new_authority_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::Custom(
                     ProgramMetadataError::ImmutableMetadataAccount as u32,
                 ))],
@@ -364,8 +354,7 @@ fn test_set_authority_non_canonical_metadata() {
                         data_source: 0,
                     },
                     Some(&[1u8; 5]),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -375,8 +364,7 @@ fn test_set_authority_non_canonical_metadata() {
                     None,
                     None,
                     Some(&new_authority_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::InvalidAccountData)],
             ),
         ],
@@ -427,8 +415,7 @@ fn fail_set_authority_with_wrong_authority() {
                         data_source: 0,
                     },
                     Some(&[1u8; 5]),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -438,8 +425,7 @@ fn fail_set_authority_with_wrong_authority() {
                     Some(&program_key),
                     Some(&program_data_key),
                     Some(&new_authority_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::IncorrectAuthority)],
             ),
         ],
@@ -464,11 +450,11 @@ fn fail_set_authority_remove_buffer_authority() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &set_authority(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &set_authority(&buffer_key, &buffer_key, None, None, None),
                 &[Check::err(ProgramError::InvalidArgument)],
             ),
         ],
@@ -493,14 +479,13 @@ fn fail_set_authority_with_missing_new_authority_bytes() {
         None,
         None,
         Some(&new_authority_key),
-    )
-    .unwrap();
+    );
     instruction.data.truncate(2);
 
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (

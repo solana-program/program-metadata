@@ -36,8 +36,7 @@ fn test_allocate_canonical() {
                 Some(&program_key),
                 Some(&program_data_key),
                 Some(&seed),
-            )
-            .unwrap(),
+            ),
             &[
                 Check::success(),
                 // data lenght
@@ -84,8 +83,7 @@ fn test_allocate_non_canonical() {
                 Some(&program_key),
                 Some(&program_data_key),
                 Some(&seed),
-            )
-            .unwrap(),
+            ),
             &[
                 Check::success(),
                 // data lenght
@@ -113,7 +111,7 @@ fn test_allocate_keypair() {
 
     process_instruction(
         (
-            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &allocate(&buffer_key, &buffer_key, None, None, None),
             &[
                 Check::success(),
                 // data lenght
@@ -139,7 +137,7 @@ fn test_allocate_with_empty_account() {
 
     process_instruction(
         (
-            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &allocate(&buffer_key, &buffer_key, None, None, None),
             &[
                 Check::success(),
                 // data lenght
@@ -165,7 +163,7 @@ fn test_allocate_with_unsufficient_length() {
 
     process_instruction(
         (
-            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &allocate(&buffer_key, &buffer_key, None, None, None),
             &[Check::err(ProgramError::InvalidAccountData)],
         ),
         &[
@@ -202,8 +200,7 @@ fn test_allocate_with_funded_canonical_account() {
                 Some(&program_key),
                 Some(&program_data_key),
                 Some(&seed),
-            )
-            .unwrap(),
+            ),
             &[
                 Check::success(),
                 // data lenght
@@ -251,8 +248,7 @@ fn test_allocate_with_funded_non_canonical_account() {
                 Some(&program_key),
                 Some(&program_data_key),
                 Some(&seed),
-            )
-            .unwrap(),
+            ),
             &[
                 Check::success(),
                 // data lenght
@@ -280,7 +276,7 @@ fn test_allocate_with_funded_keypair_account() {
 
     process_instruction(
         (
-            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &allocate(&buffer_key, &buffer_key, None, None, None),
             &[
                 Check::success(),
                 // data lenght
@@ -306,7 +302,7 @@ fn test_allocate_with_allocated_keypair_account() {
 
     process_instruction(
         (
-            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &allocate(&buffer_key, &buffer_key, None, None, None),
             &[
                 Check::success(),
                 // account owner
@@ -348,8 +344,7 @@ fn test_allocate_with_unfunded_canonical_account() {
                 Some(&program_key),
                 Some(&program_data_key),
                 Some(&seed),
-            )
-            .unwrap(),
+            ),
             &[Check::err(ProgramError::AccountNotRentExempt)],
         ),
         &[
@@ -390,8 +385,7 @@ fn test_allocate_with_unfunded_non_canonical_account() {
                 Some(&program_key),
                 Some(&program_data_key),
                 Some(&seed),
-            )
-            .unwrap(),
+            ),
             &[Check::err(ProgramError::AccountNotRentExempt)],
         ),
         &[
@@ -413,7 +407,7 @@ fn test_allocate_with_unfunded_account() {
 
     process_instruction(
         (
-            &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+            &allocate(&buffer_key, &buffer_key, None, None, None),
             &[Check::err(ProgramError::AccountNotRentExempt)],
         ),
         &[
@@ -435,7 +429,7 @@ fn fail_allocate_keypair_with_seed() {
 
     process_instruction(
         (
-            &allocate(&buffer_key, &buffer_key, None, None, Some(&seed)).unwrap(),
+            &allocate(&buffer_key, &buffer_key, None, None, Some(&seed)),
             &[Check::err(ProgramError::InvalidInstructionData)],
         ),
         &[
@@ -473,8 +467,7 @@ fn fail_allocate_pda_with_wrong_seed() {
                 Some(&program_key),
                 Some(&program_data_key),
                 Some(&wrong_seed),
-            )
-            .unwrap(),
+            ),
             &[Check::err(ProgramError::InvalidSeeds)],
         ),
         &[
@@ -514,8 +507,7 @@ fn fail_allocate_pda_for_non_executable_program() {
                 Some(&program_key),
                 Some(&program_data_key),
                 Some(&seed),
-            )
-            .unwrap(),
+            ),
             &[Check::err(ProgramError::Custom(
                 ProgramMetadataError::NotExecutableAccount as u32,
             ))],
@@ -539,11 +531,11 @@ fn fail_allocate_already_initialized_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::err(ProgramError::AccountAlreadyInitialized)],
             ),
         ],

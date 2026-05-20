@@ -1,5 +1,4 @@
 use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use solana_sdk_ids::sysvar::rent;
 use spl_program_metadata::instruction::ProgramMetadataInstruction;
@@ -12,7 +11,7 @@ pub fn trim(
     program: Option<&Pubkey>,
     program_data: Option<&Pubkey>,
     destination: &Pubkey,
-) -> Result<Instruction, ProgramError> {
+) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*account, false),
         AccountMeta::new_readonly(*authority, true),
@@ -22,9 +21,9 @@ pub fn trim(
         AccountMeta::new_readonly(rent::ID, false),
     ];
 
-    Ok(Instruction {
+    Instruction {
         program_id: PROGRAM_ID,
         accounts,
         data: vec![ProgramMetadataInstruction::Trim as u8],
-    })
+    }
 }

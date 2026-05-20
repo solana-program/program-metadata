@@ -49,8 +49,7 @@ fn test_close_metadata() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // account discriminator
@@ -64,8 +63,7 @@ fn test_close_metadata() {
                     Some(&program_key),
                     Some(&program_data_key),
                     &destination_key,
-                )
-                .unwrap(),
+                ),
                 &[
                     Check::success(),
                     // metadata account
@@ -100,7 +98,7 @@ fn test_close_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
                     // account discriminator
@@ -108,7 +106,7 @@ fn test_close_buffer() {
                 ],
             ),
             (
-                &close(&buffer_key, &buffer_key, None, None, &destination_key).unwrap(),
+                &close(&buffer_key, &buffer_key, None, None, &destination_key),
                 &[
                     Check::success(),
                     // buffer account
@@ -141,7 +139,7 @@ fn fail_close_with_wrong_authority() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
@@ -151,8 +149,7 @@ fn fail_close_with_wrong_authority() {
                     None,
                     None,
                     &destination_key,
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::IncorrectAuthority)],
             ),
         ],
@@ -173,7 +170,7 @@ fn fail_close_uninitialized_account() {
 
     process_instruction(
         (
-            &close(&account_key, &account_key, None, None, &destination_key).unwrap(),
+            &close(&account_key, &account_key, None, None, &destination_key),
             &[Check::err(ProgramError::UninitializedAccount)],
         ),
         &[
@@ -192,7 +189,7 @@ fn fail_close_account_with_empty_discriminator() {
 
     process_instruction(
         (
-            &close(&account_key, &account_key, None, None, &destination_key).unwrap(),
+            &close(&account_key, &account_key, None, None, &destination_key),
             &[Check::err(ProgramError::InvalidAccountData)],
         ),
         &[
@@ -241,8 +238,7 @@ fn fail_close_immutable_metadata() {
                         data_source: 0,
                     },
                     Some(&data),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -251,8 +247,7 @@ fn fail_close_immutable_metadata() {
                     &authority_key,
                     Some(&program_key),
                     Some(&program_data_key),
-                )
-                .unwrap(),
+                ),
                 &[Check::success()],
             ),
             (
@@ -262,8 +257,7 @@ fn fail_close_immutable_metadata() {
                     Some(&program_key),
                     Some(&program_data_key),
                     &destination_key,
-                )
-                .unwrap(),
+                ),
                 &[Check::err(ProgramError::Custom(
                     ProgramMetadataError::ImmutableMetadataAccount as u32,
                 ))],

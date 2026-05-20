@@ -20,7 +20,7 @@ fn test_write_instruction_data() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
                     // account discriminator
@@ -30,7 +30,7 @@ fn test_write_instruction_data() {
                 ],
             ),
             (
-                &write(&buffer_key, &buffer_key, None, 0, &data).unwrap(),
+                &write(&buffer_key, &buffer_key, None, 0, &data),
                 &[
                     Check::success(),
                     // data length
@@ -70,7 +70,7 @@ fn test_write_from_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&source_key, &source_key, None, None, None).unwrap(),
+                &allocate(&source_key, &source_key, None, None, None),
                 &[
                     Check::success(),
                     // account discriminator
@@ -78,7 +78,7 @@ fn test_write_from_buffer() {
                 ],
             ),
             (
-                &write(&source_key, &source_key, None, 0, &data).unwrap(),
+                &write(&source_key, &source_key, None, 0, &data),
                 &[
                     Check::success(),
                     // source buffer data
@@ -88,7 +88,7 @@ fn test_write_from_buffer() {
                 ],
             ),
             (
-                &allocate(&target_key, &target_key, None, None, None).unwrap(),
+                &allocate(&target_key, &target_key, None, None, None),
                 &[
                     Check::success(),
                     // account discriminator
@@ -96,7 +96,7 @@ fn test_write_from_buffer() {
                 ],
             ),
             (
-                &write(&target_key, &target_key, Some(&source_key), 0, &[]).unwrap(),
+                &write(&target_key, &target_key, Some(&source_key), 0, &[]),
                 &[
                     Check::success(),
                     // target buffer data
@@ -126,11 +126,11 @@ fn test_write_with_non_zero_offset_and_overwrite() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &write(&buffer_key, &buffer_key, None, 5, &initial_data).unwrap(),
+                &write(&buffer_key, &buffer_key, None, 5, &initial_data),
                 &[
                     Check::success(),
                     Check::account(&buffer_key)
@@ -139,7 +139,7 @@ fn test_write_with_non_zero_offset_and_overwrite() {
                 ],
             ),
             (
-                &write(&buffer_key, &buffer_key, None, 6, &updated_data).unwrap(),
+                &write(&buffer_key, &buffer_key, None, 6, &updated_data),
                 &[
                     Check::success(),
                     Check::account(&buffer_key)
@@ -169,11 +169,11 @@ fn fail_write_with_wrong_authority() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &write(&buffer_key, &wrong_authority_key, None, 0, &data).unwrap(),
+                &write(&buffer_key, &wrong_authority_key, None, 0, &data),
                 &[Check::err(ProgramError::IncorrectAuthority)],
             ),
         ],
@@ -199,11 +199,11 @@ fn fail_write_from_wrong_owner_source_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&target_key, &target_key, None, None, None).unwrap(),
+                &allocate(&target_key, &target_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &write(&target_key, &target_key, Some(&source_key), 0, &[]).unwrap(),
+                &write(&target_key, &target_key, Some(&source_key), 0, &[]),
                 &[Check::err(ProgramError::InvalidAccountOwner)],
             ),
         ],
@@ -225,11 +225,11 @@ fn fail_write_empty_data_without_source_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &write(&buffer_key, &buffer_key, None, 0, &[]).unwrap(),
+                &write(&buffer_key, &buffer_key, None, 0, &[]),
                 &[Check::err(ProgramError::InvalidInstructionData)],
             ),
         ],
@@ -250,11 +250,11 @@ fn fail_write_from_same_buffer() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &write(&buffer_key, &buffer_key, Some(&buffer_key), 0, &[]).unwrap(),
+                &write(&buffer_key, &buffer_key, Some(&buffer_key), 0, &[]),
                 &[Check::err(ProgramError::InvalidAccountData)],
             ),
         ],
@@ -275,11 +275,11 @@ fn fail_write_without_rent_for_growth() {
     process_instructions(
         &[
             (
-                &allocate(&buffer_key, &buffer_key, None, None, None).unwrap(),
+                &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[Check::success()],
             ),
             (
-                &write(&buffer_key, &buffer_key, None, 0, &[1]).unwrap(),
+                &write(&buffer_key, &buffer_key, None, 0, &[1]),
                 &[Check::err(ProgramError::AccountNotRentExempt)],
             ),
         ],

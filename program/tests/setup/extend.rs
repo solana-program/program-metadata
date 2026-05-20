@@ -1,5 +1,4 @@
 use solana_instruction::{AccountMeta, Instruction};
-use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 use spl_program_metadata::instruction::ProgramMetadataInstruction;
 
@@ -11,7 +10,7 @@ pub fn extend(
     program: Option<&Pubkey>,
     program_data: Option<&Pubkey>,
     length: u16,
-) -> Result<Instruction, ProgramError> {
+) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*account, false),
         AccountMeta::new_readonly(*authority, true),
@@ -22,9 +21,9 @@ pub fn extend(
     let mut data = vec![ProgramMetadataInstruction::Extend as u8];
     data.extend_from_slice(&length.to_le_bytes());
 
-    Ok(Instruction {
+    Instruction {
         program_id: PROGRAM_ID,
         accounts,
         data,
-    })
+    }
 }
