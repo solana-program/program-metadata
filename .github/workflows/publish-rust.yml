@@ -52,6 +52,9 @@ jobs:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Summarise workflow inputs
+        uses: lorisleiva/workflow-inputs-action@v1
+
       - name: Compute variables
         id: compute
         shell: bash
