@@ -45,6 +45,9 @@ jobs:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Summarise workflow inputs
+        uses: solana-program/actions/workflow-inputs@v1
+
       - name: Compute variables
         id: compute
         shell: bash
