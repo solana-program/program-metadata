@@ -6,7 +6,9 @@ pub enum ProgramMetadataInstruction {
     /// Writes data to a pre-funded buffer.
     ///
     /// The buffer account must be allocated and pre-funded with enough lamports
-    /// to cover the storage cost of the data being written.
+    /// to cover the storage cost of the data being written. Additionally, the
+    /// account will be resized if the data to write is larger than its current
+    /// size.
     ///
     /// Accounts expected by this instruction:
     ///
