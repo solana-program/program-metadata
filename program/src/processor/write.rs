@@ -122,6 +122,7 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
 }
 
 /// Instruction data expected by the `Write` instruction.
+#[repr(C)]
 struct Write<'a> {
     /// Offset to write to.
     offset: &'a [u8; 4],
