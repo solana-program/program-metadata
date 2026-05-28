@@ -1,6 +1,6 @@
 {
     "name": "@solana-program/program-metadata",
-    "version": "0.5.1",
+    "version": "0.6.0",
     "description": "JavaScript client for the Program Metadata program",
     "homepage": "https://github.com/solana-program/program-metadata#readme",
     "bugs": {
