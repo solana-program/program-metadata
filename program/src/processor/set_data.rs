@@ -154,6 +154,7 @@ fn update_header<'a>(
 }
 
 /// The instruction data for the `SetData` instruction.
+#[repr(C)]
 struct SetData {
     pub encoding: u8,
     pub compression: u8,

@@ -197,8 +197,9 @@ impl Zeroable for u32 {
     const ZERO: Self = 0;
 }
 
-/// Trait for types that are considered `None` when their value
+/// Wrapper for types that are considered `None` when their value
 /// is equal to `Zeroable::ZERO`.
+#[repr(transparent)]
 #[derive(Clone, Debug)]
 pub struct ZeroableOption<T: Zeroable>(T);
 

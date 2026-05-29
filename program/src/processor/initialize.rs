@@ -206,6 +206,7 @@ pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> Prog
 }
 
 /// The instruction data for the `Initialize` instruction.
+#[repr(C)]
 struct Initialize {
     pub seed: [u8; 16],
     pub encoding: u8,
