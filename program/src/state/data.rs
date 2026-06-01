@@ -3,6 +3,10 @@ use pinocchio::{error::ProgramError, Address};
 use super::{DataSource, ZeroableOption};
 
 /// Metadata account data.
+//
+// Note: `Data` may be loaded directly from account data after only a
+// length check (no owner check). All fields must be valid for any bit
+// pattern.
 pub enum Data<'a> {
     /// Represents the case where the metadata is stored on the account.
     Direct(DirectData<'a>),

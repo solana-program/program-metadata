@@ -9,6 +9,10 @@ use super::{Account, AccountDiscriminator, ZeroableOption, SEED_LEN};
 /// Buffer account header.
 ///
 /// A buffer holds a variable amount of data after its header information.
+//
+// Note: `Buffer` may be loaded directly from account data after only a
+// length check (no owner check). All fields must be valid for any bit
+// pattern.
 #[repr(C)]
 pub struct Buffer {
     /// Account discriminator.
