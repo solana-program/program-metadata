@@ -1,3 +1,5 @@
+use core::mem::{align_of, size_of};
+
 use pinocchio::{account::AccountView, error::ProgramError, ProgramResult, Resize};
 
 use crate::state::{
@@ -164,8 +166,13 @@ struct SetData {
     // - `&[u8]`: remaining data
 }
 
+// Enforces 1-byte alignment for the struct.
+const _: () = {
+    assert!(align_of::<SetData>() == 1);
+};
+
 impl SetData {
-    const LEN: usize = core::mem::size_of::<Self>();
+    const LEN: usize = size_of::<Self>();
 
     /// # Safety
     ///

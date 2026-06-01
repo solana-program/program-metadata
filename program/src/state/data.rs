@@ -1,3 +1,5 @@
+use core::{mem::align_of, str::from_utf8};
+
 use pinocchio::{error::ProgramError, Address};
 
 use super::{DataSource, ZeroableOption};
@@ -23,7 +25,7 @@ impl<'a> Data<'a> {
         Ok(match data_source {
             DataSource::Direct => Data::Direct(DirectData(bytes)),
             DataSource::Url => Data::Url(UrlData(
-                core::str::from_utf8(bytes).map_err(|_| ProgramError::InvalidArgument)?,
+                from_utf8(bytes).map_err(|_| ProgramError::InvalidArgument)?,
             )),
             DataSource::External => {
                 if bytes.len() < ExternalData::LEN {
@@ -66,6 +68,11 @@ pub struct ExternalData {
     /// Default to 0, which means the whole account.
     pub length: ZeroableOption<u32>,
 }
+
+// Enforces 4-byte alignment for the `ExternalData` struct.
+const _: () = {
+    assert!(align_of::<ExternalData>() == 4);
+};
 
 impl ExternalData {
     pub const LEN: usize = core::mem::size_of::<ExternalData>();
