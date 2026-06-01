@@ -1,3 +1,5 @@
+use core::mem::{align_of, size_of};
+
 use pinocchio::{
     cpi::{Seed, Signer},
     error::ProgramError,
@@ -215,8 +217,13 @@ struct Initialize {
     pub data_source: u8,
 }
 
+// Enforces 1-byte alignment for the struct.
+const _: () = {
+    assert!(align_of::<Initialize>() == 1);
+};
+
 impl Initialize {
-    const LEN: usize = core::mem::size_of::<Self>();
+    const LEN: usize = size_of::<Self>();
 
     /// # Safety
     ///

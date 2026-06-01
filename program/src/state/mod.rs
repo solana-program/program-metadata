@@ -2,12 +2,26 @@ pub mod buffer;
 pub mod data;
 pub mod header;
 
+use core::mem::size_of;
+
 use pinocchio::{address::ADDRESS_BYTES, error::ProgramError, Address, ProgramResult};
 
-use data::{Data, ExternalData};
-use header::Header;
+use crate::{
+    error::ProgramMetadataError,
+    state::{
+        buffer::Buffer,
+        data::{Data, ExternalData},
+        header::Header,
+    },
+};
 
-use crate::error::ProgramMetadataError;
+// Make sure both `Header` and `Buffer` structs have the same size.
+const _: () = {
+    assert!(
+        size_of::<Header>() == size_of::<Buffer>(),
+        "Header and Buffer should be the same size"
+    );
+};
 
 /// The length of the seed used to derive the metadata account address.
 pub const SEED_LEN: usize = 16;

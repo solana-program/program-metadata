@@ -1,3 +1,5 @@
+use core::mem::align_of;
+
 use pinocchio::{
     account::{AccountView, Ref},
     error::ProgramError,
@@ -40,6 +42,11 @@ pub struct Buffer {
     /// the metadata [`Header`](`super::Header`).
     _padding: [u8; 14],
 }
+
+// Enforces 1-byte alignment for the struct.
+const _: () = {
+    assert!(align_of::<Buffer>() == 1);
+};
 
 impl Buffer {
     /// The minimum size of a `Buffer` (`96` bytes).

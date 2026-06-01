@@ -1,3 +1,5 @@
+use core::mem::align_of;
+
 use pinocchio::{
     account::{AccountView, Ref},
     error::ProgramError,
@@ -55,6 +57,11 @@ pub struct Header {
     /// This allows the data section to start at a 8-byte boundary.
     _padding: [u8; 5],
 }
+
+// Enforces 1-byte alignment for the struct.
+const _: () = {
+    assert!(align_of::<Header>() == 1);
+};
 
 impl Header {
     /// Length of the header (96 bytes).
