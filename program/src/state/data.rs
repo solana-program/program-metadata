@@ -31,6 +31,9 @@ impl<'a> Data<'a> {
                 if bytes.len() < ExternalData::LEN {
                     return Err(ProgramError::InvalidArgument);
                 }
+                if !(bytes.as_ptr() as usize).is_multiple_of(align_of::<ExternalData>()) {
+                    return Err(ProgramError::InvalidArgument);
+                }
                 // SAFETY: `bytes` was validated to have the expected length
                 // to hold a `Data::External` reference.
                 Data::External(unsafe { &*(bytes.as_ptr() as *const ExternalData) })
