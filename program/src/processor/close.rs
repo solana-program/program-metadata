@@ -18,13 +18,6 @@ pub fn close(accounts: &mut [AccountView]) -> ProgramResult {
     // Note that program owned and writable checks are done implicitly by writing
     // to the account.
 
-    // authority
-    // - must be a signer
-
-    if !authority.is_signer() {
-        return Err(ProgramError::MissingRequiredSignature);
-    }
-
     // account
     // - must have data
     // - authority must match
@@ -35,6 +28,9 @@ pub fn close(accounts: &mut [AccountView]) -> ProgramResult {
         // SAFETY: Single borrow of the `account` data.
         unsafe { account.borrow_unchecked() }
     };
+
+    // authority
+    // - must be a signer (checked in `validate_authority`)
 
     match AccountDiscriminator::try_from(account_data[0])? {
         AccountDiscriminator::Buffer => {
