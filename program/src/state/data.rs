@@ -3,10 +3,6 @@ use pinocchio::{error::ProgramError, Address};
 use super::{DataSource, ZeroableOption};
 
 /// Metadata account data.
-//
-// Note: `Data` may be loaded directly from account data after only a
-// length check (no owner check). All fields must be valid for any bit
-// pattern.
 pub enum Data<'a> {
     /// Represents the case where the metadata is stored on the account.
     Direct(DirectData<'a>),
@@ -55,6 +51,10 @@ pub struct UrlData<'a>(pub &'a str);
 ///
 /// External data contains a reference (address) to an external account
 /// and an offset and an optional length to specify the data range.
+//
+// Note: `ExternalData` may be loaded directly from account data after
+// only a length check (no owner check). All fields must be valid for any
+// bit pattern.
 #[repr(C)]
 pub struct ExternalData {
     /// Address of the external account.
