@@ -12,6 +12,10 @@ use super::{
 };
 
 /// Metadata account header.
+//
+// Note: `Header` may be loaded directly from account data after only a
+// length check (no owner check). All fields must be valid for any bit
+// pattern.
 #[repr(C)]
 pub struct Header {
     /// Account discriminator.
