@@ -64,8 +64,10 @@ fn is_program_authority(
     let expected_program_data = {
         let data = unsafe { program.borrow_unchecked() };
         match (data.first(), program.executable()) {
-            (Some(2 /* program discriminator */), true) => {
-                let offset: usize = 4 /* discriminator */;
+            // The discriminator is 4 bytes, but we only need to check the first byte
+            // since there are fewer than 256 account types.
+            (Some(2), true) => {
+                let offset: usize = 4;
                 Address::try_from(&data[offset..offset + ADDRESS_BYTES])
                     .map_err(|_| ProgramError::InvalidAccountData)?
             }
