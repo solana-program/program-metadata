@@ -378,7 +378,7 @@ fn fail_initialize_with_wrong_metadata_pda() {
 }
 
 #[test]
-fn fail_initialize_without_rent_exemption() {
+fn fail_initialize_unfunded_metadata() {
     let authority_key = Pubkey::new_unique();
 
     let program_data_key = Pubkey::new_unique();

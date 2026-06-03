@@ -1,7 +1,6 @@
 use pinocchio::{
     cpi::{Seed, Signer},
     error::ProgramError,
-    sysvars::{rent::Rent, Sysvar},
     AccountView, ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign};
@@ -139,10 +138,9 @@ pub fn allocate(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
         _ => return Err(ProgramError::InvalidAccountData),
     }
 
-    // `buffer` length is within the permitted limit.
-    let minimum_balance = Rent::get()?.minimum_balance_unchecked(buffer.data_len());
-
-    if buffer.lamports() < minimum_balance {
+    // The buffer account must have non-zero lamports. The runtime will then
+    // ensure that the account is rent exempt.
+    if buffer.lamports() == 0 {
         return Err(ProgramError::AccountNotRentExempt);
     }
 

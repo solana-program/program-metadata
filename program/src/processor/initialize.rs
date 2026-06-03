@@ -4,7 +4,6 @@ use pinocchio::{
     cpi::{Seed, Signer},
     error::ProgramError,
     instruction::seeds,
-    sysvars::{rent::Rent, Sysvar},
     AccountView, Address, ProgramResult,
 };
 use pinocchio_system::instructions::{Allocate, Assign};
@@ -150,10 +149,9 @@ pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> Prog
             }
             .invoke_signed(signer)?;
 
-            // `space` is guranteed to be within the permitted limits.
-            let minimum_balance = Rent::get()?.minimum_balance_unchecked(space);
-
-            if metadata.lamports() < minimum_balance {
+            // The metadata account must have non-zero lamports. The runtime will
+            // then ensure that the account is rent exempt.
+            if metadata.lamports() == 0 {
                 return Err(ProgramError::AccountNotRentExempt);
             }
 
