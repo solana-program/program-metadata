@@ -23,7 +23,7 @@ pub fn trim(accounts: &mut [AccountView]) -> ProgramResult {
 
     // account
     // - authority must be a signer (checked by `validate_authority`)
-    // - must be a buffer or metadata account
+    // - must be a buffer or mutable metadata account
     // - must have a valid authority
 
     if account.is_data_empty() {

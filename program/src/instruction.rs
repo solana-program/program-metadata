@@ -148,6 +148,8 @@ pub enum ProgramMetadataInstruction {
     /// minimum size required to be rent exempt, returning any extra
     /// lamports to the `destination` account.
     ///
+    /// Note: Immutable metadata accounts cannot be trimmed.
+    ///
     /// There are 2 optional accounts:
     ///   - `program`: required to validate whether the authority is the program upgrade
     ///     authority.
@@ -160,8 +162,8 @@ pub enum ProgramMetadataInstruction {
     ///  1. `[s]` Authority account.
     ///  2. `[o]` Program account.
     ///  3. `[o]` Program data account.
-    ///  5. `[w]` Destination account.
-    ///  6. `[]` Rent sysvar account.
+    ///  4. `[w]` Destination account.
+    ///  5. `[ ]` Rent sysvar account.
     Trim,
 
     /// Closes a program-owned buffer or metadata account.
@@ -184,7 +186,7 @@ pub enum ProgramMetadataInstruction {
     ///  1. `[s]` Metadata authority or buffer account.
     ///  2. `[o]` Program account.
     ///  3. `[o]` Program data account.
-    ///  5. `[w]` Destination account.
+    ///  4. `[w]` Destination account.
     Close,
 
     /// Allocates a buffer account.
