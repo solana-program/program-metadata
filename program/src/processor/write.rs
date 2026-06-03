@@ -31,8 +31,8 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
 
     // target_buffer
     // - must be initialized
-    // - must be rent exempt (pre-funded account) since we are reallocating the buffer
-    //   account (checked by the runtime)
+    // - must be rent exempt (pre-funded account) since we are reallocating
+    //   the account (checked by the runtime)
     //
     // source_buffer (if `args.data()` is empty)
     // - must be initialized

@@ -62,6 +62,8 @@ pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> Prog
     //   the remaining instruction data is used as the metadata account data; OR be a
     //   pre-allocated buffer (i.e. `discriminator = 1`), in which case, no remaining
     //   instruction data is allowed as the data must already be written to the account
+    // - must have lamports (pre-funded account); the runtime will ensure that the
+    //   account is rent exempt
 
     let (derived_metadata, bump) = if canonical {
         derive_program_address(&[program.address().as_array(), args.seed.as_ref()], &ID)
@@ -149,12 +151,6 @@ pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> Prog
             }
             .invoke_signed(signer)?;
 
-            // The metadata account must have non-zero lamports. The runtime will
-            // then ensure that the account is rent exempt.
-            if metadata.lamports() == 0 {
-                return Err(ProgramError::AccountNotRentExempt);
-            }
-
             // SAFETY: scoped mutable borrow of `metadata` account data. The data is
             // guaranteed to be allocated and assigned to the program.
             let metadata_account_data = unsafe { metadata.borrow_unchecked_mut() };
@@ -176,6 +172,12 @@ pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> Prog
             remaining_data.len()
         }
     };
+
+    // The metadata account must have lamports. The runtime will
+    // then ensure that the account is rent exempt.
+    if metadata.lamports() == 0 {
+        return Err(ProgramError::AccountNotRentExempt);
+    }
 
     // Initialize the metadata account.
 

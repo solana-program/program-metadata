@@ -39,7 +39,8 @@ pub fn allocate(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
     // buffer
     // - if pda, must have the correct derivation + seed; otherwise must be
     //   a signer (match the authority)
-    // - must be rent exempt (pre-funded account)
+    // - must have lamports (pre-funded account); the runtime will ensure
+    //   that the account is rent exempt
 
     let (is_pda, bump, canonical) = if buffer.address() == authority.address() {
         // A keypair buffer does not require a `seed` value.

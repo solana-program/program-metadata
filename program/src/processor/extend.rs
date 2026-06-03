@@ -33,7 +33,7 @@ pub fn extend(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramR
     // - authority must be a signer (validated by `validate_authority`)
     // - must be a buffer or metadata account
     // - must have a valid authority
-    // - must be rent exempt (pre-funded account) since we are reallocating the buffer
+    // - must be rent exempt (pre-funded account) since we are reallocating the
     //   account (checked by the runtime)
 
     if account.is_data_empty() {
