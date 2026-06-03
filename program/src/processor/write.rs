@@ -1,10 +1,6 @@
 use core::cmp::max;
 
-use pinocchio::{
-    error::ProgramError,
-    sysvars::{rent::Rent, Sysvar},
-    AccountView, ProgramResult, Resize,
-};
+use pinocchio::{error::ProgramError, AccountView, ProgramResult, Resize};
 
 use crate::state::{buffer::Buffer, header::Header, AccountDiscriminator};
 
@@ -36,7 +32,7 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
     // target_buffer
     // - must be initialized
     // - must be rent exempt (pre-funded account) since we are reallocating the buffer
-    //   account
+    //   account (checked by the runtime)
     //
     // source_buffer (if `args.data()` is empty)
     // - must be initialized
@@ -94,12 +90,6 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
         // `offset` is a `u32` value and `source_data` is at most `10_000_000` bytes.
         (max(data.len(), offset + source_data.len()), source_data)
     };
-
-    let minimum_balance = Rent::get()?.try_minimum_balance(required_length)?;
-
-    if target_buffer.lamports() < minimum_balance {
-        return Err(ProgramError::AccountNotRentExempt);
-    }
 
     // Writes the source data to the buffer account.
 

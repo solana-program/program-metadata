@@ -1,10 +1,5 @@
 use core::mem::size_of;
-use pinocchio::{
-    account::AccountView,
-    error::ProgramError,
-    sysvars::{rent::Rent, Sysvar},
-    ProgramResult, Resize,
-};
+use pinocchio::{account::AccountView, error::ProgramError, ProgramResult, Resize};
 
 use crate::state::{buffer::Buffer, AccountDiscriminator};
 
@@ -39,7 +34,7 @@ pub fn extend(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramR
     // - must be a buffer or metadata account
     // - must have a valid authority
     // - must be rent exempt (pre-funded account) since we are reallocating the buffer
-    //   account
+    //   account (checked by the runtime)
 
     if account.is_data_empty() {
         return Err(ProgramError::InvalidAccountData);
@@ -62,18 +57,11 @@ pub fn extend(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramR
         }
     }
 
+    // Reallocates the account size.
+
     // The length of the data is never more than `10_000_000`; adding a `u16`
     // will never overflow the `usize` limit.
     let length = account.data_len() + extend_length as usize;
-
-    let minimum_balance = Rent::get()?.try_minimum_balance(length)?;
-
-    if account.lamports() < minimum_balance {
-        return Err(ProgramError::AccountNotRentExempt);
-    }
-
-    // Reallocates the account size.
-
     // SAFETY: `account` is not borrowed at this point.
     unsafe { account.resize_unchecked(length) }
 }
