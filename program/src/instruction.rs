@@ -227,6 +227,8 @@ pub enum ProgramMetadataInstruction {
     /// The account is expected to be pre-funded with the required lamports
     /// for the new size.
     ///
+    /// Note: Immutable metadata accounts cannot be extended.
+    ///
     /// There are 2 optional accounts:
     ///   - `program`: required to validate whether the authority is the program upgrade
     ///     authority.
