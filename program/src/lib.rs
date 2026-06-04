@@ -1,4 +1,5 @@
 //! A program to store metadata information for programs.
+#![no_std]
 
 pub mod entrypoint;
 pub mod error;
