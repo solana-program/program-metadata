@@ -72,7 +72,7 @@ pub fn write(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramRe
             if !source_buffer.owned_by(&crate::ID) {
                 return Err(ProgramError::InvalidAccountOwner);
             }
-            // SAFETY: singe immutable borrow of `source_buffer` account data.
+            // SAFETY: single immutable borrow of `source_buffer` account data.
             Some(unsafe { source_buffer.borrow_unchecked() })
         } else {
             None
