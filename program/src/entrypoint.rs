@@ -1,5 +1,5 @@
 use pinocchio::{
-    default_panic_handler, error::ProgramError, no_allocator, program_entrypoint, AccountView,
+    error::ProgramError, no_allocator, nostd_panic_handler, program_entrypoint, AccountView,
     Address, ProgramResult,
 };
 
@@ -14,7 +14,7 @@ use crate::{
 
 program_entrypoint!(process_instruction);
 // Logs panic output.
-default_panic_handler!();
+nostd_panic_handler!();
 // No allocator is used.
 no_allocator!();
 

@@ -24,7 +24,7 @@ crate-type = ["cdylib", "lib"]
 pinocchio = { version = "0.11.1", features = ["account-resize"] }
 pinocchio-system = "0.6.1"
 solana-program-log = { version = "1.0", default-features = false }
-solana-security-txt = "1.1.1"
+solana-security-txt = "1.1.3"
 
 [dev-dependencies]
 mollusk-svm = { version = "0.4" }
