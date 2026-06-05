@@ -34,7 +34,8 @@ pub fn extend(accounts: &mut [AccountView], instruction_data: &[u8]) -> ProgramR
     // - must be a buffer or metadata account
     // - must have a valid authority
     // - must be rent exempt (pre-funded account) since we are reallocating the
-    //   account (checked by the runtime)
+    //   account (checked by the runtime); both `allocate` and `initialize` ensure
+    //   that the account has at least some lamports
 
     if account.is_data_empty() {
         return Err(ProgramError::InvalidAccountData);
