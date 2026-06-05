@@ -46,6 +46,8 @@ pub fn set_data(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
         // metadata
         // - must be initialized
         // - must be mutable
+        // - must be rent exempt (pre-funded account) since we are reallocating the
+        //   account (checked by the runtime)
 
         // SAFETY: Scoped immutable borrow of `metadata` account data for validation.
         let metadata_account_data = unsafe { metadata.borrow_unchecked() };

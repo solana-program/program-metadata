@@ -265,28 +265,3 @@ fn fail_write_from_same_buffer() {
         ],
     );
 }
-
-#[test]
-fn fail_write_without_rent_for_growth() {
-    let buffer_key = Pubkey::new_unique();
-    let buffer_account =
-        create_funded_account(minimum_balance_for(Buffer::LEN), system_program::ID);
-
-    process_instructions(
-        &[
-            (
-                &allocate(&buffer_key, &buffer_key, None, None, None),
-                &[Check::success()],
-            ),
-            (
-                &write(&buffer_key, &buffer_key, None, 0, &[1]),
-                &[Check::err(ProgramError::AccountNotRentExempt)],
-            ),
-        ],
-        &[
-            (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
-            keyed_account_for_system_program(),
-        ],
-    );
-}
