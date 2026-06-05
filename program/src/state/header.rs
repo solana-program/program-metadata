@@ -12,6 +12,14 @@ use super::{
 };
 
 /// Metadata account header.
+///
+/// A metadata account holds a variable amount of data after its header information.
+///
+/// A metadata account address is a PDA derived from a seed and program;
+/// non-canonical metadata accounts also include an authority in the derivation.
+/// Once a metadata account is initialized, it is not possible to change its seed
+/// and program values; however, it is possible to change its authority (in the
+/// case of a canonical metadata account) and mutable flag.
 //
 // Note: `Header` may be loaded directly from account data after only a
 // length check (no owner check). All fields must be valid for any bit
