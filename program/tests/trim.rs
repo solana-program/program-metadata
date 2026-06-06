@@ -92,7 +92,6 @@ fn test_trim_canonical() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -187,7 +186,6 @@ fn test_trim_non_canonical() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -246,7 +244,6 @@ fn test_trim_buffer() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
             (solana_rent::sysvar::ID, rent_sysvar()),
@@ -292,7 +289,6 @@ fn fail_trim_non_rent_exempt_account() {
         )],
         &[
             (fake_buffer_key, fake_buffer_account),
-            (PROGRAM_ID, Account::default()),
             (destination_key, destination_account),
             keyed_account_for_system_program(),
             (rent::ID, rent_sysvar()),
@@ -330,7 +326,6 @@ fn fail_trim_with_wrong_authority() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (wrong_authority_key, Account::default()),
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
@@ -352,7 +347,6 @@ fn fail_trim_account_with_empty_discriminator() {
         ),
         &[
             (account_key, account),
-            (PROGRAM_ID, Account::default()),
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
             (rent::ID, rent_sysvar()),

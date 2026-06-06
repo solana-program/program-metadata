@@ -90,7 +90,6 @@ fn test_set_authority_metadata() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (new_authority_key, Account::default()),
             (program_key, program_account),
@@ -185,7 +184,6 @@ fn test_remove_metadata_authority() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (new_authority_key, Account::default()),
             (program_key, program_account),
@@ -239,7 +237,6 @@ fn test_set_authority_buffer() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (new_authority_key, Account::default()),
             keyed_account_for_system_program(),
         ],
@@ -308,7 +305,6 @@ fn fail_set_authority_immutable_metadata() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -370,7 +366,6 @@ fn test_set_authority_non_canonical_metadata() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -431,7 +426,6 @@ fn fail_set_authority_with_wrong_authority() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (wrong_authority_key, Account::default()),
             (program_key, program_account),
@@ -460,7 +454,6 @@ fn fail_set_authority_remove_buffer_authority() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -495,7 +488,6 @@ fn fail_set_authority_with_missing_new_authority_bytes() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
