@@ -6,7 +6,7 @@ use pinocchio::{
     instruction::seeds,
     AccountView, Address, ProgramResult,
 };
-use pinocchio_system::instructions::{Allocate, Assign};
+use pinocchio_system::instructions::CreateAccountAllowPrefund;
 
 use crate::{
     processor::derive_program_address,
@@ -139,15 +139,11 @@ pub fn initialize(accounts: &mut [AccountView], instruction_data: &[u8]) -> Prog
             // Instruction data is limited to ~1232 bytes.
             let space = Header::LEN + remaining_data.len();
 
-            Allocate {
-                account: metadata,
+            CreateAccountAllowPrefund {
+                to: metadata,
                 space: space as u64,
-            }
-            .invoke_signed(signer)?;
-
-            Assign {
-                account: metadata,
                 owner: &crate::ID,
+                funding: None,
             }
             .invoke_signed(signer)?;
 
