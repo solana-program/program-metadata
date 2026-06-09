@@ -4,15 +4,15 @@ use pinocchio::{error::ProgramError, Address};
 
 use super::{DataSource, ZeroableOption};
 
-/// Metadata account data.
+/// Represents the variable data associated with a metadata account.
 pub enum Data<'a> {
-    /// Represents the case where the metadata is stored on the account.
+    /// Data is stored directly on the account.
     Direct(DirectData<'a>),
 
-    /// Represents the case where the metadata is a URL.
+    /// Data is stored externally and accessed via a URL.
     Url(UrlData<'a>),
 
-    /// Represents the case where the metadata is external data.
+    /// Data is stored in an external account.
     External(&'a ExternalData),
 }
 

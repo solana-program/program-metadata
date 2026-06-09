@@ -11,6 +11,19 @@ use super::{Account, AccountDiscriminator, ZeroableOption, SEED_LEN};
 /// Buffer account header.
 ///
 /// A buffer holds a variable amount of data after its header information.
+///
+/// There are two types of buffers: PDA buffer accounts and keypair buffer
+/// accounts. PDA buffer account addresses are derived from a seed and program;
+/// non-canonical buffers also include an authority in the derivation. They can
+/// be converted to metadata accounts via the `initialize` instruction. While it
+/// is possible to change the authority of a PDA buffer account, only the program
+/// upgrade authority can initialize a canonical PDA buffer account into a metadata
+/// account; similarly, for non-canonical PDA buffer accounts, only the authority
+/// used in the derivation can initialize the buffer into a metadata account.
+///
+/// Keypair buffer accounts do not follow a specific derivation and thus cannot
+/// be converted to metadata accounts. They can be used as temporary buffers
+/// for instructions that require data to be passed via accounts.
 //
 // Note: `Buffer` may be loaded directly from account data after only a
 // length check (no owner check). All fields must be valid for any bit
