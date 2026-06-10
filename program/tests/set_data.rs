@@ -89,7 +89,6 @@ fn test_set_data_instruction_data() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -201,7 +200,6 @@ fn test_set_data_buffer() {
         &[
             (metadata_key, metadata_account),
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -279,7 +277,6 @@ fn test_set_data_without_replacing_data() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -359,7 +356,6 @@ fn test_set_data_shrinks_metadata_account() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -429,7 +425,6 @@ fn fail_set_data_with_wrong_authority() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (wrong_authority_key, Account::default()),
             (program_key, program_account),
@@ -510,7 +505,6 @@ fn fail_set_data_from_empty_buffer_as_direct_data() {
         &[
             (metadata_key, metadata_account),
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -580,7 +574,6 @@ fn fail_set_data_with_invalid_compression() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -650,7 +643,6 @@ fn fail_set_data_with_invalid_data_source() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -724,7 +716,6 @@ fn fail_set_data_from_wrong_owner_buffer() {
         &[
             (metadata_key, metadata_account),
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -793,7 +784,6 @@ fn fail_set_data_with_invalid_encoding() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),

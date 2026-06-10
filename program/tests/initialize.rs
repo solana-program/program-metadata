@@ -59,7 +59,6 @@ fn test_initialize_canonical() {
         ),
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -118,7 +117,6 @@ fn test_initialize_non_canonical() {
         ),
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -198,7 +196,6 @@ fn test_initialize_from_buffer() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -255,7 +252,6 @@ fn fail_initialize_already_initialized_metadata() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -322,7 +318,6 @@ fn fail_initialize_from_buffer_with_instruction_data() {
         ],
         &[
             (metadata_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -368,7 +363,6 @@ fn fail_initialize_with_wrong_metadata_pda() {
         (&instruction, &[Check::err(ProgramError::InvalidSeeds)]),
         &[
             (wrong_metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -414,7 +408,6 @@ fn fail_initialize_unfunded_metadata() {
         ),
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -461,7 +454,6 @@ fn fail_initialize_without_data() {
         ),
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -508,7 +500,6 @@ fn fail_initialize_with_invalid_encoding() {
         ),
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -557,7 +548,6 @@ fn fail_initialize_external_data_with_wrong_length() {
         ),
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),

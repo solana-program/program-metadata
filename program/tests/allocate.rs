@@ -122,7 +122,6 @@ fn test_allocate_keypair() {
         ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -148,7 +147,6 @@ fn test_allocate_with_empty_account() {
         ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -168,7 +166,6 @@ fn test_allocate_with_unsufficient_length() {
         ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -287,7 +284,6 @@ fn test_allocate_with_funded_keypair_account() {
         ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -313,7 +309,6 @@ fn test_allocate_with_allocated_keypair_account() {
         ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -412,7 +407,6 @@ fn test_allocate_with_unfunded_account() {
         ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -434,7 +428,6 @@ fn fail_allocate_keypair_with_seed() {
         ),
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -541,7 +534,6 @@ fn fail_allocate_already_initialized_buffer() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );

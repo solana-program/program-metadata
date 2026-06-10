@@ -46,7 +46,6 @@ fn test_write_instruction_data() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -109,7 +108,6 @@ fn test_write_from_buffer() {
         &[
             (source_key, source_account),
             (target_key, target_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -150,7 +148,6 @@ fn test_write_with_non_zero_offset_and_overwrite() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -179,7 +176,6 @@ fn fail_write_with_wrong_authority() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (wrong_authority_key, Account::default()),
             keyed_account_for_system_program(),
         ],
@@ -210,7 +206,6 @@ fn fail_write_from_wrong_owner_source_buffer() {
         &[
             (source_key, Account::default()),
             (target_key, target_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -235,7 +230,6 @@ fn fail_write_empty_data_without_source_buffer() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -260,7 +254,6 @@ fn fail_write_from_same_buffer() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );

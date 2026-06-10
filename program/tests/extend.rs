@@ -188,7 +188,6 @@ fn test_extend_keypair_buffer() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             keyed_account_for_system_program(),
         ],
     );
@@ -255,7 +254,6 @@ fn test_extend_metadata() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -292,7 +290,6 @@ fn fail_extend_with_wrong_authority() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (wrong_authority_key, Account::default()),
             keyed_account_for_system_program(),
         ],
@@ -308,10 +305,7 @@ fn fail_extend_uninitialized_account() {
             &extend(&account_key, &account_key, None, None, EXTEND_LENGTH as u16),
             &[Check::err(ProgramError::InvalidAccountData)],
         ),
-        &[
-            (account_key, Account::default()),
-            (PROGRAM_ID, Account::default()),
-        ],
+        &[(account_key, Account::default())],
     );
 }
 
@@ -326,9 +320,6 @@ fn fail_extend_with_invalid_instruction_data() {
             &instruction,
             &[Check::err(ProgramError::InvalidInstructionData)],
         ),
-        &[
-            (buffer_key, Account::default()),
-            (PROGRAM_ID, Account::default()),
-        ],
+        &[(buffer_key, Account::default())],
     );
 }

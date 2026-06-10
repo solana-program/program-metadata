@@ -77,7 +77,6 @@ fn test_close_metadata() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
@@ -120,7 +119,6 @@ fn test_close_buffer() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
         ],
@@ -155,7 +153,6 @@ fn fail_close_with_wrong_authority() {
         ],
         &[
             (buffer_key, buffer_account),
-            (PROGRAM_ID, Account::default()),
             (wrong_authority_key, Account::default()),
             (destination_key, Account::default()),
             keyed_account_for_system_program(),
@@ -175,7 +172,6 @@ fn fail_close_uninitialized_account() {
         ),
         &[
             (account_key, Account::default()),
-            (PROGRAM_ID, Account::default()),
             (destination_key, Account::default()),
         ],
     );
@@ -194,7 +190,6 @@ fn fail_close_account_with_empty_discriminator() {
         ),
         &[
             (account_key, account),
-            (PROGRAM_ID, Account::default()),
             (destination_key, Account::default()),
         ],
     );
@@ -265,7 +260,6 @@ fn fail_close_immutable_metadata() {
         ],
         &[
             (metadata_key, metadata_account),
-            (PROGRAM_ID, Account::default()),
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
