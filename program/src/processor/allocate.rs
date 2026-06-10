@@ -1,9 +1,5 @@
-use pinocchio::{
-    cpi::{Seed, Signer},
-    error::ProgramError,
-    AccountView, ProgramResult,
-};
-use pinocchio_system::instructions::{Allocate, Assign};
+use pinocchio::{cpi::Signer, error::ProgramError, instruction::seeds, AccountView, ProgramResult};
+use pinocchio_system::instructions::{Assign, CreateAccountAllowPrefund};
 
 use crate::{
     error::ProgramMetadataError,
@@ -90,28 +86,38 @@ pub fn allocate(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
 
             match (is_pda, canonical) {
                 // canonical
-                (true, true) => allocate_and_assign(
-                    buffer,
+                (true, true) => CreateAccountAllowPrefund {
+                    to: buffer,
                     space,
-                    &[
-                        Seed::from(program.address().as_array()),
-                        Seed::from(instruction_data),
-                        Seed::from(&[bump]),
-                    ],
-                )?,
+                    owner: &crate::ID,
+                    funding: None,
+                }
+                .invoke_signed(&[Signer::from(&seeds!(
+                    program.address().as_ref(),
+                    instruction_data,
+                    &[bump]
+                ))])?,
                 // non-canonical
-                (true, false) => allocate_and_assign(
-                    buffer,
+                (true, false) => CreateAccountAllowPrefund {
+                    to: buffer,
                     space,
-                    &[
-                        Seed::from(program.address().as_array()),
-                        Seed::from(authority.address().as_array()),
-                        Seed::from(instruction_data),
-                        Seed::from(&[bump]),
-                    ],
-                )?,
+                    owner: &crate::ID,
+                    funding: None,
+                }
+                .invoke_signed(&[Signer::from(&seeds!(
+                    program.address().as_ref(),
+                    authority.address().as_ref(),
+                    instruction_data,
+                    &[bump]
+                ))])?,
                 // keypair
-                (false, _) => allocate_and_assign(buffer, space, &[])?,
+                (false, _) => CreateAccountAllowPrefund {
+                    to: buffer,
+                    space,
+                    owner: &crate::ID,
+                    funding: None,
+                }
+                .invoke()?,
             }
         }
         n if n >= Buffer::LEN => {
@@ -162,24 +168,4 @@ pub fn allocate(accounts: &mut [AccountView], instruction_data: &[u8]) -> Progra
     }
 
     Ok(())
-}
-
-/// Allocates the space for the account and assigns it to the program.
-///
-/// When the `account` is a PDA, the `seeds` are used to create the signer.
-#[inline(always)]
-fn allocate_and_assign(account: &AccountView, space: u64, seeds: &[Seed]) -> ProgramResult {
-    let signer: &[Signer] = if seeds.is_empty() {
-        &[]
-    } else {
-        &[Signer::from(seeds)]
-    };
-
-    Allocate { account, space }.invoke_signed(signer)?;
-
-    Assign {
-        account,
-        owner: &crate::ID,
-    }
-    .invoke_signed(signer)
 }
