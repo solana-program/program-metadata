@@ -294,3 +294,5 @@ make test-js-clients-js
 ## License
 
 The code is licensed under the [Apache License Version 2.0](LICENSE)
+ ##Updating IDL Metadata 
+ #npx @solana-program/program-metadata@latest write idl $PROGRAM_ID ./idl.json
