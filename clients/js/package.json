@@ -74,5 +74,10 @@
     },
     "peerDependencies": {
         "@solana/kit": "^6.10.0"
+    },
+    "pnpm": {
+        "overrides": {
+            "@solana/kit-plugin-litesvm>litesvm": "1.2.0-rc.0"
+        }
     }
 }
