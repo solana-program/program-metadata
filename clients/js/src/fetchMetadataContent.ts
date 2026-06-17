@@ -1,4 +1,4 @@
-import { parse as parseToml } from '@iarna/toml';
+import { parse as parseToml } from 'smol-toml';
 import { Address, assertAccountsExist, GetAccountInfoApi, GetMultipleAccountsApi, Rpc } from '@solana/kit';
 import { parse as parseYaml } from 'yaml';
 
