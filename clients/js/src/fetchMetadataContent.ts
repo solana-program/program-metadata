@@ -1,5 +1,5 @@
-import { parse as parseToml } from 'smol-toml';
 import { Address, assertAccountsExist, GetAccountInfoApi, GetMultipleAccountsApi, Rpc } from '@solana/kit';
+import { parse as parseToml } from 'smol-toml';
 import { parse as parseYaml } from 'yaml';
 
 import { fetchAllMaybeMetadata, fetchMetadataFromSeeds, findMetadataPda, Format, SeedArgs } from './generated';
