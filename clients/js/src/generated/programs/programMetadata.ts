@@ -18,6 +18,7 @@ import {
     type ClientWithRpc,
     type ClientWithTransactionPlanning,
     type ClientWithTransactionSending,
+    type ExtendedClient,
     type GetAccountInfoApi,
     type GetMultipleAccountsApi,
     type Instruction,
@@ -208,6 +209,8 @@ export type ProgramMetadataPlugin = {
     accounts: ProgramMetadataPluginAccounts;
     instructions: ProgramMetadataPluginInstructions;
     pdas: ProgramMetadataPluginPdas;
+    identifyInstruction: typeof identifyProgramMetadataInstruction;
+    parseInstruction: typeof parseProgramMetadataInstruction;
 };
 
 export type ProgramMetadataPluginAccounts = {
@@ -246,7 +249,7 @@ export type ProgramMetadataPluginRequirements = ClientWithRpc<GetAccountInfoApi 
 export function programMetadataProgram() {
     return <T extends ProgramMetadataPluginRequirements>(
         client: T,
-    ): Omit<T, 'programMetadata'> & { programMetadata: ProgramMetadataPlugin } => {
+    ): ExtendedClient<T, { programMetadata: ProgramMetadataPlugin }> => {
         return extendClient(client, {
             programMetadata: <ProgramMetadataPlugin>{
                 accounts: {
@@ -265,6 +268,8 @@ export function programMetadataProgram() {
                     extend: input => addSelfPlanAndSendFunctions(client, getExtendInstruction(input)),
                 },
                 pdas: { canonical: findCanonicalPda, nonCanonical: findNonCanonicalPda, metadata: findMetadataPda },
+                identifyInstruction: identifyProgramMetadataInstruction,
+                parseInstruction: parseProgramMetadataInstruction,
             },
         });
     };
