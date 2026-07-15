@@ -47,8 +47,8 @@
         "prepublishOnly": "pnpm build"
     },
     "dependencies": {
-        "@solana-program/compute-budget": "^0.16.0",
-        "@solana-program/system": "^0.12.2",
+        "@solana-program/compute-budget": "^0.17.0",
+        "@solana-program/system": "^0.13.0",
         "commander": "^13.0.0",
         "pako": "^2.1.0",
         "picocolors": "^1.1.1",
@@ -57,10 +57,10 @@
     },
     "devDependencies": {
         "@solana-config/oxc": "^0.1.1",
-        "@solana/kit": "^6.10.0",
-        "@solana/kit-plugin-litesvm": "^0.12.1",
-        "@solana/kit-plugin-rpc": "^0.12.1",
-        "@solana/kit-plugin-signer": "^0.12.1",
+        "@solana/kit": "^7.0.0",
+        "@solana/kit-plugin-litesvm": "^0.13.0",
+        "@solana/kit-plugin-rpc": "^0.13.0",
+        "@solana/kit-plugin-signer": "^0.13.0",
         "@types/node": "^24",
         "@types/pako": "^2.0.3",
         "oxfmt": "^0.48.0",
@@ -73,6 +73,6 @@
         "vitest": "^4.0.15"
     },
     "peerDependencies": {
-        "@solana/kit": "^6.10.0"
+        "@solana/kit": "^7.0.0"
     }
 }
