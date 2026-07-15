@@ -52,6 +52,9 @@ jobs:
       - name: Git Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Environment
+        uses: solana-program/actions/setup-ubuntu@main
+
       - name: Summarise workflow inputs
         uses: solana-program/actions/workflow-inputs@v1
 
