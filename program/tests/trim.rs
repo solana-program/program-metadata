@@ -213,7 +213,7 @@ fn test_trim_buffer() {
                 &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
-                    // data lenght
+                    // data length
                     Check::account(&buffer_key).space(Buffer::LEN).build(),
                     // account discriminator
                     Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -227,7 +227,7 @@ fn test_trim_buffer() {
                 &trim(&buffer_key, &buffer_key, None, None, &destination_key),
                 &[
                     Check::success(),
-                    // data lenght
+                    // data length
                     Check::account(&buffer_key).space(Buffer::LEN).build(),
                     // account discriminator
                     Check::account(&buffer_key).data_slice(0, &[1]).build(),
