@@ -44,7 +44,7 @@ fn test_extend_canonical_buffer() {
                     Check::success(),
                     // account discriminator
                     Check::account(&buffer_key).data_slice(0, &[1]).build(),
-                    // data lenght
+                    // data length
                     Check::account(&buffer_key).space(Buffer::LEN).build(),
                 ],
             ),
@@ -58,7 +58,7 @@ fn test_extend_canonical_buffer() {
                 ),
                 &[
                     Check::success(),
-                    // data lenght
+                    // data length
                     Check::account(&buffer_key)
                         .space(Buffer::LEN + EXTEND_LENGTH)
                         .build(),
@@ -114,7 +114,7 @@ fn test_extend_non_canonical_buffer() {
                 ),
                 &[
                     Check::success(),
-                    // data lenght
+                    // data length
                     Check::account(&buffer_key).space(Buffer::LEN).build(),
                     // account discriminator
                     Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -130,7 +130,7 @@ fn test_extend_non_canonical_buffer() {
                 ),
                 &[
                     Check::success(),
-                    // data lenght
+                    // data length
                     Check::account(&buffer_key)
                         .space(Buffer::LEN + EXTEND_LENGTH)
                         .build(),
@@ -165,7 +165,7 @@ fn test_extend_keypair_buffer() {
                 &allocate(&buffer_key, &buffer_key, None, None, None),
                 &[
                     Check::success(),
-                    // data lenght
+                    // data length
                     Check::account(&buffer_key).space(Buffer::LEN).build(),
                     // account discriminator
                     Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -175,7 +175,7 @@ fn test_extend_keypair_buffer() {
                 &extend(&buffer_key, &buffer_key, None, None, EXTEND_LENGTH as u16),
                 &[
                     Check::success(),
-                    // data lenght
+                    // data length
                     Check::account(&buffer_key)
                         .space(Buffer::LEN + EXTEND_LENGTH)
                         .build(),

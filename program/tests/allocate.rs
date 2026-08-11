@@ -39,7 +39,7 @@ fn test_allocate_canonical() {
             ),
             &[
                 Check::success(),
-                // data lenght
+                // data length
                 Check::account(&buffer_key).space(Buffer::LEN).build(),
                 // account discriminator
                 Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -86,7 +86,7 @@ fn test_allocate_non_canonical() {
             ),
             &[
                 Check::success(),
-                // data lenght
+                // data length
                 Check::account(&buffer_key).space(Buffer::LEN).build(),
                 // account discriminator
                 Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -114,7 +114,7 @@ fn test_allocate_keypair() {
             &allocate(&buffer_key, &buffer_key, None, None, None),
             &[
                 Check::success(),
-                // data lenght
+                // data length
                 Check::account(&buffer_key).space(Buffer::LEN).build(),
                 // account discriminator
                 Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -139,7 +139,7 @@ fn test_allocate_with_empty_account() {
             &allocate(&buffer_key, &buffer_key, None, None, None),
             &[
                 Check::success(),
-                // data lenght
+                // data length
                 Check::account(&buffer_key).space(Buffer::LEN).build(),
                 // account discriminator
                 Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -200,7 +200,7 @@ fn test_allocate_with_funded_canonical_account() {
             ),
             &[
                 Check::success(),
-                // data lenght
+                // data length
                 Check::account(&buffer_key).space(Buffer::LEN).build(),
                 // account discriminator
                 Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -248,7 +248,7 @@ fn test_allocate_with_funded_non_canonical_account() {
             ),
             &[
                 Check::success(),
-                // data lenght
+                // data length
                 Check::account(&buffer_key).space(Buffer::LEN).build(),
                 // account discriminator
                 Check::account(&buffer_key).data_slice(0, &[1]).build(),
@@ -276,7 +276,7 @@ fn test_allocate_with_funded_keypair_account() {
             &allocate(&buffer_key, &buffer_key, None, None, None),
             &[
                 Check::success(),
-                // data lenght
+                // data length
                 Check::account(&buffer_key).space(Buffer::LEN).build(),
                 // account discriminator
                 Check::account(&buffer_key).data_slice(0, &[1]).build(),
