@@ -35,14 +35,8 @@ import {
 
 export const ACCOUNT_HEADER_LENGTH = 96;
 
-export const LOADER_V1_PROGRAM_ADDRESS =
-    'BPFLoader1111111111111111111111111111111111' as Address<'BPFLoader1111111111111111111111111111111111'>;
-export const LOADER_V2_PROGRAM_ADDRESS =
-    'BPFLoader2111111111111111111111111111111111' as Address<'BPFLoader2111111111111111111111111111111111'>;
 export const LOADER_V3_PROGRAM_ADDRESS =
     'BPFLoaderUpgradeab1e11111111111111111111111' as Address<'BPFLoaderUpgradeab1e11111111111111111111111'>;
-export const LOADER_V4_PROGRAM_ADDRESS =
-    'CoreBPFLoaderV41111111111111111111111111111' as Address<'CoreBPFLoaderV41111111111111111111111111111'>;
 
 export type MetadataInput = {
     payer: TransactionSigner;
@@ -127,17 +121,16 @@ export async function getProgramAuthority(
         throw Error('Program account must be executable');
     }
 
-    // Check all the loader programs.
-    switch (programAccount.programAddress) {
-        case LOADER_V1_PROGRAM_ADDRESS:
-        case LOADER_V2_PROGRAM_ADDRESS:
-            return { authority: program };
-        case LOADER_V3_PROGRAM_ADDRESS:
-            return await getProgramAuthorityForLoaderV3(rpc, programAccount);
-        case LOADER_V4_PROGRAM_ADDRESS:
-        default:
-            throw new Error('Unsupported loader program: ' + programAccount.programAddress);
+    // Loader v3 programs store their upgrade authority in a separate program
+    // data account.
+    if (programAccount.programAddress === LOADER_V3_PROGRAM_ADDRESS) {
+        return await getProgramAuthorityForLoaderV3(rpc, programAccount);
     }
+
+    // For any other owner (loader v1, v2, v4, the native loader, etc.), the
+    // on-chain program considers the program's own address to be its authority
+    // — i.e. the program keypair itself must sign to prove canonicity.
+    return { authority: program };
 }
 
 async function getProgramAuthorityForLoaderV3(rpc: Rpc<GetAccountInfoApi>, programAccount: EncodedAccount) {

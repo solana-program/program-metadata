@@ -3,6 +3,7 @@ import path from 'node:path';
 import { systemProgram } from '@solana-program/system';
 import {
     Address,
+    address,
     createClient,
     generateKeyPairSigner,
     getAddressEncoder,
@@ -10,6 +11,7 @@ import {
     getStructEncoder,
     getU32Encoder,
     getU64Encoder,
+    getUtf8Encoder,
     KeyPairSigner,
     lamports,
     Lamports,
@@ -132,4 +134,29 @@ export const createDeployedProgram = async (
     });
 
     return [program.address, programData];
+};
+
+export const NATIVE_LOADER_PROGRAM_ADDRESS = address('NativeLoader1111111111111111111111111111111');
+
+/**
+ * Fabricates a native (built-in) program inside the LiteSVM instance — i.e. an
+ * executable account owned by the native loader, like `ComputeBudget111...`.
+ * The program is never actually invoked — only its account is read by the
+ * client for the canonicity check.
+ */
+export const createNativeProgram = async (client: TestClient): Promise<Address> => {
+    const program = await generateKeyPairSigner();
+    const data = getUtf8Encoder().encode('native_program');
+    const space = BigInt(data.length);
+
+    client.svm.setAccount({
+        address: program.address,
+        data,
+        executable: true,
+        lamports: lamports(client.svm.minimumBalanceForRentExemption(space)),
+        programAddress: NATIVE_LOADER_PROGRAM_ADDRESS,
+        space,
+    });
+
+    return program.address;
 };
