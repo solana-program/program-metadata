@@ -254,6 +254,27 @@ node fetch-metadata.mjs
 You can use the Program Metadata program id for example if you want to test it out:
 [ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S](https://explorer.solana.com/address/ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S)
 
+### IDL versioning
+
+Codama IDLs carry the version of the [Codama standard](https://github.com/codama-idl/codama) they conform to in their `version` field. As the standard evolves across major versions, the recommended convention keeps IDL producers and consumers decoupled:
+
+- **Write** your IDL to the single canonical `idl` seed, stamped at whichever Codama version your tooling generates.
+- **Read** it through the [`@codama/upgrade`](https://github.com/codama-idl/codama/tree/main/packages/upgrade) package, which upgrades an IDL of any older major to the latest version of the standard:
+
+```js
+import { upgrade } from '@codama/upgrade';
+
+const content = await fetchAndParseMetadataContent(rpc, programId, 'idl');
+const idl = upgrade(content);
+```
+
+This way there is exactly one authoritative IDL per program, and every consumer — explorers, client generators, indexers — reads it at the version they understand. If you must serve multiple majors side by side, you can additionally publish under version-pinned seeds such as `idl-codama-v1` as an advanced escape hatch, keeping the canonical `idl` seed as the authoritative copy.
+
+Two things to keep in mind:
+
+- **Seed length:** seeds are stored as fixed 16-byte buffers and the JavaScript SDK silently truncates longer strings, so keep custom seeds within 16 bytes.
+- **Source of truth:** the metadata account header stores no information about the kind or version of its content; the `standard` and `version` fields inside the content itself are the source of truth.
+
 ### How the data is formatted and saved
 
 By default the metadata is `zlib` compressed and encoded in `utf8` and saved on chain in an account.
@@ -261,7 +282,7 @@ To save space you can also point the metadata in the account to a URL using the 
 
 Like this you can for example have multiple programs point to the same metadata account or you can save your IDL in your github repository and let the metadata account just point to it.
 
-- **Seeds:** The `<seed>` argument is a string like "idl" or "security" that determines the type of metadata. It is used to derive the address of the metadata account for your program. Use different seeds for different types of metadata. You can attach any data to programs that you like. If you have a certain standard in mind please open a discussion on this repository. The program could for example also enable versioned IDLs or you could think of adding attestations to programs to make them more trustworthy. Something like an auditedBy metadata could be interesting for example.
+- **Seeds:** The `<seed>` argument is a string like "idl" or "security" that determines the type of metadata. It is used to derive the address of the metadata account for your program. Use different seeds for different types of metadata. You can attach any data to programs that you like. If you have a certain standard in mind please open a discussion on this repository. For IDL seeds and versioning, see the [IDL versioning](#idl-versioning) section above. You could also think of adding attestations to programs to make them more trustworthy. Something like an auditedBy metadata could be interesting for example.
 - **Canonical vs. Non-Canonical:** By default, the upgrade authority creates canonical metadata. Use `--non-canonical <pubkey>` to create third-party metadata accounts. This could for example be useful for already frozen programs which do not have access to their upgrade authority anymore.
 - **File Types:** The CLI auto-detects JSON, YAML, or TOML.
 - **Compression:** By default all metadata is compressed in the `zlib` format to save on chain space. You can override this by using the `--compression` flag and change it to `none` or `gzip`.
