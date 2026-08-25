@@ -80,6 +80,10 @@ export class CustomCommand extends Command {
 export type Client = Awaited<ReturnType<typeof getClient>>;
 
 export async function getClient(options: GlobalOptions) {
+    if (options.legacy && !options.export) {
+        logErrorAndExit('The `--legacy` option requires the `--export` option.');
+    }
+
     const configs = getSolanaConfigs();
     const rpcUrl = getRpcUrl(options, configs);
     const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
@@ -92,7 +96,10 @@ export async function getClient(options: GlobalOptions) {
             solanaRpc({
                 rpcUrl,
                 rpcSubscriptionsUrl,
-                transactionConfig: { microLamportsPerComputeUnit: options.priorityFees },
+                transactionConfig: {
+                    microLamportsPerComputeUnit: options.priorityFees,
+                    version: options.legacy ? 'legacy' : 0,
+                },
             }),
         )
         .use(programMetadataProgram())

@@ -11,7 +11,8 @@ export type GlobalOptions = KeypairOption &
     PriorityFeesOption &
     RpcOption &
     ExportOption &
-    ExportEncodingOption;
+    ExportEncodingOption &
+    LegacyOption;
 
 export function setGlobalOptions(command: CustomCommand) {
     command
@@ -20,7 +21,8 @@ export function setGlobalOptions(command: CustomCommand) {
         .addOption(priorityFeesOption)
         .addOption(rpcOption)
         .addOption(exportOption)
-        .addOption(exportEncodingOption);
+        .addOption(exportEncodingOption)
+        .addOption(legacyOption);
 }
 
 export type KeypairOption = { keypair?: string };
@@ -65,6 +67,12 @@ export const exportEncodingOption = new Option(
     .argParser(
         (value: string): ExportEncoding => (value === 'instruction-list' ? 'instruction-list' : encodingParser(value)),
     );
+
+export type LegacyOption = { legacy: boolean };
+export const legacyOption = new Option(
+    '--legacy',
+    'Export legacy transactions instead of version 0 transactions. Requires `--export`.',
+).default(false);
 
 export type WriteOptions = TextOption &
     UrlOption &

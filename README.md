@@ -121,6 +121,7 @@ Using a buffer account you can split the metadata update into the uploading of t
 - `--rpc <string>`: Custom RPC URL
 - `--export [address]`: Export transactions instead of running them. Optionally specify an override authority address.
 - `--export-encoding <encoding>`: How to encode exported transactions. Choices: none, utf8, base58, base64 (default: base64)
+- `--legacy`: Export legacy transactions instead of version 0 transactions. Requires `--export`.
 - `-h, --help`: Show help for command
 
 #### Squads Multisig
@@ -142,6 +143,8 @@ npx @solana-program/program-metadata@latest set-buffer-authority <buffer-address
 ```bash
 npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back>
 ```
+
+If your multisig only accepts legacy transactions, add `--legacy` to the export command.
 
 4. Sign the transaction in your multisig and send it
 
