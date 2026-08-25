@@ -144,7 +144,11 @@ npx @solana-program/program-metadata@latest set-buffer-authority <buffer-address
 npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back>
 ```
 
-If your multisig only accepts legacy transactions, add `--legacy` to the export command.
+Squads v3 only accepts legacy transactions. If your multisig is on Squads v3, add the `--legacy` flag so the exported transaction is a legacy transaction instead of a version 0 transaction:
+
+```bash
+npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --legacy
+```
 
 4. Sign the transaction in your multisig and send it
 
