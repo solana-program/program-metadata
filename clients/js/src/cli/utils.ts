@@ -35,7 +35,7 @@ import {
     TransactionPlanExecutor,
     TransactionSigner,
 } from '@solana/kit';
-import { solanaRpc } from '@solana/kit-plugin-rpc';
+import { solanaRpc, TransactionPlannerConfig } from '@solana/kit-plugin-rpc';
 import { identity, payer } from '@solana/kit-plugin-signer';
 import { Command } from 'commander';
 import picocolors from 'picocolors';
@@ -80,10 +80,6 @@ export class CustomCommand extends Command {
 export type Client = Awaited<ReturnType<typeof getClient>>;
 
 export async function getClient(options: GlobalOptions) {
-    if (options.legacy && !options.export) {
-        logErrorAndExit('The `--legacy` option requires the `--export` option.');
-    }
-
     const configs = getSolanaConfigs();
     const rpcUrl = getRpcUrl(options, configs);
     const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
@@ -96,15 +92,26 @@ export async function getClient(options: GlobalOptions) {
             solanaRpc({
                 rpcUrl,
                 rpcSubscriptionsUrl,
-                transactionConfig: {
-                    microLamportsPerComputeUnit: options.priorityFees,
-                    version: options.legacy ? 'legacy' : 0,
-                },
+                transactionConfig: getTransactionConfig(options),
             }),
         )
         .use(programMetadataProgram())
         .use(cliConfigs(configs))
         .use(cliRunOrExport(options));
+}
+
+/**
+ * Builds the transaction planner config for the requested transaction version.
+ * The config shape is discriminated by `version`: legacy and version 0
+ * transactions express priority fees per compute unit, while version 1 will
+ * use a total fee in lamports.
+ */
+function getTransactionConfig(options: GlobalOptions): TransactionPlannerConfig {
+    switch (options.txVersion) {
+        case 'legacy':
+        case 0:
+            return { microLamportsPerComputeUnit: options.priorityFees, version: options.txVersion };
+    }
 }
 
 /**

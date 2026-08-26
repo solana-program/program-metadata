@@ -1,5 +1,5 @@
 import { type Address, type MicroLamports } from '@solana/kit';
-import { Option } from 'commander';
+import { InvalidArgumentError, Option } from 'commander';
 
 import { Compression, Encoding, Format } from '../generated';
 import { logErrorAndExit } from './logs';
@@ -12,7 +12,7 @@ export type GlobalOptions = KeypairOption &
     RpcOption &
     ExportOption &
     ExportEncodingOption &
-    LegacyOption;
+    TransactionVersionOption;
 
 export function setGlobalOptions(command: CustomCommand) {
     command
@@ -22,7 +22,7 @@ export function setGlobalOptions(command: CustomCommand) {
         .addOption(rpcOption)
         .addOption(exportOption)
         .addOption(exportEncodingOption)
-        .addOption(legacyOption);
+        .addOption(transactionVersionOption);
 }
 
 export type KeypairOption = { keypair?: string };
@@ -68,11 +68,24 @@ export const exportEncodingOption = new Option(
         (value: string): ExportEncoding => (value === 'instruction-list' ? 'instruction-list' : encodingParser(value)),
     );
 
-export type LegacyOption = { legacy: boolean };
-export const legacyOption = new Option(
-    '--legacy',
-    'Export legacy transactions instead of version 0 transactions. Requires `--export`.',
-).default(false);
+export type TransactionVersion = 'legacy' | 0;
+export type TransactionVersionOption = { txVersion: TransactionVersion };
+export const transactionVersionOption = new Option(
+    '--tx-version <version>',
+    'Transaction version to build. Squads v3 only accepts legacy transactions.',
+)
+    .choices(['legacy', '0'])
+    .default(0, '0')
+    .argParser((value: string): TransactionVersion => {
+        switch (value) {
+            case 'legacy':
+                return 'legacy';
+            case '0':
+                return 0;
+            default:
+                throw new InvalidArgumentError('Allowed choices are legacy, 0.');
+        }
+    });
 
 export type WriteOptions = TextOption &
     UrlOption &
