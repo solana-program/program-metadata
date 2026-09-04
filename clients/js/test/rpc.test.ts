@@ -127,12 +127,12 @@ describe('withRateLimitRetries', () => {
         });
         const transport = withRateLimitRetries(inner, { maxRetries: 5, sleep });
 
-        // When we send a request with the abortable signal, then it aborts after
-        // the single backoff rather than exhausting the full retry budget: one
-        // retry runs the transport again, sees the signal aborted, and throws.
+        // When we send a request with the abortable signal, then after the first
+        // failure and single backoff the loop notices the abort and throws the
+        // original 429 without making a second transport call.
         await expect(transport({ payload: {}, signal: controller.signal })).rejects.toThrow('HTTP error (429)');
         expect(sleep).toHaveBeenCalledTimes(1);
-        expect(inner.calls).toBe(2);
+        expect(inner.calls).toBe(1);
     });
 });
 

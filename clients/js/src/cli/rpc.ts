@@ -117,6 +117,12 @@ export function withRateLimitRetries(transport: RpcTransport, config: RetryingRp
                 }
                 config.onRetry?.({ attempt, delayMs: decision.delayMs, error });
                 await sleep(decision.delayMs, request.signal);
+                // The sleep resolves early on abort; surface the original 429
+                // rather than looping back into a transport call that would
+                // reject with an `AbortError` instead.
+                if (request.signal?.aborted) {
+                    throw error;
+                }
             }
         }
     };

@@ -60,7 +60,7 @@ import {
     RpcOption,
     WriteOptions,
 } from './options';
-import { createRetryingSolanaRpc } from './rpc';
+import { createRetryingSolanaRpc, RetryingRpcConfig } from './rpc';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const DATA_SOURCE_OPTIONS =
@@ -95,10 +95,7 @@ export async function getClient(options: GlobalOptions) {
     // transport, and we need a transport that retries on HTTP 429 responses to
     // survive rate-limited endpoints. We therefore attach our retrying RPC (and
     // its subscriptions) directly and apply the RPC plugin's constituents.
-    const rpc = createRetryingSolanaRpc(rpcUrl, {
-        onRetry: ({ delayMs }) =>
-            logWarning(`RPC rate limited (HTTP 429), retrying in ${(delayMs / 1000).toFixed(1)}s...`),
-    });
+    const rpc = createRetryingSolanaRpc(rpcUrl, getRetryingRpcConfig());
     const rpcSubscriptions = createSolanaRpcSubscriptions(rpcSubscriptionsUrl);
     const transactionConfig = getTransactionConfig(options);
 
@@ -112,6 +109,18 @@ export async function getClient(options: GlobalOptions) {
         .use(programMetadataProgram())
         .use(cliConfigs(configs))
         .use(cliRunOrExport(options));
+}
+
+/**
+ * Shared configuration for the CLI's retrying RPC. Surfaces a warning whenever a
+ * request is rate limited and retried, so a paused command does not appear to
+ * hang. Used by both {@link getClient} and {@link getReadonlyClient}.
+ */
+function getRetryingRpcConfig(): RetryingRpcConfig {
+    return {
+        onRetry: ({ delayMs }) =>
+            logWarning(`RPC rate limited (HTTP 429), retrying in ${(delayMs / 1000).toFixed(1)}s...`),
+    };
 }
 
 /**
@@ -227,7 +236,7 @@ export function getReadonlyClient(options: RpcOption): ReadonlyClient {
     const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
     return {
         configs,
-        rpc: createRetryingSolanaRpc(rpcUrl),
+        rpc: createRetryingSolanaRpc(rpcUrl, getRetryingRpcConfig()),
         rpcSubscriptions: createSolanaRpcSubscriptions(rpcSubscriptionsUrl),
     };
 }
