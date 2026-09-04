@@ -95,7 +95,10 @@ export async function getClient(options: GlobalOptions) {
     // transport, and we need a transport that retries on HTTP 429 responses to
     // survive rate-limited endpoints. We therefore attach our retrying RPC (and
     // its subscriptions) directly and apply the RPC plugin's constituents.
-    const rpc = createRetryingSolanaRpc(rpcUrl);
+    const rpc = createRetryingSolanaRpc(rpcUrl, {
+        onRetry: ({ delayMs }) =>
+            logWarning(`RPC rate limited (HTTP 429), retrying in ${(delayMs / 1000).toFixed(1)}s...`),
+    });
     const rpcSubscriptions = createSolanaRpcSubscriptions(rpcSubscriptionsUrl);
     const transactionConfig = getTransactionConfig(options);
 

@@ -1,7 +1,7 @@
 import { RpcTransport, SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR, SolanaError } from '@solana/kit';
 import { describe, expect, it, vi } from 'vitest';
 
-import { getRetryDelayMs, withRateLimitRetries } from '../src/cli/rpc';
+import { getBackoffDelayMs, getRetryDecision, withRateLimitRetries } from '../src/cli/rpc';
 
 /** Builds an HTTP transport error matching what the default transport throws. */
 function httpError(statusCode: number, headers: Record<string, string> = {}): SolanaError {
@@ -86,32 +86,108 @@ describe('withRateLimitRetries', () => {
         await transport({ payload: {} });
         expect(sleep).toHaveBeenCalledTimes(1);
     });
+
+    it('gives up when the server asks to wait longer than the ceiling', async () => {
+        // Given a transport that returns 429 with a two-minute Retry-After.
+        const inner = mockTransport(httpError(429, { 'retry-after': '120' }));
+        const sleep = vi.fn(() => Promise.resolve());
+        const transport = withRateLimitRetries(inner, { sleep });
+
+        // When we send a request, then it throws immediately without sleeping.
+        await expect(transport({ payload: {} })).rejects.toThrow('HTTP error (429)');
+        expect(inner.calls).toBe(1);
+        expect(sleep).not.toHaveBeenCalled();
+    });
+
+    it('invokes onRetry before each retry with the retry details', async () => {
+        // Given a transport that fails twice with 429, then succeeds.
+        const inner = mockTransport(httpError(429), httpError(429), 'ok');
+        const onRetry = vi.fn();
+        const transport = withRateLimitRetries(inner, { onRetry, sleep: noSleep });
+
+        // When we send a request, then onRetry is called once per retry.
+        await transport({ payload: {} });
+        expect(onRetry).toHaveBeenCalledTimes(2);
+        expect(onRetry).toHaveBeenNthCalledWith(1, expect.objectContaining({ attempt: 0 }));
+        expect(onRetry).toHaveBeenNthCalledWith(2, expect.objectContaining({ attempt: 1 }));
+        expect(onRetry.mock.calls[0][0]).toMatchObject({
+            delayMs: expect.any(Number),
+            error: expect.any(SolanaError),
+        });
+    });
+
+    it('stops retrying once the request is aborted mid-backoff', async () => {
+        // Given a transport that always returns 429 and a signal that aborts
+        // while the wrapper is waiting to retry after the first failure.
+        const inner = mockTransport(httpError(429));
+        const controller = new AbortController();
+        const sleep = vi.fn((_ms: number, _signal?: AbortSignal) => {
+            controller.abort();
+            return Promise.resolve();
+        });
+        const transport = withRateLimitRetries(inner, { maxRetries: 5, sleep });
+
+        // When we send a request with the abortable signal, then it aborts after
+        // the single backoff rather than exhausting the full retry budget: one
+        // retry runs the transport again, sees the signal aborted, and throws.
+        await expect(transport({ payload: {}, signal: controller.signal })).rejects.toThrow('HTTP error (429)');
+        expect(sleep).toHaveBeenCalledTimes(1);
+        expect(inner.calls).toBe(2);
+    });
 });
 
-describe('getRetryDelayMs', () => {
+describe('getRetryDecision', () => {
+    it('gives up on non-429 errors', () => {
+        expect(getRetryDecision(httpError(500), 0, 5)).toEqual({ kind: 'give-up' });
+    });
+
+    it('gives up once the retry budget is exhausted', () => {
+        expect(getRetryDecision(httpError(429), 5, 5)).toEqual({ kind: 'give-up' });
+    });
+
     it('honours a numeric Retry-After header in seconds', () => {
-        const delay = getRetryDelayMs(httpError(429, { 'retry-after': '2' }), 0);
-        expect(delay).toBe(2000);
+        expect(getRetryDecision(httpError(429, { 'retry-after': '2' }), 0, 5)).toEqual({
+            kind: 'retry',
+            delayMs: 2000,
+        });
     });
 
     it('honours an HTTP-date Retry-After header', () => {
         const twoSecondsFromNow = new Date(Date.now() + 2000).toUTCString();
-        const delay = getRetryDelayMs(httpError(429, { 'retry-after': twoSecondsFromNow }), 0);
+        const decision = getRetryDecision(httpError(429, { 'retry-after': twoSecondsFromNow }), 0, 5);
+        expect(decision.kind).toBe('retry');
         // Allow a small margin for clock drift during the test.
-        expect(delay).toBeGreaterThan(0);
-        expect(delay).toBeLessThanOrEqual(2000);
+        expect(decision.kind === 'retry' && decision.delayMs).toBeGreaterThan(0);
+        expect(decision.kind === 'retry' && decision.delayMs).toBeLessThanOrEqual(2000);
     });
 
-    it('caps a large Retry-After at the maximum backoff', () => {
-        const delay = getRetryDelayMs(httpError(429, { 'retry-after': '3600' }), 0);
-        expect(delay).toBe(10_000);
+    it('gives up when Retry-After exceeds the ceiling', () => {
+        expect(getRetryDecision(httpError(429, { 'retry-after': '120' }), 0, 5)).toEqual({ kind: 'give-up' });
+    });
+
+    it('falls back to jittered exponential backoff for an unparseable Retry-After', () => {
+        const decision = getRetryDecision(httpError(429, { 'retry-after': 'soon' }), 0, 5);
+        expect(decision.kind).toBe('retry');
+        // Attempt 0 backoff is bounded by the base delay (500ms).
+        expect(decision.kind === 'retry' && decision.delayMs).toBeGreaterThanOrEqual(0);
+        expect(decision.kind === 'retry' && decision.delayMs).toBeLessThanOrEqual(500);
     });
 
     it('falls back to jittered exponential backoff when no header is present', () => {
+        const decision = getRetryDecision(httpError(429), 2, 5);
+        expect(decision.kind).toBe('retry');
+        // Attempt 2 backoff is bounded by base (500ms) * 2 ** 2 = 2000ms.
+        expect(decision.kind === 'retry' && decision.delayMs).toBeGreaterThanOrEqual(0);
+        expect(decision.kind === 'retry' && decision.delayMs).toBeLessThanOrEqual(2000);
+    });
+});
+
+describe('getBackoffDelayMs', () => {
+    it('stays within the jittered exponential ceiling for each attempt', () => {
         // With full jitter, the delay is bounded by the exponential ceiling for
         // the attempt: base (500ms) * 2 ** attempt, capped at the maximum.
         for (let attempt = 0; attempt < 6; attempt++) {
-            const delay = getRetryDelayMs(httpError(429), attempt);
+            const delay = getBackoffDelayMs(attempt);
             const ceiling = Math.min(500 * 2 ** attempt, 10_000);
             expect(delay).toBeGreaterThanOrEqual(0);
             expect(delay).toBeLessThanOrEqual(ceiling);

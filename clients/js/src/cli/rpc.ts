@@ -12,8 +12,29 @@ import {
 const DEFAULT_MAX_RETRIES = 5;
 /** The base delay, in milliseconds, used for exponential backoff. */
 const BASE_BACKOFF_MS = 500;
-/** The ceiling, in milliseconds, applied to any computed backoff delay. */
+/** The ceiling, in milliseconds, applied to computed exponential backoff delays. */
 const MAX_BACKOFF_MS = 10_000;
+/**
+ * The ceiling, in milliseconds, applied to a server-provided `Retry-After`
+ * value. When the server asks us to wait longer than this, we give up
+ * immediately rather than spending a retry on a wait that is unlikely to be
+ * worthwhile. This is deliberately more generous than {@link MAX_BACKOFF_MS}
+ * because the server is telling us exactly when it will accept the request.
+ */
+const MAX_RETRY_AFTER_MS = 60_000;
+
+/**
+ * Information passed to the {@link RetryingRpcConfig.onRetry} callback before a
+ * rate-limited request is retried.
+ */
+export type RetryInfo = {
+    /** The zero-based index of the attempt that just failed. */
+    attempt: number;
+    /** The delay, in milliseconds, before the next attempt. */
+    delayMs: number;
+    /** The rate-limit error that triggered the retry. */
+    error: unknown;
+};
 
 /**
  * Options controlling how {@link createRetryingSolanaRpc} retries rate-limited
@@ -31,10 +52,16 @@ export type RetryingRpcConfig = {
      */
     maxRetries?: number;
     /**
-     * Sleep function used between retries. Injectable for testing; defaults to a
-     * `setTimeout`-based delay.
+     * Called before each retry, after the delay has been computed but before it
+     * elapses. Useful for surfacing progress (e.g. logging a "rate limited,
+     * retrying in Xs" warning) so a paused request does not appear to hang.
      */
-    sleep?: (ms: number) => Promise<void>;
+    onRetry?: (info: RetryInfo) => void;
+    /**
+     * Sleep function used between retries. Injectable for testing; defaults to a
+     * `setTimeout`-based delay that resolves early if the request is aborted.
+     */
+    sleep?: (ms: number, signal?: AbortSignal) => Promise<void>;
 };
 
 /**
@@ -48,10 +75,10 @@ export type RetryingRpcConfig = {
  * layer covers every RPC call (blockhash lookups, simulations, sends and status
  * polls), not just the sends.
  *
- * The retry honours the server's `Retry-After` header when present; otherwise it
- * falls back to exponential backoff with jitter. Only HTTP 429 responses are
- * retried — every other error propagates immediately so genuine failures are
- * surfaced without delay.
+ * The retry honours the server's `Retry-After` header when present (giving up if
+ * it asks for an unreasonably long wait); otherwise it falls back to exponential
+ * backoff with jitter. Only HTTP 429 responses are retried — every other error
+ * propagates immediately so genuine failures are surfaced without delay.
  *
  * @param url - The Solana RPC endpoint URL.
  * @param config - Optional retry and transport configuration.
@@ -81,13 +108,43 @@ export function withRateLimitRetries(transport: RpcTransport, config: RetryingRp
             try {
                 return await transport<TResponse>(request);
             } catch (error) {
-                if (attempt >= maxRetries || !isRateLimitError(error)) {
+                // Don't retry non-429 errors, once the budget is exhausted, or
+                // once the request has been aborted (e.g. the executor
+                // cancelled sibling requests after another transaction failed).
+                const decision = getRetryDecision(error, attempt, maxRetries);
+                if (decision.kind === 'give-up' || request.signal?.aborted) {
                     throw error;
                 }
-                await sleep(getRetryDelayMs(error, attempt));
+                config.onRetry?.({ attempt, delayMs: decision.delayMs, error });
+                await sleep(decision.delayMs, request.signal);
             }
         }
     };
+}
+
+/** The outcome of deciding whether and how long to wait before a retry. */
+type RetryDecision = { kind: 'retry'; delayMs: number } | { kind: 'give-up' };
+
+/**
+ * Decides whether a failed request should be retried and, if so, after how long.
+ *
+ * Retries only HTTP 429 (rate limit) errors, and only while retries remain. When
+ * the server provides a `Retry-After` value we honour it up to
+ * {@link MAX_RETRY_AFTER_MS}; a longer requested wait is treated as not worth
+ * retrying and yields `give-up`. Without a usable header, we fall back to
+ * exponential backoff with full jitter, capped at {@link MAX_BACKOFF_MS}.
+ */
+export function getRetryDecision(error: unknown, attempt: number, maxRetries: number): RetryDecision {
+    if (attempt >= maxRetries || !isRateLimitError(error)) {
+        return { kind: 'give-up' };
+    }
+    const retryAfter = getRetryAfterMs(error);
+    if (retryAfter !== null) {
+        // The server told us exactly when to retry. Honour it within reason;
+        // beyond the ceiling the wait is not worth a retry slot.
+        return retryAfter > MAX_RETRY_AFTER_MS ? { kind: 'give-up' } : { kind: 'retry', delayMs: retryAfter };
+    }
+    return { kind: 'retry', delayMs: getBackoffDelayMs(attempt) };
 }
 
 /** Returns whether the given error is an HTTP 429 (rate limit) transport error. */
@@ -96,17 +153,10 @@ function isRateLimitError(error: unknown): boolean {
 }
 
 /**
- * Computes how long to wait before retrying a rate-limited request.
- *
- * Prefers the server-provided `Retry-After` header (supporting both the
- * delay-seconds and HTTP-date forms) and falls back to exponential backoff with
- * full jitter, capped at {@link MAX_BACKOFF_MS}.
+ * Computes a jittered exponential backoff delay for the given attempt, capped at
+ * {@link MAX_BACKOFF_MS}.
  */
-export function getRetryDelayMs(error: unknown, attempt: number): number {
-    const retryAfter = getRetryAfterMs(error);
-    if (retryAfter !== null) {
-        return Math.min(retryAfter, MAX_BACKOFF_MS);
-    }
+export function getBackoffDelayMs(attempt: number): number {
     const exponential = Math.min(BASE_BACKOFF_MS * 2 ** attempt, MAX_BACKOFF_MS);
     // Full jitter: a random delay in [0, exponential] to spread out retries and
     // avoid a thundering herd against the rate limiter.
@@ -138,6 +188,24 @@ function getRetryAfterMs(error: unknown): number | null {
     return null;
 }
 
-function defaultSleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+/**
+ * Sleeps for the given duration, resolving early (without rejecting) if the
+ * optional abort signal fires. Resolving rather than throwing lets the retry
+ * loop re-check `signal.aborted` and surface the original error.
+ */
+function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) {
+        return Promise.resolve();
+    }
+    return new Promise(resolve => {
+        const onAbort = () => {
+            clearTimeout(timeout);
+            resolve();
+        };
+        const timeout = setTimeout(() => {
+            signal?.removeEventListener('abort', onAbort);
+            resolve();
+        }, ms);
+        signal?.addEventListener('abort', onAbort, { once: true });
+    });
 }
