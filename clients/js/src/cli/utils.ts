@@ -15,7 +15,6 @@ import {
     createClient,
     createKeyPairSignerFromBytes,
     createNoopSigner,
-    createSolanaRpc,
     createSolanaRpcSubscriptions,
     extendClient,
     flattenTransactionPlan,
@@ -35,7 +34,12 @@ import {
     TransactionPlan,
     TransactionSigner,
 } from '@solana/kit';
-import { solanaRpc, TransactionPlannerConfig } from '@solana/kit-plugin-rpc';
+import {
+    rpcGetMinimumBalance,
+    rpcTransactionPlanner,
+    rpcTransactionPlanSendingExecutor,
+    TransactionPlannerConfig,
+} from '@solana/kit-plugin-rpc';
 import { identity, payer } from '@solana/kit-plugin-signer';
 import { Command } from 'commander';
 import picocolors from 'picocolors';
@@ -56,6 +60,7 @@ import {
     RpcOption,
     WriteOptions,
 } from './options';
+import { createRetryingSolanaRpc } from './rpc';
 
 const LOCALHOST_URL = 'http://127.0.0.1:8899';
 const DATA_SOURCE_OPTIONS =
@@ -85,16 +90,22 @@ export async function getClient(options: GlobalOptions) {
     const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
     const [identitySigner, payerSigner] = await getKeyPairSigners(options, configs);
 
+    // We build the RPC connection ourselves rather than using the all-in-one
+    // `solanaRpc` plugin because that plugin does not expose a hook for a custom
+    // transport, and we need a transport that retries on HTTP 429 responses to
+    // survive rate-limited endpoints. We therefore attach our retrying RPC (and
+    // its subscriptions) directly and apply the RPC plugin's constituents.
+    const rpc = createRetryingSolanaRpc(rpcUrl);
+    const rpcSubscriptions = createSolanaRpcSubscriptions(rpcSubscriptionsUrl);
+    const transactionConfig = getTransactionConfig(options);
+
     return createClient()
         .use(payer(payerSigner))
         .use(identity(identitySigner))
-        .use(
-            solanaRpc({
-                rpcUrl,
-                rpcSubscriptionsUrl,
-                transactionConfig: getTransactionConfig(options),
-            }),
-        )
+        .use(client => extendClient(client, { rpc, rpcSubscriptions }))
+        .use(rpcGetMinimumBalance())
+        .use(rpcTransactionPlanner(transactionConfig))
+        .use(rpcTransactionPlanSendingExecutor({ estimateResourceLimits: transactionConfig.estimateResourceLimits }))
         .use(programMetadataProgram())
         .use(cliConfigs(configs))
         .use(cliRunOrExport(options));
@@ -213,7 +224,7 @@ export function getReadonlyClient(options: RpcOption): ReadonlyClient {
     const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
     return {
         configs,
-        rpc: createSolanaRpc(rpcUrl),
+        rpc: createRetryingSolanaRpc(rpcUrl),
         rpcSubscriptions: createSolanaRpcSubscriptions(rpcSubscriptionsUrl),
     };
 }
