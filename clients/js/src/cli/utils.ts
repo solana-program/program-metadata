@@ -9,6 +9,7 @@ import {
     address,
     ClientWithRpc,
     ClientWithTransactionPlanning,
+    ClientWithTransactionSending,
     Commitment,
     compileTransaction,
     createClient,
@@ -32,7 +33,6 @@ import {
     SolanaRpcSubscriptionsApi,
     TransactionMessage,
     TransactionPlan,
-    TransactionPlanExecutor,
     TransactionSigner,
 } from '@solana/kit';
 import { solanaRpc, TransactionPlannerConfig } from '@solana/kit-plugin-rpc';
@@ -131,10 +131,7 @@ function cliConfigs(configs: SolanaConfigs) {
  */
 function cliRunOrExport(options: ExportOption & ExportEncodingOption) {
     return <
-        T extends ClientWithRpc<GetLatestBlockhashApi> &
-            ClientWithTransactionPlanning & {
-                transactionPlanExecutor: TransactionPlanExecutor;
-            },
+        T extends ClientWithRpc<GetLatestBlockhashApi> & ClientWithTransactionPlanning & ClientWithTransactionSending,
     >(
         client: T,
     ) =>
@@ -144,8 +141,8 @@ function cliRunOrExport(options: ExportOption & ExportEncodingOption) {
                 if (options.export) {
                     await exportTransactionPlan(transactionPlan, client, options);
                 } else {
-                    // TODO: progress + error handling.
-                    await client.transactionPlanExecutor(transactionPlan);
+                    // TODO: progress reporting.
+                    await client.sendTransactions(transactionPlan);
                     logSuccess('Operation executed successfully');
                 }
             },
