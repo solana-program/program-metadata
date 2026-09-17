@@ -58,6 +58,7 @@ import {
     NonCanonicalWriteOption,
     PayerOption,
     RpcOption,
+    SingleExtendPerTxOption,
     WriteOptions,
 } from './options';
 import { createRetryingSolanaRpc, RetryingRpcConfig } from './rpc';
@@ -85,6 +86,7 @@ export class CustomCommand extends Command {
 export type Client = Awaited<ReturnType<typeof getClient>>;
 
 export async function getClient(options: GlobalOptions) {
+    assertValidExportOptions(options);
     const configs = getSolanaConfigs();
     const rpcUrl = getRpcUrl(options, configs);
     const rpcSubscriptionsUrl = getRpcSubscriptionsUrl(rpcUrl, configs);
@@ -109,6 +111,17 @@ export async function getClient(options: GlobalOptions) {
         .use(programMetadataProgram())
         .use(cliConfigs(configs))
         .use(cliRunOrExport(options));
+}
+
+/**
+ * Rejects option combinations that only make sense when exporting
+ * transactions. When transactions are executed directly by the CLI they run
+ * top-level, so `--single-extend-per-tx` would only add needless transactions.
+ */
+function assertValidExportOptions(options: ExportOption & SingleExtendPerTxOption): void {
+    if (options.singleExtendPerTx && !options.export) {
+        logErrorAndExit('The `--single-extend-per-tx` option can only be used together with `--export`.');
+    }
 }
 
 /**

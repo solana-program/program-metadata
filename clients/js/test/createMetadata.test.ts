@@ -11,7 +11,7 @@ import {
     Format,
     Metadata,
 } from '../src';
-import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
+import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol, REALLOC_LIMIT } from './_setup';
 
 it('creates a canonical metadata account', async () => {
     // Given the following authority and deployed program.
@@ -90,6 +90,52 @@ it('creates a canonical metadata account with data larger than a transaction siz
         data: largeData,
     });
 });
+
+it.each([
+    { singleExtendPerTransaction: false, label: 'densely packed extend instructions' },
+    { singleExtendPerTransaction: true, label: 'a single extend instruction per transaction' },
+])(
+    'creates a canonical metadata account with data larger than the realloc limit using $label',
+    async ({ singleExtendPerTransaction }) => {
+        // Given the following authority and deployed program.
+        const client = await createTestClient();
+        const authority = await generateKeyPairSignerWithSol(client);
+        const [program, programData] = await createDeployedProgram(client, authority);
+
+        // When we create a canonical metadata account with more data than the realloc limit.
+        const largeData = getUtf8Encoder().encode('x'.repeat(2 * REALLOC_LIMIT + 4_520));
+        await client.programMetadata.createMetadata({
+            authority,
+            program,
+            programData,
+            seed: 'idl',
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            dataSource: DataSource.Direct,
+            format: Format.Json,
+            data: largeData,
+            singleExtendPerTransaction,
+        });
+
+        // Then we expect the following metadata account to be created.
+        const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+        const account = await client.programMetadata.accounts.metadata.fetch(metadata);
+        expect(account.data).toMatchObject(<Metadata>{
+            discriminator: AccountDiscriminator.Metadata,
+            program,
+            authority: none(),
+            mutable: true,
+            canonical: true,
+            seed: 'idl',
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            format: Format.Json,
+            dataSource: DataSource.Direct,
+            dataLength: largeData.length,
+            data: largeData,
+        });
+    },
+);
 
 it('creates a canonical metadata account using an existing buffer', async () => {
     // Given the following authority and deployed program.

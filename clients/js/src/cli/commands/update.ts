@@ -56,6 +56,7 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
             program,
             programData,
             metadata: metadataAccount,
+            singleExtendPerTransaction: options.singleExtendPerTx,
         }),
     );
 }

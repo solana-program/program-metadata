@@ -29,7 +29,7 @@ import {
     programMetadataProgram,
 } from '../src';
 
-export const REALLOC_LIMIT = 10_240;
+export { REALLOC_LIMIT } from '../src';
 
 const PROGRAM_METADATA_BINARY_PATH = path.resolve(
     __dirname,

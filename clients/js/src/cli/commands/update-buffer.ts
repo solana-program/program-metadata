@@ -43,6 +43,7 @@ export async function doUpdateBuffer(buffer: Address, file: string | undefined, 
             sourceBuffer: writeInput.buffer,
             closeSourceBuffer: writeInput.closeBuffer,
             data: newData,
+            singleExtendPerTransaction: options.singleExtendPerTx,
         }),
     );
 }

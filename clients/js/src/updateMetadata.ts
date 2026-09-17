@@ -28,8 +28,8 @@ import {
     Metadata,
     SetDataInput,
 } from './generated';
-import { isValidInstructionPlan, REALLOC_LIMIT } from './internals';
-import { getExtendInstructionPlan, MetadataInput, resolveMetadataPda } from './utils';
+import { isValidInstructionPlan } from './internals';
+import { getExtendInstructionPlan, MetadataInput, REALLOC_LIMIT, resolveMetadataPda } from './utils';
 
 type UpdateMetadataClient = ClientWithGetMinimumBalance &
     ClientWithRpc<GetAccountInfoApi> &
@@ -70,6 +70,7 @@ export async function getUpdateMetadataInstructionPlan(
         data?: ReadonlyUint8Array;
         payer: TransactionSigner;
         closeBuffer?: Address | boolean;
+        singleExtendPerTransaction?: boolean;
     },
 ): Promise<InstructionPlan> {
     if (!input.buffer && !input.data) {
@@ -149,6 +150,7 @@ export async function getUpdateMetadataInstructionPlanUsingNewBuffer(
         data: ReadonlyUint8Array;
         metadata: Account<Metadata>;
         payer: TransactionSigner;
+        singleExtendPerTransaction?: boolean;
     },
 ) {
     const sizeDifference = BigInt(input.data.length) - BigInt(input.metadata.data.data.length);
@@ -171,6 +173,7 @@ export async function getUpdateMetadataInstructionPlanUsingNewBuffer(
                       extraLength: Number(sizeDifference),
                       program: input.program,
                       programData: input.programData,
+                      singleExtendPerTransaction: input.singleExtendPerTransaction,
                   }),
               ]
             : []),
@@ -217,6 +220,7 @@ export async function getUpdateMetadataInstructionPlanUsingExistingBuffer(
         dataLength: number;
         metadata: Account<Metadata>;
         payer: TransactionSigner;
+        singleExtendPerTransaction?: boolean;
     },
 ) {
     const sizeDifference = BigInt(input.dataLength) - BigInt(input.metadata.data.data.length);
@@ -239,6 +243,7 @@ export async function getUpdateMetadataInstructionPlanUsingExistingBuffer(
                       extraLength: Number(sizeDifference),
                       program: input.program,
                       programData: input.programData,
+                      singleExtendPerTransaction: input.singleExtendPerTransaction,
                   }),
               ]
             : []),

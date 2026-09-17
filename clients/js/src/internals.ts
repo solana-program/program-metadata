@@ -1,7 +1,5 @@
 import { ClientWithTransactionPlanning, InstructionPlan } from '@solana/kit';
 
-export const REALLOC_LIMIT = 10_240;
-
 /**
  * Returns `true` if the given instruction plan can be planned by the client's
  * transaction planner without throwing — i.e. it fits within a single

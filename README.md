@@ -120,7 +120,8 @@ Using a buffer account you can split the metadata update into the uploading of t
 - `--priority-fees <number>`: Priority fees in micro-lamports per compute unit (default: 100000)
 - `--rpc <string>`: Custom RPC URL
 - `--export [address]`: Export transactions instead of running them. Optionally specify an override authority address.
-- `--export-encoding <encoding>`: How to encode exported transactions. Choices: none, utf8, base58, base64 (default: base64)
+- `--export-encoding <encoding>`: How to encode exported transactions. Choices: none, utf8, base58, base64, instruction-list (default: base64)
+- `--single-extend-per-tx`: Never grow an account by more than 10KB within a single exported transaction. Required when the exported transactions are executed through a CPI, e.g. by a multisig such as Squads. Requires `--export`.
 - `--tx-version <version>`: Transaction version to build. Choices: legacy, 0 (default: 0)
 - `-h, --help`: Show help for command
 
@@ -150,7 +151,13 @@ Squads v3 only accepts legacy transactions. If your multisig is on Squads v3, ad
 npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --tx-version legacy
 ```
 
-4. Sign the transaction in your multisig and send it
+If the metadata account needs to grow by more than 10KB — because it is being created with more than 10KB of data, or updated with more than 10KB of additional data — add `--single-extend-per-tx`. Multisigs execute the exported transactions through a CPI, where the Solana runtime caps the growth of an account at 10KB per transaction rather than per instruction. This option spreads the growth over several transactions accordingly, so expect more than one transaction to import:
+
+```bash
+npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --single-extend-per-tx
+```
+
+4. Sign the transaction(s) in your multisig and send them in order
 
 ### Examples
 

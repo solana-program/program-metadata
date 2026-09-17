@@ -12,6 +12,7 @@ export type GlobalOptions = KeypairOption &
     RpcOption &
     ExportOption &
     ExportEncodingOption &
+    SingleExtendPerTxOption &
     TransactionVersionOption;
 
 export function setGlobalOptions(command: CustomCommand) {
@@ -22,6 +23,7 @@ export function setGlobalOptions(command: CustomCommand) {
         .addOption(rpcOption)
         .addOption(exportOption)
         .addOption(exportEncodingOption)
+        .addOption(singleExtendPerTxOption)
         .addOption(transactionVersionOption);
 }
 
@@ -67,6 +69,14 @@ export const exportEncodingOption = new Option(
     .argParser(
         (value: string): ExportEncoding => (value === 'instruction-list' ? 'instruction-list' : encodingParser(value)),
     );
+
+export type SingleExtendPerTxOption = { singleExtendPerTx: boolean };
+export const singleExtendPerTxOption = new Option(
+    '--single-extend-per-tx',
+    'Never grow an account by more than 10KB within a single exported transaction (at most one "extend" instruction per transaction). ' +
+        'Required when the exported transactions are executed through a CPI, e.g. by a multisig program such as Squads, ' +
+        'as the runtime then applies the 10KB realloc limit per transaction instead of per instruction. Requires "--export".',
+).default(false);
 
 export type TransactionVersion = 'legacy' | 0;
 export type TransactionVersionOption = { txVersion: TransactionVersion };

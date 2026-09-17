@@ -11,7 +11,7 @@ import {
     Format,
     Metadata,
 } from '../src';
-import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol } from './_setup';
+import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol, REALLOC_LIMIT } from './_setup';
 
 it('updates a canonical metadata account', async () => {
     // Given the following authority and deployed program.
@@ -174,6 +174,71 @@ it('updates a canonical metadata account using an existing buffer', async () => 
         data: newData,
     });
 });
+
+it.each([
+    { singleExtendPerTransaction: false, label: 'densely packed extend instructions' },
+    { singleExtendPerTransaction: true, label: 'a single extend instruction per transaction' },
+])(
+    'updates a canonical metadata account using an existing buffer larger than the realloc limit using $label',
+    async ({ singleExtendPerTransaction }) => {
+        // Given the following authority and deployed program.
+        const client = await createTestClient();
+        const authority = await generateKeyPairSignerWithSol(client);
+        const [program, programData] = await createDeployedProgram(client, authority);
+
+        // And the following existing canonical metadata account.
+        await client.programMetadata.createMetadata({
+            authority,
+            program,
+            programData,
+            seed: 'idl',
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            dataSource: DataSource.Direct,
+            format: Format.Json,
+            data: getUtf8Encoder().encode('OLD'),
+        });
+
+        // And an existing buffer holding more data than the realloc limit.
+        const newData = getUtf8Encoder().encode('x'.repeat(2 * REALLOC_LIMIT + 4_520));
+        const buffer = await generateKeyPairSigner();
+        await client.programMetadata.instructions
+            .createBuffer({ newBuffer: buffer, authority: buffer, data: newData })
+            .sendTransactions();
+
+        // When we update the metadata account using the existing buffer.
+        await client.programMetadata.updateMetadata({
+            authority,
+            program,
+            programData,
+            seed: 'idl',
+            encoding: Encoding.Base58,
+            compression: Compression.Gzip,
+            dataSource: DataSource.Url,
+            format: Format.Toml,
+            buffer: buffer.address,
+            singleExtendPerTransaction,
+        });
+
+        // Then we expect the metadata account to be updated.
+        const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+        const account = await client.programMetadata.accounts.metadata.fetch(metadata);
+        expect(account.data).toMatchObject(<Metadata>{
+            discriminator: AccountDiscriminator.Metadata,
+            program,
+            authority: none(),
+            mutable: true,
+            canonical: true,
+            seed: 'idl',
+            encoding: Encoding.Base58,
+            compression: Compression.Gzip,
+            dataSource: DataSource.Url,
+            format: Format.Toml,
+            dataLength: newData.length,
+            data: newData,
+        });
+    },
+);
 
 it('updates a non-canonical metadata account', async () => {
     // Given the following authority and deployed program.

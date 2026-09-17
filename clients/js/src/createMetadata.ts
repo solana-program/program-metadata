@@ -25,12 +25,13 @@ import {
     InitializeInput,
     PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
-import { isValidInstructionPlan, REALLOC_LIMIT } from './internals';
+import { isValidInstructionPlan } from './internals';
 import {
     getAccountSize,
     getExtendInstructionPlan,
     getWriteInstructionPlan,
     MetadataInput,
+    REALLOC_LIMIT,
     resolveMetadataPda,
 } from './utils';
 
@@ -66,6 +67,7 @@ export async function getCreateMetadataInstructionPlan(
         data?: ReadonlyUint8Array;
         payer: TransactionSigner;
         closeBuffer?: Address | boolean;
+        singleExtendPerTransaction?: boolean;
     },
 ): Promise<InstructionPlan> {
     if (!input.buffer && !input.data) {
@@ -115,6 +117,7 @@ export async function getCreateMetadataInstructionPlanUsingNewBuffer(
     input: Omit<InitializeInput, 'data'> & {
         data: ReadonlyUint8Array;
         payer: TransactionSigner;
+        singleExtendPerTransaction?: boolean;
     },
 ) {
     const rent = await client.getMinimumBalance(Number(getAccountSize(input.data.length)));
@@ -139,6 +142,7 @@ export async function getCreateMetadataInstructionPlanUsingNewBuffer(
                       extraLength: input.data.length,
                       program: input.program,
                       programData: input.programData,
+                      singleExtendPerTransaction: input.singleExtendPerTransaction,
                   }),
               ]
             : []),
@@ -164,6 +168,7 @@ export async function getCreateMetadataInstructionPlanUsingExistingBuffer(
         dataLength: number;
         payer: TransactionSigner;
         closeBuffer?: Address | boolean;
+        singleExtendPerTransaction?: boolean;
     },
 ) {
     const rent = await client.getMinimumBalance(Number(getAccountSize(input.dataLength)));
@@ -188,6 +193,7 @@ export async function getCreateMetadataInstructionPlanUsingExistingBuffer(
                       extraLength: input.dataLength,
                       program: input.program,
                       programData: input.programData,
+                      singleExtendPerTransaction: input.singleExtendPerTransaction,
                   }),
               ]
             : []),
