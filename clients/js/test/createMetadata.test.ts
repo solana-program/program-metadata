@@ -182,6 +182,58 @@ it('creates a canonical metadata account using an existing buffer', async () => 
     });
 });
 
+it.each([
+    { singleExtendPerTransaction: false, label: 'densely packed extend instructions' },
+    { singleExtendPerTransaction: true, label: 'a single extend instruction per transaction' },
+])(
+    'creates a canonical metadata account using an existing buffer as large as the realloc limit using $label',
+    async ({ singleExtendPerTransaction }) => {
+        // Given the following authority and deployed program.
+        const client = await createTestClient();
+        const authority = await generateKeyPairSignerWithSol(client);
+        const [program, programData] = await createDeployedProgram(client, authority);
+
+        // And an existing buffer holding exactly one realloc limit of data.
+        const data = getUtf8Encoder().encode('x'.repeat(REALLOC_LIMIT));
+        const buffer = await generateKeyPairSigner();
+        await client.programMetadata.instructions
+            .createBuffer({ newBuffer: buffer, authority: buffer, data })
+            .sendTransactions();
+
+        // When we create a canonical metadata account using the existing buffer.
+        await client.programMetadata.createMetadata({
+            authority,
+            program,
+            programData,
+            seed: 'idl',
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            dataSource: DataSource.Direct,
+            format: Format.Json,
+            buffer: buffer.address,
+            singleExtendPerTransaction,
+        });
+
+        // Then we expect the following metadata account to be created.
+        const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+        const account = await client.programMetadata.accounts.metadata.fetch(metadata);
+        expect(account.data).toMatchObject(<Metadata>{
+            discriminator: AccountDiscriminator.Metadata,
+            program,
+            authority: none(),
+            mutable: true,
+            canonical: true,
+            seed: 'idl',
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            format: Format.Json,
+            dataSource: DataSource.Direct,
+            dataLength: data.length,
+            data,
+        });
+    },
+);
+
 it('creates a non-canonical metadata account', async () => {
     // Given the following authority and deployed program.
     const client = await createTestClient();

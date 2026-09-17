@@ -1,5 +1,12 @@
 import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
-import { Address, flattenTransactionPlan, getUtf8Encoder, InstructionPlan, TransactionMessage } from '@solana/kit';
+import {
+    Address,
+    flattenTransactionPlan,
+    generateKeyPairSigner,
+    getUtf8Encoder,
+    InstructionPlan,
+    TransactionMessage,
+} from '@solana/kit';
 import { expect, it } from 'vitest';
 
 import {
@@ -9,6 +16,7 @@ import {
     Encoding,
     findCanonicalPda,
     Format,
+    getCreateMetadataInstructionPlanUsingExistingBuffer,
     getCreateMetadataInstructionPlanUsingNewBuffer,
     getExtendInstructionPlan,
     parseProgramMetadataInstruction,
@@ -161,6 +169,85 @@ it('packs the extend instructions densely when creating metadata by default', as
         ProgramMetadataInstruction.Extend,
     ]);
     expect(getExtendLengths(messages[0], metadata)).toEqual([REALLOC_LIMIT, REALLOC_LIMIT, 25_000 - 2 * REALLOC_LIMIT]);
+});
+
+it('accounts for the header when the data alone fits within the realloc limit', async () => {
+    // Given a deployed program and an existing buffer holding exactly one realloc limit of data,
+    // which together with the account header exceeds the limit.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const buffer = await generateKeyPairSigner();
+
+    // When we plan the metadata creation from that buffer with a single extend instruction per transaction.
+    const plan = await getCreateMetadataInstructionPlanUsingExistingBuffer(client, {
+        authority,
+        buffer: buffer.address,
+        dataLength: REALLOC_LIMIT,
+        metadata,
+        payer: authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        singleExtendPerTransaction: true,
+    });
+    const messages = await planMessages(client, plan);
+
+    // Then the allocation and a header-adjusted extend share the first transaction,
+    // and the remaining bytes are extended before the write in the second one.
+    expect(getInstructionTypes(messages[0], metadata)).toEqual([
+        ProgramMetadataInstruction.Allocate,
+        ProgramMetadataInstruction.Extend,
+    ]);
+    expect(getExtendLengths(messages[0], metadata)).toEqual([REALLOC_LIMIT - ACCOUNT_HEADER_LENGTH]);
+    expect(getInstructionTypes(messages[1], metadata)).toEqual([
+        ProgramMetadataInstruction.Extend,
+        ProgramMetadataInstruction.Write,
+        ProgramMetadataInstruction.Initialize,
+    ]);
+    expect(getExtendLengths(messages[1], metadata)).toEqual([ACCOUNT_HEADER_LENGTH]);
+    expect(messages.every(message => getGrowth(message, metadata) <= REALLOC_LIMIT)).toBe(true);
+});
+
+it('adds a single extend instruction when the data alone fits within the realloc limit by default', async () => {
+    // Given a deployed program and an existing buffer holding exactly one realloc limit of data.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const buffer = await generateKeyPairSigner();
+
+    // When we plan the metadata creation from that buffer without constraining the extend instructions.
+    const plan = await getCreateMetadataInstructionPlanUsingExistingBuffer(client, {
+        authority,
+        buffer: buffer.address,
+        dataLength: REALLOC_LIMIT,
+        metadata,
+        payer: authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+    });
+    const messages = await planMessages(client, plan);
+
+    // Then everything fits in a single transaction with one full extend instruction.
+    expect(messages).toHaveLength(1);
+    expect(getInstructionTypes(messages[0], metadata)).toEqual([
+        ProgramMetadataInstruction.Allocate,
+        ProgramMetadataInstruction.Extend,
+        ProgramMetadataInstruction.Write,
+        ProgramMetadataInstruction.Initialize,
+    ]);
+    expect(getExtendLengths(messages[0], metadata)).toEqual([REALLOC_LIMIT]);
 });
 
 async function planMessages(client: TestClient, plan: InstructionPlan): Promise<TransactionMessage[]> {

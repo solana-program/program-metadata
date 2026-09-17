@@ -113,6 +113,20 @@ export function getAccountSize(dataLength: bigint | number) {
 }
 
 /**
+ * Whether an account created via `allocate` needs explicit `extend`
+ * instructions to hold `dataLength` bytes of data.
+ *
+ * The account grows from nothing to the header length when allocated and to
+ * `ACCOUNT_HEADER_LENGTH + dataLength` once written, so the header must be
+ * counted towards the realloc limit. Doing so keeps the creation valid when
+ * the transactions are executed through a CPI, where the limit applies to the
+ * whole transaction rather than to each instruction.
+ */
+export function needsExtend(dataLength: number): boolean {
+    return ACCOUNT_HEADER_LENGTH + dataLength > REALLOC_LIMIT;
+}
+
+/**
  * Resolves the metadata PDA address for the given input.
  *
  * - When `input.metadata` is provided, it is used as-is.

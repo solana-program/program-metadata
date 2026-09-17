@@ -31,7 +31,7 @@ import {
     getExtendInstructionPlan,
     getWriteInstructionPlan,
     MetadataInput,
-    REALLOC_LIMIT,
+    needsExtend,
     resolveMetadataPda,
 } from './utils';
 
@@ -134,7 +134,7 @@ export async function getCreateMetadataInstructionPlanUsingNewBuffer(
             programData: input.programData,
             seed: input.seed,
         }),
-        ...(input.data.length > REALLOC_LIMIT
+        ...(needsExtend(input.data.length)
             ? [
                   getExtendInstructionPlan({
                       account: input.metadata,
@@ -185,7 +185,7 @@ export async function getCreateMetadataInstructionPlanUsingExistingBuffer(
             programData: input.programData,
             seed: input.seed,
         }),
-        ...(input.dataLength > REALLOC_LIMIT
+        ...(needsExtend(input.dataLength)
             ? [
                   getExtendInstructionPlan({
                       account: input.metadata,
