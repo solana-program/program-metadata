@@ -101,9 +101,9 @@ export type MetadataInput = {
      * `extend` instruction per transaction.
      *
      * This is required when the resulting transactions are executed through a
-     * CPI — e.g. by a multisig program such as Squads — because the runtime
-     * then enforces the realloc limit per transaction rather than per
-     * instruction. Defaults to `false`.
+     * CPI — e.g. by a multisig program such as Squads — since each transaction
+     * then runs as a single top-level instruction and the whole of it is subject
+     * to the realloc limit. Defaults to `false`.
      */
     singleExtendPerTransaction?: boolean;
 };
@@ -119,8 +119,9 @@ export function getAccountSize(dataLength: bigint | number) {
  * The account grows from nothing to the header length when allocated and to
  * `ACCOUNT_HEADER_LENGTH + dataLength` once written, so the header must be
  * counted towards the realloc limit. Doing so keeps the creation valid when
- * the transactions are executed through a CPI, where the limit applies to the
- * whole transaction rather than to each instruction.
+ * the transactions are executed through a CPI, where the whole transaction
+ * runs as a single top-level instruction and is therefore subject to the
+ * limit as a whole.
  */
 export function needsExtend(dataLength: number): boolean {
     return ACCOUNT_HEADER_LENGTH + dataLength > REALLOC_LIMIT;

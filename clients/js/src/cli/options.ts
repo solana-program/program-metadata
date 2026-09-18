@@ -75,7 +75,8 @@ export const singleExtendPerTxOption = new Option(
     '--single-extend-per-tx',
     'Never grow an account by more than 10KB within a single exported transaction (at most one "extend" instruction per transaction). ' +
         'Required when the exported transactions are executed through a CPI, e.g. by a multisig program such as Squads, ' +
-        'as the runtime then applies the 10KB realloc limit per transaction instead of per instruction. Requires "--export".',
+        'where the whole transaction runs as a single top-level instruction and is therefore subject to the 10KB realloc limit ' +
+        'that applies per top-level instruction. Requires "--export".',
 ).default(false);
 
 export type TransactionVersion = 'legacy' | 0;
