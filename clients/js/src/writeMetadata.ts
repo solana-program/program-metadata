@@ -56,6 +56,7 @@ export async function getWriteMetadataInstructionPlan(
             data?: ReadonlyUint8Array;
             metadata: MaybeAccount<Metadata>;
             payer: TransactionSigner;
+            singleExtendPerTransaction?: boolean;
         },
 ): Promise<InstructionPlan> {
     return input.metadata.exists

@@ -57,6 +57,7 @@ export async function doCreate(seed: Seed, program: Address, file: string | unde
             programData,
             seed,
             metadata,
+            singleExtendPerTransaction: options.singleExtendPerTx,
         }),
     );
 }

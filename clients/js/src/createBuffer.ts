@@ -20,8 +20,7 @@ import {
     PROGRAM_METADATA_PROGRAM_ADDRESS,
     SeedArgs,
 } from './generated';
-import { REALLOC_LIMIT } from './internals';
-import { getAccountSize, getExtendInstructionPlan, getWriteInstructionPlan } from './utils';
+import { getAccountSize, getExtendInstructionPlan, getWriteInstructionPlan, needsExtend } from './utils';
 
 /**
  * Builds a plan that creates a brand new buffer account owned by a fresh
@@ -120,6 +119,7 @@ export async function getCreateCanonicalBufferInstructionPlan(
         program: Address;
         programData: Address;
         seed: SeedArgs;
+        singleExtendPerTransaction?: boolean;
     },
 ) {
     const buffer = input.buffer ?? (await findCanonicalPda({ program: input.program, seed: input.seed }))[0];
@@ -151,6 +151,7 @@ export async function getCreateNonCanonicalBufferInstructionPlan(
         payer: TransactionSigner;
         program: Address;
         seed: SeedArgs;
+        singleExtendPerTransaction?: boolean;
     },
 ) {
     const buffer =
@@ -177,6 +178,7 @@ async function getPdaBufferInstructionPlan(
         program: Address;
         programData?: Address;
         seed: SeedArgs;
+        singleExtendPerTransaction?: boolean;
     },
 ) {
     const dataLength = input.dataLength ?? input.data?.length ?? 0;
@@ -194,7 +196,7 @@ async function getPdaBufferInstructionPlan(
             programData: input.programData,
             seed: input.seed,
         }),
-        ...(dataLength > REALLOC_LIMIT
+        ...(needsExtend(dataLength)
             ? [
                   getExtendInstructionPlan({
                       account: input.buffer,
@@ -202,6 +204,7 @@ async function getPdaBufferInstructionPlan(
                       extraLength: dataLength,
                       program: input.program,
                       programData: input.programData,
+                      singleExtendPerTransaction: input.singleExtendPerTransaction,
                   }),
               ]
             : []),

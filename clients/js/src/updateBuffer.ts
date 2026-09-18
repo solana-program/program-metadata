@@ -11,8 +11,7 @@ import {
 } from '@solana/kit';
 
 import { Buffer, getCloseInstruction, getTrimInstruction, getWriteInstruction } from './generated';
-import { REALLOC_LIMIT } from './internals';
-import { getExtendInstructionPlan, getWriteInstructionPlan } from './utils';
+import { getExtendInstructionPlan, getWriteInstructionPlan, REALLOC_LIMIT } from './utils';
 
 export async function getUpdateBufferInstructionPlan(
     client: ClientWithGetMinimumBalance,
@@ -24,6 +23,7 @@ export async function getUpdateBufferInstructionPlan(
         sourceBuffer?: Account<Buffer>;
         closeSourceBuffer?: Address | boolean;
         data?: ReadonlyUint8Array;
+        singleExtendPerTransaction?: boolean;
     },
 ) {
     if (!input.data && !input.sourceBuffer) {
@@ -52,6 +52,7 @@ export async function getUpdateBufferInstructionPlan(
                       account: input.buffer,
                       authority: input.authority,
                       extraLength: Number(input.sizeDifference),
+                      singleExtendPerTransaction: input.singleExtendPerTransaction,
                   }),
               ]
             : []),
