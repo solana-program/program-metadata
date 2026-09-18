@@ -236,12 +236,12 @@ function getLoaderV3Decoders() {
  * runtime's realloc limit (10,240 bytes).
  *
  * By default, extend instructions are packed as densely as transaction size
- * allows since the realloc limit applies per instruction when transactions
- * are executed top-level. When `singleExtendPerTransaction` is `true`, the
- * account is never grown by more than the realloc limit within a single
- * transaction — accounting for other growing instructions already present in
- * the transaction, such as `allocate` — so the transactions remain valid when
- * executed through a CPI (e.g. by a multisig program).
+ * allows since the realloc limit applies per top-level instruction. When
+ * `singleExtendPerTransaction` is `true`, the account is never grown by more
+ * than the realloc limit within a single transaction — accounting for other
+ * growing instructions already present in the transaction, such as `allocate`
+ * — so transactions remain valid when executed through a CPI (e.g. by a
+ * multisig program).
  */
 export function getExtendInstructionPlan(input: {
     account: Address;

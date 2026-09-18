@@ -151,7 +151,7 @@ Squads v3 only accepts legacy transactions. If your multisig is on Squads v3, ad
 npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --tx-version legacy
 ```
 
-If the metadata account needs to grow by more than 10KB — because it is being created with more than 10KB of data, or updated with more than 10KB of additional data — add `--single-extend-per-tx`. Multisigs execute the exported transactions through a CPI, where the Solana runtime caps the growth of an account at 10KB per transaction rather than per instruction. This option spreads the growth over several transactions accordingly, so expect more than one transaction to import:
+If the metadata account needs to grow by more than 10KB — because it is being created with more than 10KB of data, or updated with more than 10KB of additional data — add `--single-extend-per-tx`. Multisigs execute exported transactions through a CPI and the Solana runtime caps the growth of an account at 10KB per top-level instruction. Therefore, an exported transaction cannot resize an account by more than 10KB. This option spreads the growth over several transactions accordingly, so expect more than one transaction to import:
 
 ```bash
 npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --single-extend-per-tx

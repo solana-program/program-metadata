@@ -115,8 +115,9 @@ export async function getClient(options: GlobalOptions) {
 
 /**
  * Rejects option combinations that only make sense when exporting
- * transactions. When transactions are executed directly by the CLI they run
- * top-level, so `--single-extend-per-tx` would only add needless transactions.
+ * transactions. When instructions are executed directly by the CLI, they run
+ * as top-level instructions in a transaction, so `--single-extend-per-tx`
+ * would only add needless transactions.
  */
 function assertValidExportOptions(options: ExportOption & SingleExtendPerTxOption): void {
     if (options.singleExtendPerTx && !options.export) {
