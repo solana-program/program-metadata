@@ -8,6 +8,7 @@ import {
     sequentialInstructionPlan,
     TransactionSigner,
 } from '@solana/kit';
+import { type InstructionSignerInput } from '@solana/kit/program-client-core';
 
 import {
     Buffer,
@@ -35,7 +36,7 @@ export async function getCreateBufferInstructionPlan(
     client: ClientWithGetMinimumBalance,
     input: {
         newBuffer: TransactionSigner;
-        authority: TransactionSigner;
+        authority: InstructionSignerInput;
         payer: TransactionSigner;
         sourceBuffer?: Account<Buffer>;
         closeSourceBuffer?: Address | boolean;

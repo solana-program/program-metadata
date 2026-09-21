@@ -85,6 +85,58 @@ it('packs at most one extend instruction per transaction when requested', async 
     ]);
 });
 
+it('resolves a program-derived address account when packing one extend per transaction', async () => {
+    // Given an account provided as its full `[address, bump]` PDA tuple rather than a plain
+    // address — one of the wider inputs the builder now accepts. The message packer must resolve
+    // it to a concrete address to account for the account's growth across transactions; if it did
+    // not, the growth comparison would never match and the packing would differ.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const pda = await findCanonicalPda({ program: authority.address, seed: 'idl' });
+    const [account] = pda;
+    const plan = getExtendInstructionPlan({
+        account: pda,
+        authority,
+        extraLength: 25_000,
+        singleExtendPerTransaction: true,
+    });
+
+    // When we plan it into transactions.
+    const messages = await planMessages(client, plan);
+
+    // Then the packing matches the plain-address case exactly.
+    expect(messages.map(message => getExtendLengths(message, account))).toEqual([
+        [REALLOC_LIMIT],
+        [REALLOC_LIMIT],
+        [25_000 - 2 * REALLOC_LIMIT],
+    ]);
+});
+
+it('resolves an address-carrying account when packing one extend per transaction', async () => {
+    // Given an account provided as an arbitrary `HasAddress` carrier (mirroring a third-party
+    // wrapper such as web3.js's `PublicKey`), which the builder now accepts and must resolve to a
+    // concrete address for the per-transaction growth accounting.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [account] = await findCanonicalPda({ program: authority.address, seed: 'idl' });
+    const plan = getExtendInstructionPlan({
+        account: { address: account },
+        authority,
+        extraLength: 25_000,
+        singleExtendPerTransaction: true,
+    });
+
+    // When we plan it into transactions.
+    const messages = await planMessages(client, plan);
+
+    // Then the packing matches the plain-address case exactly.
+    expect(messages.map(message => getExtendLengths(message, account))).toEqual([
+        [REALLOC_LIMIT],
+        [REALLOC_LIMIT],
+        [25_000 - 2 * REALLOC_LIMIT],
+    ]);
+});
+
 it('never grows an account by more than the realloc limit per transaction when creating metadata', async () => {
     // Given a deployed program and a metadata payload larger than two realloc limits.
     const client = await createTestClient();

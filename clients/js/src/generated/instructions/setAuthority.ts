@@ -33,10 +33,16 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { PROGRAM_METADATA_PROGRAM_ADDRESS } from '../programs';
 
 export const SET_AUTHORITY_DISCRIMINATOR = 2;
@@ -95,48 +101,56 @@ export function getSetAuthorityInstructionDataCodec(): Codec<
 }
 
 export type SetAuthorityInput<
-    TAccountAccount extends string = string,
-    TAccountAuthority extends string = string,
-    TAccountProgram extends string = string,
-    TAccountProgramData extends string = string,
+    TAccountAccount extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionSignerInput = InstructionSignerInput,
+    TAccountProgram extends InstructionAccountInput = InstructionAccountInput,
+    TAccountProgramData extends InstructionAccountInput = InstructionAccountInput,
 > = {
     /** Metadata or buffer account. */
-    account: Address<TAccountAccount>;
+    account: TAccountAccount;
     /** Current authority account. */
-    authority: TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
     /** Program account. */
-    program?: Address<TAccountProgram>;
+    program?: TAccountProgram;
     /** Program data account. */
-    programData?: Address<TAccountProgramData>;
+    programData?: TAccountProgramData;
     newAuthority: SetAuthorityInstructionDataArgs['newAuthority'];
 };
 
 export function getSetAuthorityInstruction<
-    TAccountAccount extends string,
-    TAccountAuthority extends string,
-    TAccountProgram extends string,
-    TAccountProgramData extends string,
+    TAccountAccount extends InstructionAccountInput,
+    TAccountAuthority extends InstructionSignerInput,
+    TAccountProgram extends InstructionAccountInput,
+    TAccountProgramData extends InstructionAccountInput,
     TProgramAddress extends Address = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
 >(
     input: SetAuthorityInput<TAccountAccount, TAccountAuthority, TAccountProgram, TAccountProgramData>,
     config?: { programAddress?: TProgramAddress },
-): SetAuthorityInstruction<TProgramAddress, TAccountAccount, TAccountAuthority, TAccountProgram, TAccountProgramData> {
+): SetAuthorityInstruction<
+    TProgramAddress,
+    ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+    ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>,
+    ResolvedInstructionAccountMeta<TAccountProgram, InstructionAccountInputAddress<TAccountProgram>>,
+    ResolvedInstructionAccountMeta<TAccountProgramData, InstructionAccountInputAddress<TAccountProgramData>>
+> {
     // Program address.
     const programAddress = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        account: { value: input.account ?? null, isWritable: true },
-        authority: { value: input.authority ?? null, isWritable: false },
-        program: { value: input.program ?? null, isWritable: false },
-        programData: { value: input.programData ?? null, isWritable: false },
+        account: { value: input.account ?? null, isSigner: false, isWritable: true },
+        authority: { value: input.authority ?? null, isSigner: true, isWritable: false },
+        program: { value: input.program ?? null, isSigner: false, isWritable: false },
+        programData: { value: input.programData ?? null, isSigner: false, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
     // Original args.
     const args = { ...input };
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('account', accounts.account),
@@ -148,10 +162,10 @@ export function getSetAuthorityInstruction<
         programAddress,
     } as SetAuthorityInstruction<
         TProgramAddress,
-        TAccountAccount,
-        TAccountAuthority,
-        TAccountProgram,
-        TAccountProgramData
+        ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
+        ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>,
+        ResolvedInstructionAccountMeta<TAccountProgram, InstructionAccountInputAddress<TAccountProgram>>,
+        ResolvedInstructionAccountMeta<TAccountProgramData, InstructionAccountInputAddress<TAccountProgramData>>
     >);
 }
 
