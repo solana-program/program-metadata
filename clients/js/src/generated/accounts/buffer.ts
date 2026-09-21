@@ -40,7 +40,7 @@ import {
     type OptionOrNullable,
     type ReadonlyUint8Array,
 } from '@solana/kit';
-import { findMetadataPda, MetadataSeeds } from '../pdas';
+import { findMetadataPda, type MetadataSeeds } from '../pdas';
 import {
     AccountDiscriminator,
     getAccountDiscriminatorDecoder,

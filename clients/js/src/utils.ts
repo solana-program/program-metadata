@@ -30,6 +30,11 @@ import {
     TransactionSigner,
     unwrapOption,
 } from '@solana/kit';
+import {
+    getAddressFromResolvedInstructionAccount,
+    type InstructionAccountInput,
+    type InstructionSignerInput,
+} from '@solana/kit/program-client-core';
 
 import {
     CompressionArgs,
@@ -245,11 +250,11 @@ function getLoaderV3Decoders() {
  * multisig program).
  */
 export function getExtendInstructionPlan(input: {
-    account: Address;
-    authority: TransactionSigner;
+    account: InstructionAccountInput;
+    authority: InstructionSignerInput;
     extraLength: number;
-    program?: Address;
-    programData?: Address;
+    program?: InstructionAccountInput;
+    programData?: InstructionAccountInput;
     singleExtendPerTransaction?: boolean;
 }): MessagePackerInstructionPlan {
     const getInstruction = (length: number) =>
@@ -263,7 +268,7 @@ export function getExtendInstructionPlan(input: {
 
     if (input.singleExtendPerTransaction) {
         return getSingleExtendMessagePackerInstructionPlan({
-            account: input.account,
+            account: getAddressFromResolvedInstructionAccount('account', input.account),
             getInstruction,
             totalLength: input.extraLength,
         });
@@ -413,8 +418,8 @@ function getAccountGrowthInMessage(message: TransactionMessage, account: Address
 }
 
 export function getWriteInstructionPlan(input: {
-    buffer: Address;
-    authority: TransactionSigner;
+    buffer: InstructionAccountInput;
+    authority: InstructionSignerInput;
     data: ReadonlyUint8Array;
 }): MessagePackerInstructionPlan {
     return getLinearMessagePackerInstructionPlan({

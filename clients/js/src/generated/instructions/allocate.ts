@@ -32,10 +32,16 @@ import {
     type ReadonlyAccount,
     type ReadonlySignerAccount,
     type ReadonlyUint8Array,
-    type TransactionSigner,
     type WritableAccount,
 } from '@solana/kit';
-import { getAccountMetaFactory, type ResolvedInstructionAccount } from '@solana/kit/program-client-core';
+import {
+    getAccountMetaFactory,
+    type InstructionAccountInput,
+    type InstructionAccountInputAddress,
+    type InstructionSignerInput,
+    type ResolvedInstructionAccount,
+    type ResolvedInstructionAccountMeta,
+} from '@solana/kit/program-client-core';
 import { PROGRAM_METADATA_PROGRAM_ADDRESS } from '../programs';
 import { getSeedDecoder, getSeedEncoder, type Seed, type SeedArgs } from '../types';
 
@@ -101,53 +107,56 @@ export function getAllocateInstructionDataCodec(): Codec<AllocateInstructionData
 }
 
 export type AllocateInput<
-    TAccountBuffer extends string = string,
-    TAccountAuthority extends string = string,
-    TAccountProgram extends string = string,
-    TAccountProgramData extends string = string,
-    TAccountSystem extends string = string,
+    TAccountBuffer extends InstructionAccountInput = InstructionAccountInput,
+    TAccountAuthority extends InstructionSignerInput = InstructionSignerInput,
+    TAccountProgram extends InstructionAccountInput = InstructionAccountInput,
+    TAccountProgramData extends InstructionAccountInput = InstructionAccountInput,
+    TAccountSystem extends InstructionAccountInput = InstructionAccountInput,
 > = {
     /** Buffer account to allocate. */
-    buffer: Address<TAccountBuffer>;
+    buffer: TAccountBuffer;
     /** Authority account. */
-    authority: TransactionSigner<TAccountAuthority>;
+    authority: TAccountAuthority;
     /** Program account. */
-    program?: Address<TAccountProgram>;
+    program?: TAccountProgram;
     /** Program data account. */
-    programData?: Address<TAccountProgramData>;
+    programData?: TAccountProgramData;
     /** System program. */
-    system?: Address<TAccountSystem>;
+    system?: TAccountSystem;
     seed?: AllocateInstructionDataArgs['seed'];
 };
 
 export function getAllocateInstruction<
-    TAccountBuffer extends string,
-    TAccountAuthority extends string,
-    TAccountProgram extends string,
-    TAccountProgramData extends string,
-    TAccountSystem extends string,
+    TAccountBuffer extends InstructionAccountInput,
+    TAccountAuthority extends InstructionSignerInput,
+    TAccountProgram extends InstructionAccountInput,
+    TAccountProgramData extends InstructionAccountInput,
+    TAccountSystem extends InstructionAccountInput,
     TProgramAddress extends Address = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
 >(
     input: AllocateInput<TAccountBuffer, TAccountAuthority, TAccountProgram, TAccountProgramData, TAccountSystem>,
     config?: { programAddress?: TProgramAddress },
 ): AllocateInstruction<
     TProgramAddress,
-    TAccountBuffer,
-    TAccountAuthority,
-    TAccountProgram,
-    TAccountProgramData,
-    TAccountSystem
+    ResolvedInstructionAccountMeta<TAccountBuffer, InstructionAccountInputAddress<TAccountBuffer>>,
+    ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>,
+    ResolvedInstructionAccountMeta<TAccountProgram, InstructionAccountInputAddress<TAccountProgram>>,
+    ResolvedInstructionAccountMeta<TAccountProgramData, InstructionAccountInputAddress<TAccountProgramData>>,
+    ResolvedInstructionAccountMeta<TAccountSystem, InstructionAccountInputAddress<TAccountSystem>>
 > {
     // Program address.
     const programAddress = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
 
+    // Account meta helper.
+    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+
     // Original accounts.
     const originalAccounts = {
-        buffer: { value: input.buffer ?? null, isWritable: true },
-        authority: { value: input.authority ?? null, isWritable: false },
-        program: { value: input.program ?? null, isWritable: false },
-        programData: { value: input.programData ?? null, isWritable: false },
-        system: { value: input.system ?? null, isWritable: false },
+        buffer: { value: input.buffer ?? null, isSigner: false, isWritable: true },
+        authority: { value: input.authority ?? null, isSigner: true, isWritable: false },
+        program: { value: input.program ?? null, isSigner: false, isWritable: false },
+        programData: { value: input.programData ?? null, isSigner: false, isWritable: false },
+        system: { value: input.system ?? null, isSigner: false, isWritable: false },
     };
     const accounts = originalAccounts as Record<keyof typeof originalAccounts, ResolvedInstructionAccount>;
 
@@ -159,7 +168,6 @@ export function getAllocateInstruction<
         accounts.system.value = '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
     }
 
-    const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
     return Object.freeze({
         accounts: [
             getAccountMeta('buffer', accounts.buffer),
@@ -172,11 +180,11 @@ export function getAllocateInstruction<
         programAddress,
     } as AllocateInstruction<
         TProgramAddress,
-        TAccountBuffer,
-        TAccountAuthority,
-        TAccountProgram,
-        TAccountProgramData,
-        TAccountSystem
+        ResolvedInstructionAccountMeta<TAccountBuffer, InstructionAccountInputAddress<TAccountBuffer>>,
+        ResolvedInstructionAccountMeta<TAccountAuthority, InstructionAccountInputAddress<TAccountAuthority>>,
+        ResolvedInstructionAccountMeta<TAccountProgram, InstructionAccountInputAddress<TAccountProgram>>,
+        ResolvedInstructionAccountMeta<TAccountProgramData, InstructionAccountInputAddress<TAccountProgramData>>,
+        ResolvedInstructionAccountMeta<TAccountSystem, InstructionAccountInputAddress<TAccountSystem>>
     >);
 }
 
