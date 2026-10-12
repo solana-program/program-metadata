@@ -438,9 +438,11 @@ async function getCanonicalPdaDetailsUnchecked(
     // the canonical PDA but cannot be initialized by anyone other than the
     // upgrade authority, hence the discriminator check.
     const account = await fetchEncodedAccount(client.rpc, metadata);
-    const isMetadataAccount = account.exists && account.data[0] === AccountDiscriminator.Metadata;
-    const isAuthorized = isMetadataAccount && unwrapOption(decodeMetadata(account).data.authority) === identity;
-    return { isAuthorized, metadata, programData };
+    if (!account.exists || account.data[0] !== AccountDiscriminator.Metadata) {
+        return { isAuthorized: false, metadata, programData };
+    }
+    const storedAuthority = unwrapOption(decodeMetadata(account).data.authority);
+    return { isAuthorized: storedAuthority === identity, metadata, programData };
 }
 
 export async function getWriteInput(

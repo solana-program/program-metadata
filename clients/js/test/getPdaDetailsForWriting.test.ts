@@ -1,4 +1,4 @@
-import { getUtf8Encoder } from '@solana/kit';
+import { getUtf8Encoder, some } from '@solana/kit';
 import { expect, it } from 'vitest';
 
 import { Compression, DataSource, Encoding, findCanonicalPda, findNonCanonicalPda, Format } from '../src';
@@ -8,6 +8,7 @@ import {
     createDeployedProgram,
     createTestClient,
     generateKeyPairSignerWithSol,
+    REALLOC_LIMIT,
 } from './_setup';
 
 it('resolves the canonical metadata account for the program authority', async () => {
@@ -115,6 +116,43 @@ it('resolves the canonical metadata account for its additional authority', async
     });
     const account = await client.programMetadata.accounts.metadata.fetch(metadata);
     expect(account.data.data).toStrictEqual(getUtf8Encoder().encode('Updated by the additional authority'));
+});
+
+it('lets the additional authority write large data to the canonical metadata account', async () => {
+    // Given an existing canonical metadata account with the following additional authority.
+    const client = await createTestClient();
+    const { additionalAuthority, metadata, program } = await createCanonicalMetadataWithAuthority(client);
+
+    // When the additional authority resolves the metadata account to write.
+    const details = await getPdaDetailsForWriting(
+        { rpc: client.rpc, identity: additionalAuthority },
+        { nonCanonical: false },
+        program,
+        'idl',
+    );
+
+    // And writes more data than can be added in a single transaction, which
+    // requires a buffer and several extend instructions.
+    const largeData = new Uint8Array(REALLOC_LIMIT + 1).fill(42);
+    await client.programMetadata.writeMetadata({
+        authority: additionalAuthority,
+        program,
+        programData: details.programData,
+        metadata: details.metadata,
+        seed: 'idl',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.None,
+        data: largeData,
+    });
+
+    // Then we expect the canonical metadata account to contain the new data.
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
+    expect(account.data.data).toStrictEqual(largeData);
+
+    // And we expect the additional authority to still be set.
+    expect(account.data.authority).toStrictEqual(some(additionalAuthority.address));
 });
 
 it('resolves the non-canonical metadata account for an additional authority when requested', async () => {
