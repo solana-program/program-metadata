@@ -369,9 +369,14 @@ export async function getPdaDetailsForWriting(
     const details = await getPdaDetails({ rpc: client.rpc, authority: client.identity, program, seed });
     assertValidIsCanonical(details.isCanonical, options);
     const isCanonical = !options.nonCanonical;
+    const [metadata] = await findMetadataPda({
+        program,
+        authority: isCanonical ? null : client.identity.address,
+        seed,
+    });
     return {
         programData: isCanonical ? details.programData : undefined,
-        metadata: details.metadata,
+        metadata,
         isCanonical,
     };
 }
