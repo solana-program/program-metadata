@@ -17,6 +17,7 @@ import {
     createNoopSigner,
     createSolanaRpcSubscriptions,
     extendClient,
+    fetchEncodedAccount,
     flattenTransactionPlan,
     GetAccountInfoApi,
     GetLatestBlockhashApi,
@@ -33,6 +34,7 @@ import {
     TransactionMessage,
     TransactionPlan,
     TransactionSigner,
+    unwrapOption,
 } from '@solana/kit';
 import {
     rpcGetMinimumBalance,
@@ -45,7 +47,17 @@ import { Command } from 'commander';
 import picocolors from 'picocolors';
 import { parse as parseYaml } from 'yaml';
 
-import { Buffer, DataSource, Encoding, fetchBuffer, findMetadataPda, Format, Seed, SeedArgs } from '../generated';
+import {
+    AccountDiscriminator,
+    Buffer,
+    DataSource,
+    decodeMetadata,
+    Encoding,
+    fetchBuffer,
+    findMetadataPda,
+    Format,
+    SeedArgs,
+} from '../generated';
 import { decodeData, packDirectData, PackedData, packExternalData, packUrlData } from '../packData';
 import { programMetadataProgram } from '../plugin';
 import { getProgramAuthority } from '../utils';
@@ -337,48 +349,100 @@ export type PdaDetails = {
     programData?: Address;
 };
 
-/**
- * Fetches the on-chain state of `program` to determine whether the metadata
- * account is canonical (i.e. the caller's authority matches the program's
- * upgrade authority) and returns the resolved metadata PDA along with the
- * associated program-data account when applicable.
- */
-export async function getPdaDetails(input: {
+/** The subset of the CLI {@link Client} needed to resolve metadata PDAs. */
+export type PdaDetailsClient = {
+    identity: TransactionSigner;
     rpc: Rpc<GetAccountInfoApi>;
-    program: Address;
-    authority: TransactionSigner | Address;
-    seed: SeedArgs;
-}): Promise<PdaDetails> {
-    const authorityAddress = typeof input.authority === 'string' ? input.authority : input.authority.address;
-    const { authority, programData } = await getProgramAuthority(input.rpc, input.program);
-    const isCanonical = !!authority && authority === authorityAddress;
-    const [metadata] = await findMetadataPda({
-        program: input.program,
-        authority: isCanonical ? null : authorityAddress,
-        seed: input.seed,
-    });
-    return { metadata, isCanonical, programData };
+};
+
+const CANONICAL_AUTHORITY_ERROR =
+    'You must be the program upgrade authority, or the authority set on an existing canonical metadata ' +
+    'account, to manage canonical metadata accounts.';
+
+/**
+ * Resolves the canonical metadata account of `program` for the given `seed`
+ * and ensures the active identity is allowed to manage it.
+ *
+ * Mirroring the on-chain program, the identity is allowed if it is either the
+ * program upgrade authority, or the additional authority stored on an existing
+ * canonical metadata account (see the `set-authority` command). Note that only
+ * the program upgrade authority can create canonical metadata accounts.
+ *
+ * This is a client-side pre-flight check only; the on-chain program remains
+ * the source of truth for authorization.
+ *
+ * @throws If the identity is not allowed to manage the canonical metadata account.
+ */
+export async function getCanonicalPdaDetails(
+    client: PdaDetailsClient,
+    program: Address,
+    seed: SeedArgs,
+): Promise<PdaDetails> {
+    const details = await getCanonicalPdaDetailsUnchecked(client, program, seed);
+    if (!details.isAuthorized) {
+        throw new Error(CANONICAL_AUTHORITY_ERROR);
+    }
+    return { metadata: details.metadata, isCanonical: true, programData: details.programData };
 }
 
+/**
+ * Resolves the metadata account to write to based on the `--non-canonical`
+ * option.
+ *
+ * - By default, the canonical metadata account is resolved and the active
+ *   identity must be allowed to manage it (see {@link getCanonicalPdaDetails}).
+ * - With `--non-canonical`, the metadata account derived from the active
+ *   identity is resolved and no program data account is provided.
+ *
+ * @throws If the canonical metadata account is requested and the identity is
+ * not allowed to manage it.
+ */
 export async function getPdaDetailsForWriting(
-    client: Client,
+    client: PdaDetailsClient,
     options: NonCanonicalWriteOption,
     program: Address,
-    seed: Seed,
+    seed: SeedArgs,
 ): Promise<PdaDetails> {
-    const details = await getPdaDetails({ rpc: client.rpc, authority: client.identity, program, seed });
-    assertValidIsCanonical(details.isCanonical, options);
-    const isCanonical = !options.nonCanonical;
-    const [metadata] = await findMetadataPda({
-        program,
-        authority: isCanonical ? null : client.identity.address,
-        seed,
-    });
-    return {
-        programData: isCanonical ? details.programData : undefined,
-        metadata,
-        isCanonical,
-    };
+    if (options.nonCanonical) {
+        const [metadata] = await findMetadataPda({ program, authority: client.identity.address, seed });
+        return { metadata, isCanonical: false, programData: undefined };
+    }
+
+    const details = await getCanonicalPdaDetailsUnchecked(client, program, seed);
+    if (!details.isAuthorized) {
+        throw new Error(
+            `${CANONICAL_AUTHORITY_ERROR} Use the \`--non-canonical\` option to manage metadata accounts as a third party.`,
+        );
+    }
+    return { metadata: details.metadata, isCanonical: true, programData: details.programData };
+}
+
+async function getCanonicalPdaDetailsUnchecked(
+    client: PdaDetailsClient,
+    program: Address,
+    seed: SeedArgs,
+): Promise<{ isAuthorized: boolean; metadata: Address; programData?: Address }> {
+    const identity = client.identity.address;
+    const [[metadata], { authority: upgradeAuthority, programData }] = await Promise.all([
+        findMetadataPda({ program, authority: null, seed }),
+        getProgramAuthority(client.rpc, program),
+    ]);
+
+    // Fast path: the identity is the program upgrade authority.
+    if (upgradeAuthority === identity) {
+        return { isAuthorized: true, metadata, programData };
+    }
+
+    // Otherwise, the identity must be the additional authority stored on an
+    // existing canonical metadata account. Pre-allocated buffers also live at
+    // the canonical PDA but cannot be initialized by anyone other than the
+    // upgrade authority, hence the discriminator check.
+    const account = await fetchEncodedAccount(client.rpc, metadata);
+    if (!account.exists || account.data[0] !== AccountDiscriminator.Metadata) {
+        return { isAuthorized: false, metadata, programData };
+    }
+    const storedAuthority = unwrapOption(decodeMetadata(account).data.authority);
+    return { isAuthorized: storedAuthority === identity, metadata, programData };
 }
 
 export async function getWriteInput(
@@ -455,14 +519,4 @@ export function getPackedData(file: string | undefined, options: WriteOptions): 
 export function writeFile(filepath: string, content: string): void {
     fs.mkdirSync(path.dirname(filepath), { recursive: true });
     fs.writeFileSync(filepath, content);
-}
-
-export function assertValidIsCanonical(isCanonical: boolean, options: NonCanonicalWriteOption): void {
-    const wantsCanonical = !options.nonCanonical;
-    if (wantsCanonical && !isCanonical) {
-        logErrorAndExit(
-            'You must be the program authority or an authorized authority to manage canonical metadata accounts. ' +
-                'Use the `--non-canonical` option to manage metadata accounts as a third party.',
-        );
-    }
 }

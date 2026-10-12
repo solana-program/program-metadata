@@ -4,7 +4,7 @@ import { Seed } from '../../generated';
 import { programArgument, seedArgument } from '../arguments';
 import { logCommand } from '../logs';
 import { GlobalOptions, NewAuthorityOption, newAuthorityOption } from '../options';
-import { CustomCommand, getClient, getPdaDetails } from '../utils';
+import { CustomCommand, getCanonicalPdaDetails, getClient } from '../utils';
 
 export function setSetAuthorityCommand(program: CustomCommand): void {
     program
@@ -20,12 +20,7 @@ type Options = NewAuthorityOption;
 async function doSetAuthority(seed: Seed, program: Address, _: Options, cmd: CustomCommand) {
     const options = cmd.optsWithGlobals() as GlobalOptions & Options;
     const client = await getClient(options);
-    const { metadata, programData } = await getPdaDetails({
-        rpc: client.rpc,
-        authority: client.identity,
-        program,
-        seed,
-    });
+    const { metadata, programData } = await getCanonicalPdaDetails(client, program, seed);
 
     logCommand(`Setting additional authority from metadata account...`, {
         'new authority': options.newAuthority,

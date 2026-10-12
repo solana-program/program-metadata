@@ -92,6 +92,7 @@ By default your keypair that creates the metadata account will be its authority.
 - Set a new authority:  
   `npx @solana-program/program-metadata@latest set-authority <seed> <program-id> --new-authority <pubkey>`
   Note that the program upgrade authority can always claim back the metadata account if it is not immutable.
+  Once set, the new authority can use its own keypair to run `write`, `update`, `close`, `set-immutable`, `set-authority` and `remove-authority` on the canonical metadata account. Only the program upgrade authority can create canonical metadata accounts though.
 - Remove authority:  
   `npx @solana-program/program-metadata@latest remove-authority <seed> <program-id>`
   This will leave only the upgrade authority as the authority of the metadata account.
@@ -170,7 +171,7 @@ npx @solana-program/program-metadata@latest write idl <program-id> ./idl.json --
 **Upload metadata as third-party (non-canonical):**
 
 ```sh
-npx @solana-program/program-metadata@latest write idl <program-id> ./metadata.json --non-canonical <your-pubkey>
+npx @solana-program/program-metadata@latest write idl <program-id> ./metadata.json --non-canonical
 ```
 
 **Fetch canonical metadata:**
@@ -297,7 +298,7 @@ To save space you can also point the metadata in the account to a URL using the 
 Like this you can for example have multiple programs point to the same metadata account or you can save your IDL in your github repository and let the metadata account just point to it.
 
 - **Seeds:** The `<seed>` argument is a string like "idl" or "security" that determines the type of metadata. It is used to derive the address of the metadata account for your program. Use different seeds for different types of metadata. You can attach any data to programs that you like. If you have a certain standard in mind please open a discussion on this repository. For IDL seeds and versioning, see the [IDL versioning](#idl-versioning) section above. You could also think of adding attestations to programs to make them more trustworthy. Something like an auditedBy metadata could be interesting for example.
-- **Canonical vs. Non-Canonical:** By default, the upgrade authority creates canonical metadata. Use `--non-canonical <pubkey>` to create third-party metadata accounts. This could for example be useful for already frozen programs which do not have access to their upgrade authority anymore.
+- **Canonical vs. Non-Canonical:** By default, the upgrade authority creates canonical metadata. Use `--non-canonical` to create third-party metadata accounts, using the active keypair as their authority. This could for example be useful for already frozen programs which do not have access to their upgrade authority anymore.
 - **File Types:** The CLI auto-detects JSON, YAML, or TOML.
 - **Compression:** By default all metadata is compressed in the `zlib` format to save on chain space. You can override this by using the `--compression` flag and change it to `none` or `gzip`.
 - **Encoding:** By default all metadata is encoded in `utf8`. You can override this by using the `--encoding` flag and change it to `none`, `base58` or `base64`.

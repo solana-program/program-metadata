@@ -4,7 +4,7 @@ import { Seed } from '../../generated';
 import { programArgument, seedArgument } from '../arguments';
 import { logCommand } from '../logs';
 import { GlobalOptions } from '../options';
-import { CustomCommand, getClient, getPdaDetails } from '../utils';
+import { CustomCommand, getCanonicalPdaDetails, getClient } from '../utils';
 
 export function setRemoveAuthorityCommand(program: CustomCommand): void {
     program
@@ -19,12 +19,7 @@ type Options = {};
 async function doRemoveAuthority(seed: Seed, program: Address, _: Options, cmd: CustomCommand) {
     const options = cmd.optsWithGlobals() as GlobalOptions & Options;
     const client = await getClient(options);
-    const { metadata, programData } = await getPdaDetails({
-        rpc: client.rpc,
-        program,
-        authority: client.identity,
-        seed,
-    });
+    const { metadata, programData } = await getCanonicalPdaDetails(client, program, seed);
 
     logCommand(`Removing additional authority from metadata account...`, {
         metadata,

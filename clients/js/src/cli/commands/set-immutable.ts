@@ -20,13 +20,13 @@ type Options = NonCanonicalWriteOption;
 async function doSetImmutable(seed: Seed, program: Address, _: Options, cmd: CustomCommand) {
     const options = cmd.optsWithGlobals() as GlobalOptions & Options;
     const client = await getClient(options);
-    const { metadata, programData, isCanonical } = await getPdaDetailsForWriting(client, options, program, seed);
+    const { metadata, programData } = await getPdaDetailsForWriting(client, options, program, seed);
 
     logCommand(`Making metadata account immutable...`, {
         metadata,
         program,
         seed,
-        authority: isCanonical ? undefined : client.identity.address,
+        authority: client.identity.address,
     });
 
     await client.runOrExport(
