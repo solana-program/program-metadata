@@ -23,6 +23,11 @@ import { litesvm } from '@solana/kit-plugin-litesvm';
 import { airdropSigner, generatedSigner } from '@solana/kit-plugin-signer';
 
 import {
+    Compression,
+    DataSource,
+    Encoding,
+    findCanonicalPda,
+    Format,
     getProgramDataPda as getLoaderV3ProgramDataPda,
     LOADER_V3_PROGRAM_ADDRESS,
     PROGRAM_METADATA_PROGRAM_ADDRESS,
@@ -134,6 +139,41 @@ export const createDeployedProgram = async (
     });
 
     return [program.address, programData];
+};
+
+/**
+ * Deploys a loader-v3 program and creates its canonical `idl` metadata account
+ * as the program upgrade authority. It then delegates the metadata account to
+ * a separate additional authority via the `SetAuthority` instruction.
+ */
+export const createCanonicalMetadataWithAuthority = async (client: TestClient) => {
+    const [programAuthority, additionalAuthority] = await Promise.all([
+        generateKeyPairSignerWithSol(client),
+        generateKeyPairSignerWithSol(client),
+    ]);
+    const [program, programData] = await createDeployedProgram(client, programAuthority);
+    await client.programMetadata.createMetadata({
+        authority: programAuthority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        data: getUtf8Encoder().encode('{"name":"original"}'),
+    });
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    await client.programMetadata.instructions
+        .setAuthority({
+            account: metadata,
+            authority: programAuthority,
+            newAuthority: additionalAuthority.address,
+            program,
+            programData,
+        })
+        .sendTransaction();
+    return { additionalAuthority, metadata, program, programAuthority, programData };
 };
 
 export const NATIVE_LOADER_PROGRAM_ADDRESS = address('NativeLoader1111111111111111111111111111111');

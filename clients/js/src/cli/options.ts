@@ -208,7 +208,7 @@ export const formatOption = new Option('--format <format>', 'The format of the p
 export type NonCanonicalWriteOption = { nonCanonical: boolean };
 export const nonCanonicalWriteOption = new Option(
     '--non-canonical',
-    'When provided, a non-canonical metadata account will be closed using the active keypair as the authority.',
+    'When provided, the non-canonical metadata account derived from the active keypair will be used instead of the canonical one.',
 ).default(false);
 
 export type NonCanonicalReadOption = { nonCanonical: Address | boolean };
