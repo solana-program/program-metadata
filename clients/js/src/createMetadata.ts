@@ -7,6 +7,7 @@ import {
     ClientWithTransactionPlanning,
     ClientWithTransactionSending,
     GetAccountInfoApi,
+    HasAddress,
     InstructionPlan,
     parallelInstructionPlan,
     ReadonlyUint8Array,
@@ -25,7 +26,7 @@ import {
     InitializeInput,
     PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
-import { isValidInstructionPlan } from './internals';
+import { getCloseDestination, isValidInstructionPlan } from './internals';
 import {
     getAccountSize,
     getExtendInstructionPlan,
@@ -66,7 +67,7 @@ export async function getCreateMetadataInstructionPlan(
         buffer?: Account<Buffer>;
         data?: ReadonlyUint8Array;
         payer: TransactionSigner;
-        closeBuffer?: Address | boolean;
+        closeBuffer?: Address | HasAddress | boolean;
         singleExtendPerTransaction?: boolean;
     },
 ): Promise<InstructionPlan> {
@@ -164,10 +165,10 @@ export async function getCreateMetadataInstructionPlanUsingNewBuffer(
 export async function getCreateMetadataInstructionPlanUsingExistingBuffer(
     client: ClientWithGetMinimumBalance,
     input: Omit<InitializeInput, 'data'> & {
-        buffer: Address;
+        buffer: Address | HasAddress;
         dataLength: number;
         payer: TransactionSigner;
-        closeBuffer?: Address | boolean;
+        closeBuffer?: Address | HasAddress | boolean;
         singleExtendPerTransaction?: boolean;
     },
 ) {
@@ -213,7 +214,7 @@ export async function getCreateMetadataInstructionPlanUsingExistingBuffer(
                   getCloseInstruction({
                       account: input.buffer,
                       authority: input.authority,
-                      destination: typeof input.closeBuffer === 'string' ? input.closeBuffer : input.payer.address,
+                      destination: getCloseDestination(input.closeBuffer, input.payer.address),
                   }),
               ]
             : []),

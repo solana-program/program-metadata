@@ -135,7 +135,7 @@ export function getAllocateInstruction<
     TProgramAddress extends Address = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
 >(
     input: AllocateInput<TAccountBuffer, TAccountAuthority, TAccountProgram, TAccountProgramData, TAccountSystem>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): AllocateInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountBuffer, InstructionAccountInputAddress<TAccountBuffer>>,
@@ -145,7 +145,8 @@ export function getAllocateInstruction<
     ResolvedInstructionAccountMeta<TAccountSystem, InstructionAccountInputAddress<TAccountSystem>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

@@ -21,6 +21,7 @@ import {
     type ExtendedClient,
     type GetAccountInfoApi,
     type GetMultipleAccountsApi,
+    type HasAddress,
     type Instruction,
     type InstructionWithData,
     type ReadonlyUint8Array,
@@ -219,21 +220,42 @@ export type ProgramMetadataPluginAccounts = {
 };
 
 export type ProgramMetadataPluginInstructions = {
-    write: (input: WriteInput) => ReturnType<typeof getWriteInstruction> & SelfPlanAndSendFunctions;
+    write: (
+        input: WriteInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getWriteInstruction> & SelfPlanAndSendFunctions;
     initialize: (
         input: InitializeAsyncInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getInitializeInstructionAsync> & SelfPlanAndSendFunctions;
     setAuthority: (
         input: SetAuthorityInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getSetAuthorityInstruction> & SelfPlanAndSendFunctions;
-    setData: (input: SetDataInput) => ReturnType<typeof getSetDataInstruction> & SelfPlanAndSendFunctions;
+    setData: (
+        input: SetDataInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getSetDataInstruction> & SelfPlanAndSendFunctions;
     setImmutable: (
         input: SetImmutableInput,
+        config?: { programAddress?: Address | HasAddress },
     ) => ReturnType<typeof getSetImmutableInstruction> & SelfPlanAndSendFunctions;
-    trim: (input: TrimInput) => ReturnType<typeof getTrimInstruction> & SelfPlanAndSendFunctions;
-    close: (input: CloseInput) => ReturnType<typeof getCloseInstruction> & SelfPlanAndSendFunctions;
-    allocate: (input: AllocateInput) => ReturnType<typeof getAllocateInstruction> & SelfPlanAndSendFunctions;
-    extend: (input: ExtendInput) => ReturnType<typeof getExtendInstruction> & SelfPlanAndSendFunctions;
+    trim: (
+        input: TrimInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getTrimInstruction> & SelfPlanAndSendFunctions;
+    close: (
+        input: CloseInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getCloseInstruction> & SelfPlanAndSendFunctions;
+    allocate: (
+        input: AllocateInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getAllocateInstruction> & SelfPlanAndSendFunctions;
+    extend: (
+        input: ExtendInput,
+        config?: { programAddress?: Address | HasAddress },
+    ) => ReturnType<typeof getExtendInstruction> & SelfPlanAndSendFunctions;
 };
 
 export type ProgramMetadataPluginPdas = {
@@ -246,7 +268,7 @@ export type ProgramMetadataPluginRequirements = ClientWithRpc<GetAccountInfoApi 
     ClientWithTransactionPlanning &
     ClientWithTransactionSending;
 
-export function programMetadataProgram() {
+export function programMetadataProgram(config: { programAddress?: Address | HasAddress } = {}) {
     return <T extends ProgramMetadataPluginRequirements>(
         client: T,
     ): ExtendedClient<T, { programMetadata: ProgramMetadataPlugin }> => {
@@ -257,17 +279,80 @@ export function programMetadataProgram() {
                     metadata: addSelfFetchFunctions(client, getMetadataCodec()),
                 },
                 instructions: {
-                    write: input => addSelfPlanAndSendFunctions(client, getWriteInstruction(input)),
-                    initialize: input => addSelfPlanAndSendFunctions(client, getInitializeInstructionAsync(input)),
-                    setAuthority: input => addSelfPlanAndSendFunctions(client, getSetAuthorityInstruction(input)),
-                    setData: input => addSelfPlanAndSendFunctions(client, getSetDataInstruction(input)),
-                    setImmutable: input => addSelfPlanAndSendFunctions(client, getSetImmutableInstruction(input)),
-                    trim: input => addSelfPlanAndSendFunctions(client, getTrimInstruction(input)),
-                    close: input => addSelfPlanAndSendFunctions(client, getCloseInstruction(input)),
-                    allocate: input => addSelfPlanAndSendFunctions(client, getAllocateInstruction(input)),
-                    extend: input => addSelfPlanAndSendFunctions(client, getExtendInstruction(input)),
+                    write: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getWriteInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    initialize: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getInitializeInstructionAsync(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    setAuthority: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getSetAuthorityInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    setData: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getSetDataInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    setImmutable: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getSetImmutableInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    trim: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getTrimInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    close: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getCloseInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    allocate: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getAllocateInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
+                    extend: (input, instructionConfig) =>
+                        addSelfPlanAndSendFunctions(
+                            client,
+                            getExtendInstruction(input, {
+                                programAddress: instructionConfig?.programAddress ?? config.programAddress,
+                            }),
+                        ),
                 },
-                pdas: { canonical: findCanonicalPda, nonCanonical: findNonCanonicalPda, metadata: findMetadataPda },
+                pdas: {
+                    canonical: (seeds, pdaConfig) =>
+                        findCanonicalPda(seeds, { programAddress: pdaConfig?.programAddress ?? config.programAddress }),
+                    nonCanonical: (seeds, pdaConfig) =>
+                        findNonCanonicalPda(seeds, {
+                            programAddress: pdaConfig?.programAddress ?? config.programAddress,
+                        }),
+                    metadata: (seeds, pdaConfig) =>
+                        findMetadataPda(seeds, { programAddress: pdaConfig?.programAddress ?? config.programAddress }),
+                },
                 identifyInstruction: identifyProgramMetadataInstruction,
                 parseInstruction: parseProgramMetadataInstruction,
             },

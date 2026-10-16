@@ -34,6 +34,7 @@ import {
     type Encoder,
     type FetchAccountConfig,
     type FetchAccountsConfig,
+    type HasAddress,
     type MaybeAccount,
     type MaybeEncodedAccount,
     type Option,
@@ -61,8 +62,8 @@ export type Buffer = {
 };
 
 export type BufferArgs = {
-    program: OptionOrNullable<Address>;
-    authority: OptionOrNullable<Address>;
+    program: OptionOrNullable<Address | HasAddress>;
+    authority: OptionOrNullable<Address | HasAddress>;
     canonical: boolean;
     seed: SeedArgs;
     data: ReadonlyUint8Array;
@@ -114,7 +115,7 @@ export function decodeBuffer<TAddress extends string = string>(
 
 export async function fetchBuffer<TAddress extends string = string>(
     rpc: Parameters<typeof fetchEncodedAccount>[0],
-    address: Address<TAddress>,
+    address: Address<TAddress> | HasAddress<TAddress>,
     config?: FetchAccountConfig,
 ): Promise<Account<Buffer, TAddress>> {
     const maybeAccount = await fetchMaybeBuffer(rpc, address, config);
@@ -124,16 +125,20 @@ export async function fetchBuffer<TAddress extends string = string>(
 
 export async function fetchMaybeBuffer<TAddress extends string = string>(
     rpc: Parameters<typeof fetchEncodedAccount>[0],
-    address: Address<TAddress>,
+    address: Address<TAddress> | HasAddress<TAddress>,
     config?: FetchAccountConfig,
 ): Promise<MaybeAccount<Buffer, TAddress>> {
-    const maybeAccount = await fetchEncodedAccount(rpc, address, config);
+    const maybeAccount = await fetchEncodedAccount(
+        rpc,
+        typeof address === 'string' ? address : address.address,
+        config,
+    );
     return decodeBuffer(maybeAccount);
 }
 
 export async function fetchAllBuffer(
     rpc: Parameters<typeof fetchEncodedAccounts>[0],
-    addresses: Array<Address>,
+    addresses: Array<Address | HasAddress>,
     config?: FetchAccountsConfig,
 ): Promise<Account<Buffer>[]> {
     const maybeAccounts = await fetchAllMaybeBuffer(rpc, addresses, config);
@@ -143,17 +148,21 @@ export async function fetchAllBuffer(
 
 export async function fetchAllMaybeBuffer(
     rpc: Parameters<typeof fetchEncodedAccounts>[0],
-    addresses: Array<Address>,
+    addresses: Array<Address | HasAddress>,
     config?: FetchAccountsConfig,
 ): Promise<MaybeAccount<Buffer>[]> {
-    const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
+    const maybeAccounts = await fetchEncodedAccounts(
+        rpc,
+        addresses.map(a => (typeof a === 'string' ? a : a.address)),
+        config,
+    );
     return maybeAccounts.map(maybeAccount => decodeBuffer(maybeAccount));
 }
 
 export async function fetchBufferFromSeeds(
     rpc: Parameters<typeof fetchEncodedAccount>[0],
     seeds: MetadataSeeds,
-    config: FetchAccountConfig & { programAddress?: Address } = {},
+    config: FetchAccountConfig & { programAddress?: Address | HasAddress } = {},
 ): Promise<Account<Buffer>> {
     const maybeAccount = await fetchMaybeBufferFromSeeds(rpc, seeds, config);
     assertAccountExists(maybeAccount);
@@ -163,7 +172,7 @@ export async function fetchBufferFromSeeds(
 export async function fetchMaybeBufferFromSeeds(
     rpc: Parameters<typeof fetchEncodedAccount>[0],
     seeds: MetadataSeeds,
-    config: FetchAccountConfig & { programAddress?: Address } = {},
+    config: FetchAccountConfig & { programAddress?: Address | HasAddress } = {},
 ): Promise<MaybeAccount<Buffer>> {
     const { programAddress, ...fetchConfig } = config;
     const [address] = await findMetadataPda(seeds, { programAddress });

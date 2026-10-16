@@ -3,6 +3,7 @@ import {
     Account,
     Address,
     ClientWithGetMinimumBalance,
+    HasAddress,
     lamports,
     parallelInstructionPlan,
     ReadonlyUint8Array,
@@ -11,17 +12,18 @@ import {
 } from '@solana/kit';
 
 import { Buffer, getCloseInstruction, getTrimInstruction, getWriteInstruction } from './generated';
+import { getCloseDestination } from './internals';
 import { getExtendInstructionPlan, getWriteInstructionPlan, REALLOC_LIMIT } from './utils';
 
 export async function getUpdateBufferInstructionPlan(
     client: ClientWithGetMinimumBalance,
     input: {
-        buffer: Address;
+        buffer: Address | HasAddress;
         authority: TransactionSigner;
         payer: TransactionSigner;
         sizeDifference: number | bigint;
         sourceBuffer?: Account<Buffer>;
-        closeSourceBuffer?: Address | boolean;
+        closeSourceBuffer?: Address | HasAddress | boolean;
         data?: ReadonlyUint8Array;
         singleExtendPerTransaction?: boolean;
     },
@@ -88,8 +90,7 @@ export async function getUpdateBufferInstructionPlan(
                   getCloseInstruction({
                       account: input.sourceBuffer.address,
                       authority: input.authority,
-                      destination:
-                          typeof input.closeSourceBuffer === 'string' ? input.closeSourceBuffer : input.payer.address,
+                      destination: getCloseDestination(input.closeSourceBuffer, input.payer.address),
                   }),
               ]
             : []),

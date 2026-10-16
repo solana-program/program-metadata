@@ -11,6 +11,7 @@ import {
     getOptionEncoder,
     getProgramDerivedAddress,
     type Address,
+    type HasAddress,
     type OptionOrNullable,
     type ProgramDerivedAddress,
 } from '@solana/kit';
@@ -18,9 +19,9 @@ import { getSeedEncoder, type SeedArgs } from '../types';
 
 export type MetadataSeeds = {
     /** The program to which the metadata belongs. */
-    program: Address;
+    program: Address | HasAddress;
     /** The third-party authority managing this metadata account, if non-canonical. */
-    authority: OptionOrNullable<Address>;
+    authority: OptionOrNullable<Address | HasAddress>;
     /** The seed deriving the metadata account. */
     seed: SeedArgs;
 };
@@ -28,11 +29,13 @@ export type MetadataSeeds = {
 /** The derivation for metadata accounts, canonical or not, depending if an authority is provided. */
 export async function findMetadataPda(
     seeds: MetadataSeeds,
-    config: { programAddress?: Address | undefined } = {},
+    config: { programAddress?: Address | HasAddress | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
     const {
-        programAddress = 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S' as Address<'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'>,
+        programAddress:
+            programAddressInput = 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S' as Address<'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'>,
     } = config;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
     return await getProgramDerivedAddress({
         programAddress,
         seeds: [

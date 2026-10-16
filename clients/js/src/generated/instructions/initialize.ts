@@ -190,7 +190,7 @@ export async function getInitializeInstructionAsync<
         TAccountProgramData,
         TAccountSystem
     >,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): Promise<
     InitializeInstruction<
         TProgramAddress,
@@ -202,7 +202,8 @@ export async function getInitializeInstructionAsync<
     >
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
@@ -299,7 +300,7 @@ export function getInitializeInstruction<
     TProgramAddress extends Address = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
 >(
     input: InitializeInput<TAccountMetadata, TAccountAuthority, TAccountProgram, TAccountProgramData, TAccountSystem>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): InitializeInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMetadata, InstructionAccountInputAddress<TAccountMetadata>>,
@@ -309,7 +310,8 @@ export function getInitializeInstruction<
     ResolvedInstructionAccountMeta<TAccountSystem, InstructionAccountInputAddress<TAccountSystem>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
