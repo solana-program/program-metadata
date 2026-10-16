@@ -8,6 +8,7 @@ import {
     ClientWithTransactionSending,
     generateKeyPairSigner,
     GetAccountInfoApi,
+    HasAddress,
     InstructionPlan,
     lamports,
     Lamports,
@@ -28,7 +29,7 @@ import {
     Metadata,
     SetDataInput,
 } from './generated';
-import { isValidInstructionPlan } from './internals';
+import { getCloseDestination, isValidInstructionPlan } from './internals';
 import { getExtendInstructionPlan, MetadataInput, REALLOC_LIMIT, resolveMetadataPda } from './utils';
 
 type UpdateMetadataClient = ClientWithGetMinimumBalance &
@@ -69,7 +70,7 @@ export async function getUpdateMetadataInstructionPlan(
         buffer?: Account<Buffer>;
         data?: ReadonlyUint8Array;
         payer: TransactionSigner;
-        closeBuffer?: Address | boolean;
+        closeBuffer?: Address | HasAddress | boolean;
         singleExtendPerTransaction?: boolean;
     },
 ): Promise<InstructionPlan> {
@@ -146,7 +147,7 @@ export async function getUpdateMetadataInstructionPlanUsingNewBuffer(
     client: ClientWithGetMinimumBalance,
     input: Omit<SetDataInput, 'buffer' | 'data' | 'metadata'> & {
         buffer: TransactionSigner;
-        closeBuffer?: Address | boolean;
+        closeBuffer?: Address | HasAddress | boolean;
         data: ReadonlyUint8Array;
         metadata: Account<Metadata>;
         payer: TransactionSigner;
@@ -194,7 +195,7 @@ export async function getUpdateMetadataInstructionPlanUsingNewBuffer(
                   getCloseInstruction({
                       account: input.buffer.address,
                       authority: input.authority,
-                      destination: typeof input.closeBuffer === 'string' ? input.closeBuffer : input.payer.address,
+                      destination: getCloseDestination(input.closeBuffer, input.payer.address),
                   }),
               ]
             : []),
@@ -215,8 +216,8 @@ export async function getUpdateMetadataInstructionPlanUsingNewBuffer(
 export async function getUpdateMetadataInstructionPlanUsingExistingBuffer(
     client: ClientWithGetMinimumBalance,
     input: Omit<SetDataInput, 'buffer' | 'data' | 'metadata'> & {
-        buffer: Address;
-        closeBuffer?: Address | boolean;
+        buffer: Address | HasAddress;
+        closeBuffer?: Address | HasAddress | boolean;
         dataLength: number;
         metadata: Account<Metadata>;
         payer: TransactionSigner;
@@ -258,7 +259,7 @@ export async function getUpdateMetadataInstructionPlanUsingExistingBuffer(
                   getCloseInstruction({
                       account: input.buffer,
                       authority: input.authority,
-                      destination: typeof input.closeBuffer === 'string' ? input.closeBuffer : input.payer.address,
+                      destination: getCloseDestination(input.closeBuffer, input.payer.address),
                   }),
               ]
             : []),

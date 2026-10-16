@@ -13,6 +13,7 @@ import {
     getBase64Decoder,
     getBase64Encoder,
     GetMultipleAccountsApi,
+    HasAddress,
     getUtf8Decoder,
     getUtf8Encoder,
     pipe,
@@ -77,7 +78,7 @@ export function packUrlData(input: {
 }
 
 export function packExternalData(input: {
-    address: Address;
+    address: Address | HasAddress;
     offset?: number;
     length?: number;
     /** Refers to the compression on the external account. */

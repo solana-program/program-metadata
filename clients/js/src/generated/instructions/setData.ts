@@ -172,7 +172,7 @@ export function getSetDataInstruction<
     TProgramAddress extends Address = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
 >(
     input: SetDataInput<TAccountMetadata, TAccountAuthority, TAccountBuffer, TAccountProgram, TAccountProgramData>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): SetDataInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountMetadata, InstructionAccountInputAddress<TAccountMetadata>>,
@@ -182,7 +182,8 @@ export function getSetDataInstruction<
     ResolvedInstructionAccountMeta<TAccountProgramData, InstructionAccountInputAddress<TAccountProgramData>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

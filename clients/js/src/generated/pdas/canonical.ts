@@ -6,12 +6,18 @@
  * @see https://github.com/codama-idl/codama
  */
 
-import { getAddressEncoder, getProgramDerivedAddress, type Address, type ProgramDerivedAddress } from '@solana/kit';
+import {
+    getAddressEncoder,
+    getProgramDerivedAddress,
+    type Address,
+    type HasAddress,
+    type ProgramDerivedAddress,
+} from '@solana/kit';
 import { getSeedEncoder, type SeedArgs } from '../types';
 
 export type CanonicalSeeds = {
     /** The program to which the metadata belongs. */
-    program: Address;
+    program: Address | HasAddress;
     /** The seed deriving the metadata account. */
     seed: SeedArgs;
 };
@@ -19,11 +25,13 @@ export type CanonicalSeeds = {
 /** The canonical derivation for metadata accounts managed by the program authority itself. */
 export async function findCanonicalPda(
     seeds: CanonicalSeeds,
-    config: { programAddress?: Address | undefined } = {},
+    config: { programAddress?: Address | HasAddress | undefined } = {},
 ): Promise<ProgramDerivedAddress> {
     const {
-        programAddress = 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S' as Address<'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'>,
+        programAddress:
+            programAddressInput = 'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S' as Address<'ProgM6JCCvbYkfKqJYHePx4xxSUSqJp7rh8Lyv7nk7S'>,
     } = config;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
     return await getProgramDerivedAddress({
         programAddress,
         seeds: [getAddressEncoder().encode(seeds.program), getSeedEncoder().encode(seeds.seed)],

@@ -41,3 +41,21 @@ it('fails for non-executable accounts', async () => {
     // Then we expect an error to be thrown.
     await expect(promise).rejects.toThrow('Program account must be executable');
 });
+
+it('accepts an address wrapper and returns plain addresses', async () => {
+    // Given a loader-v3 program and a native program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSigner();
+    const [program, programData] = await createDeployedProgram(client, authority);
+    const nativeProgram = await createNativeProgram(client);
+
+    // When we get their program authorities using address wrappers.
+    const [result, nativeResult] = await Promise.all([
+        getProgramAuthority(client.rpc, { address: program }),
+        getProgramAuthority(client.rpc, { address: nativeProgram }),
+    ]);
+
+    // Then we expect plain addresses to be returned, not the wrappers.
+    expect(result).toStrictEqual({ authority: authority.address, programData });
+    expect(nativeResult).toStrictEqual({ authority: nativeProgram });
+});

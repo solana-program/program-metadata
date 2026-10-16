@@ -6,6 +6,7 @@ import {
     ClientWithTransactionPlanning,
     ClientWithTransactionSending,
     GetAccountInfoApi,
+    HasAddress,
     InstructionPlan,
     MaybeAccount,
     ReadonlyUint8Array,
@@ -52,7 +53,7 @@ export async function getWriteMetadataInstructionPlan(
     input: Omit<InitializeInput, 'data' | 'metadata'> &
         Omit<SetDataInput, 'buffer' | 'data' | 'metadata'> & {
             buffer?: Account<Buffer>;
-            closeBuffer?: Address | boolean;
+            closeBuffer?: Address | HasAddress | boolean;
             data?: ReadonlyUint8Array;
             metadata: MaybeAccount<Metadata>;
             payer: TransactionSigner;

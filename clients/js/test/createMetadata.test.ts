@@ -11,7 +11,13 @@ import {
     Format,
     Metadata,
 } from '../src';
-import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol, REALLOC_LIMIT } from './_setup';
+import {
+    createDeployedProgram,
+    createTestClient,
+    generateKeyPairSignerWithSol,
+    getBalance,
+    REALLOC_LIMIT,
+} from './_setup';
 
 it('creates a canonical metadata account', async () => {
     // Given the following authority and deployed program.
@@ -406,4 +412,46 @@ it('can close an existing buffer after using it to create a new metadata account
     // Then we expect the buffer account to no longer exist.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
     expect(bufferAccount.exists).toBe(false);
+});
+
+it('accepts address wrappers for the program, program data, metadata, buffer and close destination', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+
+    // And an existing buffer with the same authority.
+    const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
+    const buffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions.createBuffer({ newBuffer: buffer, authority, data }).sendTransaction();
+    const bufferLamports = await getBalance(client, buffer.address);
+
+    // And a recipient for the closed buffer's lamports.
+    const recipient = (await generateKeyPairSigner()).address;
+
+    // When we create a canonical metadata account passing every address as a wrapper.
+    await client.programMetadata.createMetadata({
+        authority,
+        program: { address: program },
+        programData: { address: programData },
+        metadata: { address: metadata },
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        buffer: { address: buffer.address },
+        closeBuffer: { address: recipient },
+    });
+
+    // Then we expect the metadata account to hold the buffer's data.
+    const metadataAccount = await client.programMetadata.accounts.metadata.fetch(metadata);
+    expect(metadataAccount.data.data).toStrictEqual(data);
+
+    // And the buffer to be closed with its lamports sent to the wrapped recipient
+    // rather than falling back to the payer.
+    const bufferAccount = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
+    expect(bufferAccount.exists).toBe(false);
+    expect(await getBalance(client, recipient)).toBe(bufferLamports);
 });

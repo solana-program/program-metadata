@@ -20,13 +20,14 @@ import {
     type FixedSizeCodec,
     type FixedSizeDecoder,
     type FixedSizeEncoder,
+    type HasAddress,
     type Option,
     type OptionOrNullable,
 } from '@solana/kit';
 
 export type ExternalData = { address: Address; offset: number; length: Option<number> };
 
-export type ExternalDataArgs = { address: Address; offset: number; length: OptionOrNullable<number> };
+export type ExternalDataArgs = { address: Address | HasAddress; offset: number; length: OptionOrNullable<number> };
 
 export function getExternalDataEncoder(): FixedSizeEncoder<ExternalDataArgs> {
     return getStructEncoder([

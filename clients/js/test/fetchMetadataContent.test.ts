@@ -6,6 +6,7 @@ import {
     Encoding,
     fetchAndParseAllMetadataContent,
     fetchAndParseMetadataContent,
+    fetchMetadataContent,
     Format,
     packDirectData,
     packExternalData,
@@ -137,3 +138,30 @@ it('fetches and parses multiple direct IDLs from metadata accounts', async () =>
         },
     ]);
 }, 30_000);
+
+it('fetches metadata content using address wrappers for the program and authority', async () => {
+    // Given the following authority and program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const program = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+
+    // And given the following non-canonical IDL exists for the program.
+    const idl = '{"kind":"rootNode","standard":"codama","version":"1.0.0"}';
+    await client.programMetadata.writeMetadata({
+        ...packDirectData({ content: idl }),
+        authority,
+        program: { address: program },
+        seed: 'idl',
+        format: Format.Json,
+    });
+
+    // When we fetch it using address wrappers.
+    const [content, parsed] = await Promise.all([
+        fetchMetadataContent(client.rpc, { address: program }, 'idl', { address: authority.address }),
+        fetchAndParseMetadataContent(client.rpc, { address: program }, 'idl', { address: authority.address }),
+    ]);
+
+    // Then we expect the IDL to be fetched and parsed.
+    expect(content).toBe(idl);
+    expect(parsed).toEqual({ kind: 'rootNode', standard: 'codama', version: '1.0.0' });
+});

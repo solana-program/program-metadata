@@ -9,6 +9,7 @@
 import {
     isProgramError,
     type Address,
+    type HasAddress,
     type SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM,
     type SolanaError,
 } from '@solana/kit';
@@ -55,7 +56,10 @@ export function isProgramMetadataError<TProgramErrorCode extends ProgramMetadata
     error: unknown,
     transactionMessage: { instructions: Record<number, { programAddress: Address }> },
     code?: TProgramErrorCode,
+    config: { programAddress?: Address | HasAddress } = {},
 ): error is SolanaError<typeof SOLANA_ERROR__INSTRUCTION_ERROR__CUSTOM> &
     Readonly<{ context: Readonly<{ code: TProgramErrorCode }> }> {
-    return isProgramError<TProgramErrorCode>(error, transactionMessage, PROGRAM_METADATA_PROGRAM_ADDRESS, code);
+    const programAddressInput = config.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
+    return isProgramError<TProgramErrorCode>(error, transactionMessage, programAddress, code);
 }

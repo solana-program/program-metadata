@@ -25,6 +25,7 @@ import {
     type Codec,
     type Decoder,
     type Encoder,
+    type HasAddress,
     type Instruction,
     type InstructionWithAccounts,
     type InstructionWithData,
@@ -74,7 +75,7 @@ export type SetAuthorityInstruction<
 
 export type SetAuthorityInstructionData = { discriminator: number; newAuthority: Option<Address> };
 
-export type SetAuthorityInstructionDataArgs = { newAuthority: OptionOrNullable<Address> };
+export type SetAuthorityInstructionDataArgs = { newAuthority: OptionOrNullable<Address | HasAddress> };
 
 export function getSetAuthorityInstructionDataEncoder(): Encoder<SetAuthorityInstructionDataArgs> {
     return transformEncoder(
@@ -125,7 +126,7 @@ export function getSetAuthorityInstruction<
     TProgramAddress extends Address = typeof PROGRAM_METADATA_PROGRAM_ADDRESS,
 >(
     input: SetAuthorityInput<TAccountAccount, TAccountAuthority, TAccountProgram, TAccountProgramData>,
-    config?: { programAddress?: TProgramAddress },
+    config?: { programAddress?: TProgramAddress | { readonly address: TProgramAddress } },
 ): SetAuthorityInstruction<
     TProgramAddress,
     ResolvedInstructionAccountMeta<TAccountAccount, InstructionAccountInputAddress<TAccountAccount>>,
@@ -134,7 +135,8 @@ export function getSetAuthorityInstruction<
     ResolvedInstructionAccountMeta<TAccountProgramData, InstructionAccountInputAddress<TAccountProgramData>>
 > {
     // Program address.
-    const programAddress = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddressInput = config?.programAddress ?? PROGRAM_METADATA_PROGRAM_ADDRESS;
+    const programAddress = typeof programAddressInput === 'string' ? programAddressInput : programAddressInput.address;
 
     // Account meta helper.
     const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');

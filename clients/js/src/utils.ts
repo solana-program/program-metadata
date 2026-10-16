@@ -16,6 +16,7 @@ import {
     getTransactionMessageSizeLimit,
     getU32Decoder,
     getU64Decoder,
+    HasAddress,
     Instruction,
     MessagePackerInstructionPlan,
     MicroLamports,
@@ -50,6 +51,7 @@ import {
     ProgramMetadataInstruction,
     SeedArgs,
 } from './generated';
+import { toAddress } from './internals';
 
 export const ACCOUNT_HEADER_LENGTH = 96;
 
@@ -67,14 +69,14 @@ export const LOADER_V3_PROGRAM_ADDRESS =
 export type MetadataInput = {
     payer: TransactionSigner;
     authority: TransactionSigner;
-    program: Address;
+    program: Address | HasAddress;
     seed: SeedArgs;
     encoding: EncodingArgs;
     compression: CompressionArgs;
     format: FormatArgs;
     dataSource: DataSourceArgs;
     data?: ReadonlyUint8Array;
-    buffer?: Address;
+    buffer?: Address | HasAddress;
     /**
      * Extra fees to pay in microlamports per CU.
      * Defaults to no extra fees.
@@ -85,21 +87,21 @@ export type MetadataInput = {
      * If an address is provided, it will be used as the destination for the close instruction.
      * Defaults to `true`.
      */
-    closeBuffer?: Address | boolean;
+    closeBuffer?: Address | HasAddress | boolean;
     /**
      * The metadata PDA address. When omitted, it is derived from `program`,
      * `seed`, and — for non-canonical metadata accounts — `authority`.
      *
      * Provide this explicitly to skip the PDA derivation step.
      */
-    metadata?: Address;
+    metadata?: Address | HasAddress;
     /**
      * The program data account address. When provided, the operation targets a
      * canonical metadata account (managed by the program upgrade authority).
      * When omitted, the operation targets a non-canonical metadata account
      * (managed by a third-party authority).
      */
-    programData?: Address;
+    programData?: Address | HasAddress;
     /**
      * When `true`, the account is never grown by more than the realloc limit
      * (10,240 bytes) within a single transaction, which implies at most one
@@ -142,7 +144,7 @@ export function needsExtend(dataLength: number): boolean {
  *   `authority`.
  */
 export async function resolveMetadataPda(input: MetadataInput): Promise<Address> {
-    if (input.metadata) return input.metadata;
+    if (input.metadata) return toAddress(input.metadata);
     const [metadata] = input.programData
         ? await findCanonicalPda({ program: input.program, seed: input.seed })
         : await findNonCanonicalPda({
@@ -153,7 +155,7 @@ export async function resolveMetadataPda(input: MetadataInput): Promise<Address>
     return metadata;
 }
 
-export async function getProgramDataPda(program: Address) {
+export async function getProgramDataPda(program: Address | HasAddress) {
     return await getProgramDerivedAddress({
         programAddress: LOADER_V3_PROGRAM_ADDRESS,
         seeds: [getAddressEncoder().encode(program)],
@@ -162,10 +164,11 @@ export async function getProgramDataPda(program: Address) {
 
 export async function getProgramAuthority(
     rpc: Rpc<GetAccountInfoApi>,
-    program: Address,
+    program: Address | HasAddress,
 ): Promise<{ authority?: Address; programData?: Address }> {
     // Fetch the program account.
-    const programAccount = await fetchEncodedAccount(rpc, program);
+    const programAddress = toAddress(program);
+    const programAccount = await fetchEncodedAccount(rpc, programAddress);
     assertAccountExists(programAccount);
 
     // Ensure the program is executable.
@@ -182,7 +185,7 @@ export async function getProgramAuthority(
     // For any other owner (loader v1, v2, v4, the native loader, etc.), the
     // on-chain program considers the program's own address to be its authority
     // — i.e. the program keypair itself must sign to prove canonicity.
-    return { authority: program };
+    return { authority: programAddress };
 }
 
 async function getProgramAuthorityForLoaderV3(rpc: Rpc<GetAccountInfoApi>, programAccount: EncodedAccount) {

@@ -3,6 +3,7 @@ import {
     Account,
     Address,
     ClientWithGetMinimumBalance,
+    HasAddress,
     parallelInstructionPlan,
     ReadonlyUint8Array,
     sequentialInstructionPlan,
@@ -21,6 +22,7 @@ import {
     PROGRAM_METADATA_PROGRAM_ADDRESS,
     SeedArgs,
 } from './generated';
+import { getCloseDestination } from './internals';
 import { getAccountSize, getExtendInstructionPlan, getWriteInstructionPlan, needsExtend } from './utils';
 
 /**
@@ -39,7 +41,7 @@ export async function getCreateBufferInstructionPlan(
         authority: InstructionSignerInput;
         payer: TransactionSigner;
         sourceBuffer?: Account<Buffer>;
-        closeSourceBuffer?: Address | boolean;
+        closeSourceBuffer?: Address | HasAddress | boolean;
         data?: ReadonlyUint8Array;
     },
 ) {
@@ -90,8 +92,7 @@ export async function getCreateBufferInstructionPlan(
                   getCloseInstruction({
                       account: input.sourceBuffer.address,
                       authority: input.authority,
-                      destination:
-                          typeof input.closeSourceBuffer === 'string' ? input.closeSourceBuffer : input.payer.address,
+                      destination: getCloseDestination(input.closeSourceBuffer, input.payer.address),
                   }),
               ]
             : []),
@@ -112,13 +113,13 @@ export async function getCreateCanonicalBufferInstructionPlan(
     client: ClientWithGetMinimumBalance,
     input: {
         authority: TransactionSigner;
-        buffer?: Address;
-        closeBuffer?: Address | boolean;
+        buffer?: Address | HasAddress;
+        closeBuffer?: Address | HasAddress | boolean;
         data?: ReadonlyUint8Array;
         dataLength?: number;
         payer: TransactionSigner;
-        program: Address;
-        programData: Address;
+        program: Address | HasAddress;
+        programData: Address | HasAddress;
         seed: SeedArgs;
         singleExtendPerTransaction?: boolean;
     },
@@ -145,12 +146,12 @@ export async function getCreateNonCanonicalBufferInstructionPlan(
     client: ClientWithGetMinimumBalance,
     input: {
         authority: TransactionSigner;
-        buffer?: Address;
-        closeBuffer?: Address | boolean;
+        buffer?: Address | HasAddress;
+        closeBuffer?: Address | HasAddress | boolean;
         data?: ReadonlyUint8Array;
         dataLength?: number;
         payer: TransactionSigner;
-        program: Address;
+        program: Address | HasAddress;
         seed: SeedArgs;
         singleExtendPerTransaction?: boolean;
     },
@@ -171,13 +172,13 @@ async function getPdaBufferInstructionPlan(
     client: ClientWithGetMinimumBalance,
     input: {
         authority: TransactionSigner;
-        buffer: Address;
-        closeBuffer?: Address | boolean;
+        buffer: Address | HasAddress;
+        closeBuffer?: Address | HasAddress | boolean;
         data?: ReadonlyUint8Array;
         dataLength?: number;
         payer: TransactionSigner;
-        program: Address;
-        programData?: Address;
+        program: Address | HasAddress;
+        programData?: Address | HasAddress;
         seed: SeedArgs;
         singleExtendPerTransaction?: boolean;
     },
@@ -227,7 +228,7 @@ async function getPdaBufferInstructionPlan(
                       authority: input.authority,
                       program: input.program,
                       programData: input.programData,
-                      destination: typeof input.closeBuffer === 'string' ? input.closeBuffer : input.payer.address,
+                      destination: getCloseDestination(input.closeBuffer, input.payer.address),
                   }),
               ]
             : []),

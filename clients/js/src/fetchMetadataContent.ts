@@ -1,4 +1,4 @@
-import { Address, assertAccountsExist, GetAccountInfoApi, GetMultipleAccountsApi, Rpc } from '@solana/kit';
+import { Address, assertAccountsExist, GetAccountInfoApi, GetMultipleAccountsApi, HasAddress, Rpc } from '@solana/kit';
 import { parse as parseToml } from 'smol-toml';
 import { parse as parseYaml } from 'yaml';
 
@@ -7,9 +7,9 @@ import { unpackAndFetchAllData, unpackAndFetchData } from './packData';
 
 export async function fetchMetadataContent(
     rpc: Rpc<GetAccountInfoApi>,
-    program: Address,
+    program: Address | HasAddress,
     seed: SeedArgs,
-    authority: Address | null = null,
+    authority: Address | HasAddress | null = null,
 ): Promise<string> {
     const account = await fetchMetadataFromSeeds(rpc, {
         program,
@@ -20,9 +20,9 @@ export async function fetchMetadataContent(
 }
 
 type FetchAllMetadataContentInput = {
-    program: Address;
+    program: Address | HasAddress;
     seed: SeedArgs;
-    authority: Address | null;
+    authority: Address | HasAddress | null;
 }[];
 
 export async function fetchAllMetadataContent(
@@ -57,9 +57,9 @@ function parseContent(format: Format, content: string): unknown {
 
 export async function fetchAndParseMetadataContent(
     rpc: Rpc<GetAccountInfoApi>,
-    program: Address,
+    program: Address | HasAddress,
     seed: SeedArgs,
-    authority: Address | null = null,
+    authority: Address | HasAddress | null = null,
 ): Promise<unknown> {
     const account = await fetchMetadataFromSeeds(rpc, {
         program,
