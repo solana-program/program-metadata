@@ -214,10 +214,10 @@ async function getProgramAuthorityForLoaderV3(rpc: Rpc<GetAccountInfoApi>, progr
     const programDataAccountData = programDataDecoder.decode(programDataAccount.data);
 
     // Ensure both accounts are valid.
-    if (programAccountData.discriminator !== 2) {
+    if (programAccountData.discriminator !== LOADER_V3_PROGRAM_DISCRIMINATOR) {
         throw Error('Invalid program discriminator');
     }
-    if (programDataAccountData.discriminator !== 3) {
+    if (programDataAccountData.discriminator !== LOADER_V3_PROGRAM_DATA_DISCRIMINATOR) {
         throw Error('Invalid program data discriminator');
     }
     if (programAccountData.programData !== programDataAccount.address) {
@@ -258,12 +258,6 @@ export type ProgramUpgradeAuthority =
           programData: Address;
       };
 
-/** Discriminator (4) + program data address (32). */
-const LOADER_V3_PROGRAM_HEADER_LENGTH = 36;
-
-/** Discriminator (4) + slot (8) + optional authority (1 + 32). */
-const LOADER_V3_PROGRAM_DATA_HEADER_LENGTH = 45;
-
 /**
  * Reports who can replace the code of a program — the same data
  * `solana program show` prints under `Authority` and `Last Deployed In Slot`.
@@ -276,7 +270,8 @@ const LOADER_V3_PROGRAM_DATA_HEADER_LENGTH = 45;
  * manage canonical metadata, this reports the upgrade authority only, so
  * immutable programs have no authority.
  *
- * Only account headers are fetched, so the program ELF is never downloaded.
+ * Only the header of the program data account is fetched, so the ELF of a
+ * loader v3 program is never downloaded.
  * Throws if the account is not an executable program owned by loader v2 or v3.
  */
 export async function fetchProgramUpgradeAuthority(
@@ -284,7 +279,7 @@ export async function fetchProgramUpgradeAuthority(
     program: Address | HasAddress,
 ): Promise<ProgramUpgradeAuthority> {
     const programAddress = toAddress(program);
-    const programAccount = await fetchEncodedAccountHeader(rpc, programAddress, LOADER_V3_PROGRAM_HEADER_LENGTH);
+    const programAccount = await fetchEncodedAccount(rpc, programAddress);
     assertAccountExists(programAccount);
 
     if (!programAccount.executable) {
@@ -301,16 +296,22 @@ export async function fetchProgramUpgradeAuthority(
 
     const [programDecoder, programDataDecoder] = getLoaderV3Decoders();
     const programAccountData = programDecoder.decode(programAccount.data);
-    if (programAccountData.discriminator !== 2) {
+    if (programAccountData.discriminator !== LOADER_V3_PROGRAM_DISCRIMINATOR) {
         throw Error('Invalid program discriminator');
     }
 
     const programData = programAccountData.programData;
-    const programDataAccount = await fetchEncodedAccountHeader(rpc, programData, LOADER_V3_PROGRAM_DATA_HEADER_LENGTH);
+    const { value } = await rpc
+        .getAccountInfo(programData, {
+            dataSlice: { length: LOADER_V3_PROGRAM_DATA_HEADER_LENGTH, offset: 0 },
+            encoding: 'base64',
+        })
+        .send();
+    const programDataAccount = parseBase64RpcAccount(programData, value);
     assertAccountExists(programDataAccount);
 
     const programDataAccountData = programDataDecoder.decode(programDataAccount.data);
-    if (programDataAccountData.discriminator !== 3) {
+    if (programDataAccountData.discriminator !== LOADER_V3_PROGRAM_DATA_DISCRIMINATOR) {
         throw Error('Invalid program data discriminator');
     }
 
@@ -325,12 +326,11 @@ export async function fetchProgramUpgradeAuthority(
     };
 }
 
-async function fetchEncodedAccountHeader(rpc: Rpc<GetAccountInfoApi>, address: Address, length: number) {
-    const { value } = await rpc
-        .getAccountInfo(address, { dataSlice: { length, offset: 0 }, encoding: 'base64' })
-        .send();
-    return parseBase64RpcAccount(address, value);
-}
+const LOADER_V3_PROGRAM_DISCRIMINATOR = 2;
+const LOADER_V3_PROGRAM_DATA_DISCRIMINATOR = 3;
+
+/** Discriminator (4) + slot (8) + optional authority (1 + 32). */
+const LOADER_V3_PROGRAM_DATA_HEADER_LENGTH = 45;
 
 function getLoaderV3Decoders() {
     return [
