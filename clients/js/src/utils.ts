@@ -18,8 +18,10 @@ import {
     getU64Decoder,
     HasAddress,
     Instruction,
+    isOffCurveAddress,
     MessagePackerInstructionPlan,
     MicroLamports,
+    parseBase64RpcAccount,
     ReadonlyUint8Array,
     Rpc,
     SOLANA_ERROR__INSTRUCTION_PLANS__MAX_INSTRUCTIONS_PER_TRANSACTION_EXCEEDED,
@@ -65,6 +67,9 @@ export const REALLOC_LIMIT = 10_240;
 
 export const LOADER_V3_PROGRAM_ADDRESS =
     'BPFLoaderUpgradeab1e11111111111111111111111' as Address<'BPFLoaderUpgradeab1e11111111111111111111111'>;
+
+export const LOADER_V2_PROGRAM_ADDRESS =
+    'BPFLoader2111111111111111111111111111111111' as Address<'BPFLoader2111111111111111111111111111111111'>;
 
 export type MetadataInput = {
     payer: TransactionSigner;
@@ -223,6 +228,108 @@ async function getProgramAuthorityForLoaderV3(rpc: Rpc<GetAccountInfoApi>, progr
         authority: unwrapOption(programDataAccountData.authority) ?? undefined,
         programData,
     };
+}
+
+/**
+ * What kind of account holds a program's upgrade authority:
+ *
+ * - `none`: no authority; the program is immutable.
+ * - `keypair`: an on-curve address; a single private key can redeploy the
+ *   program.
+ * - `pda`: an off-curve address, such as a multisig vault or another program.
+ */
+export type UpgradeAuthorityKind = 'none' | 'keypair' | 'pda';
+
+export type ProgramUpgradeAuthority =
+    | {
+          authority: null;
+          authorityKind: 'none';
+          loader: 'v2';
+          program: Address;
+      }
+    | {
+          /** The address allowed to redeploy the program, or `null` once made immutable. */
+          authority: Address | null;
+          authorityKind: UpgradeAuthorityKind;
+          /** Slot of the most recent deploy or upgrade. */
+          lastDeployedSlot: bigint;
+          loader: 'v3';
+          program: Address;
+          programData: Address;
+      };
+
+/** Discriminator (4) + program data address (32). */
+const LOADER_V3_PROGRAM_HEADER_LENGTH = 36;
+
+/** Discriminator (4) + slot (8) + optional authority (1 + 32). */
+const LOADER_V3_PROGRAM_DATA_HEADER_LENGTH = 45;
+
+/**
+ * Reports who can replace the code of a program — the same data
+ * `solana program show` prints under `Authority` and `Last Deployed In Slot`.
+ *
+ * - Loader v2 programs are immutable by construction.
+ * - Loader v3 programs report the upgrade authority and deploy slot stored in
+ *   their program data account.
+ *
+ * Unlike {@link getProgramAuthority}, which resolves the authority allowed to
+ * manage canonical metadata, this reports the upgrade authority only, so
+ * immutable programs have no authority.
+ *
+ * Only account headers are fetched, so the program ELF is never downloaded.
+ * Throws if the account is not an executable program owned by loader v2 or v3.
+ */
+export async function fetchProgramUpgradeAuthority(
+    rpc: Rpc<GetAccountInfoApi>,
+    program: Address | HasAddress,
+): Promise<ProgramUpgradeAuthority> {
+    const programAddress = toAddress(program);
+    const programAccount = await fetchEncodedAccountHeader(rpc, programAddress, LOADER_V3_PROGRAM_HEADER_LENGTH);
+    assertAccountExists(programAccount);
+
+    if (!programAccount.executable) {
+        throw Error('Program account must be executable');
+    }
+
+    if (programAccount.programAddress === LOADER_V2_PROGRAM_ADDRESS) {
+        return { authority: null, authorityKind: 'none', loader: 'v2', program: programAddress };
+    }
+
+    if (programAccount.programAddress !== LOADER_V3_PROGRAM_ADDRESS) {
+        throw Error('Invalid loader program, expected loader v2 or v3');
+    }
+
+    const [programDecoder, programDataDecoder] = getLoaderV3Decoders();
+    const programAccountData = programDecoder.decode(programAccount.data);
+    if (programAccountData.discriminator !== 2) {
+        throw Error('Invalid program discriminator');
+    }
+
+    const programData = programAccountData.programData;
+    const programDataAccount = await fetchEncodedAccountHeader(rpc, programData, LOADER_V3_PROGRAM_DATA_HEADER_LENGTH);
+    assertAccountExists(programDataAccount);
+
+    const programDataAccountData = programDataDecoder.decode(programDataAccount.data);
+    if (programDataAccountData.discriminator !== 3) {
+        throw Error('Invalid program data discriminator');
+    }
+
+    const authority = unwrapOption(programDataAccountData.authority);
+    return {
+        authority,
+        authorityKind: authority === null ? 'none' : isOffCurveAddress(authority) ? 'pda' : 'keypair',
+        lastDeployedSlot: programDataAccountData.slot,
+        loader: 'v3',
+        program: programAddress,
+        programData,
+    };
+}
+
+async function fetchEncodedAccountHeader(rpc: Rpc<GetAccountInfoApi>, address: Address, length: number) {
+    const { value } = await rpc
+        .getAccountInfo(address, { dataSlice: { length, offset: 0 }, encoding: 'base64' })
+        .send();
+    return parseBase64RpcAccount(address, value);
 }
 
 function getLoaderV3Decoders() {
