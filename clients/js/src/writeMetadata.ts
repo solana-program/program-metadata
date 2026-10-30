@@ -14,8 +14,16 @@ import {
     TransactionSigner,
 } from '@solana/kit';
 
-import { getCreateMetadataInstructionPlan } from './createMetadata';
-import { Buffer, fetchBuffer, fetchMaybeMetadata, InitializeInput, Metadata, SetDataInput } from './generated';
+import { getCreateMetadataInstructionPlan, getResumeMetadataInstructionPlan } from './createMetadata';
+import {
+    AccountDiscriminator,
+    Buffer,
+    fetchBuffer,
+    fetchMaybeMetadata,
+    InitializeInput,
+    Metadata,
+    SetDataInput,
+} from './generated';
 import { getUpdateMetadataInstructionPlan } from './updateMetadata';
 import { MetadataInput, resolveMetadataPda } from './utils';
 
@@ -30,9 +38,10 @@ type WriteMetadataClient = ClientWithGetMinimumBalance &
  * When `input.metadata` is omitted, the PDA is derived from `program`, `seed`
  * and — for non-canonical metadata accounts — `authority`. The metadata
  * account is fetched to determine whether it already exists; if so, the
- * operation is an update, otherwise it is a create. When `input.buffer` is
- * provided as an address, the buffer account is fetched to determine its data
- * length.
+ * operation is an update, otherwise it is a create. A pre-allocated buffer at
+ * the metadata PDA — the remnant of an interrupted create — resumes the
+ * create instead. When `input.buffer` is provided as an address, the buffer
+ * account is fetched to determine its data length.
  */
 export async function writeMetadata(client: WriteMetadataClient, input: MetadataInput): Promise<TransactionPlanResult> {
     const metadata = await resolveMetadataPda(input);
@@ -60,7 +69,22 @@ export async function getWriteMetadataInstructionPlan(
             singleExtendPerTransaction?: boolean;
         },
 ): Promise<InstructionPlan> {
-    return input.metadata.exists
-        ? await getUpdateMetadataInstructionPlan(client, { ...input, metadata: input.metadata })
-        : await getCreateMetadataInstructionPlan(client, { ...input, metadata: input.metadata.address });
+    if (!input.metadata.exists) {
+        return await getCreateMetadataInstructionPlan(client, { ...input, metadata: input.metadata.address });
+    }
+    switch (input.metadata.data.discriminator) {
+        case AccountDiscriminator.Metadata:
+            return await getUpdateMetadataInstructionPlan(client, { ...input, metadata: input.metadata });
+        // A pre-allocated buffer at the metadata PDA means a previous create
+        // was interrupted before initializing the account — resume it instead
+        // of updating, which would fail since `set_data` requires an
+        // initialized metadata account.
+        case AccountDiscriminator.Buffer:
+            return await getResumeMetadataInstructionPlan(client, { ...input, metadata: input.metadata });
+        default:
+            throw new Error(
+                `The account at ${input.metadata.address} has an unexpected discriminator ` +
+                    `(${input.metadata.data.discriminator}); expected a metadata account or a pre-allocated buffer.`,
+            );
+    }
 }
