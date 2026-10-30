@@ -14,8 +14,16 @@ import {
     TransactionSigner,
 } from '@solana/kit';
 
-import { getCreateMetadataInstructionPlan } from './createMetadata';
-import { Buffer, fetchBuffer, fetchMaybeMetadata, InitializeInput, Metadata, SetDataInput } from './generated';
+import { getCreateMetadataInstructionPlan, getResumeMetadataInstructionPlan } from './createMetadata';
+import {
+    AccountDiscriminator,
+    Buffer,
+    fetchBuffer,
+    fetchMaybeMetadata,
+    InitializeInput,
+    Metadata,
+    SetDataInput,
+} from './generated';
 import { getUpdateMetadataInstructionPlan } from './updateMetadata';
 import { MetadataInput, resolveMetadataPda } from './utils';
 
@@ -60,7 +68,22 @@ export async function getWriteMetadataInstructionPlan(
             singleExtendPerTransaction?: boolean;
         },
 ): Promise<InstructionPlan> {
-    return input.metadata.exists
-        ? await getUpdateMetadataInstructionPlan(client, { ...input, metadata: input.metadata })
-        : await getCreateMetadataInstructionPlan(client, { ...input, metadata: input.metadata.address });
+    if (!input.metadata.exists) {
+        return await getCreateMetadataInstructionPlan(client, { ...input, metadata: input.metadata.address });
+    }
+    switch (input.metadata.data.discriminator) {
+        case AccountDiscriminator.Metadata:
+            return await getUpdateMetadataInstructionPlan(client, { ...input, metadata: input.metadata });
+        // A pre-allocated buffer at the metadata PDA means a previous create
+        // was interrupted before initializing the account — resume it instead
+        // of updating, which would fail since `set_data` requires an
+        // initialized metadata account.
+        case AccountDiscriminator.Buffer:
+            return await getResumeMetadataInstructionPlan(client, { ...input, metadata: input.metadata });
+        default:
+            throw new Error(
+                `The account at ${input.metadata.address} has an unexpected discriminator ` +
+                    `(${input.metadata.data.discriminator}); expected a metadata account or a pre-allocated buffer.`,
+            );
+    }
 }
