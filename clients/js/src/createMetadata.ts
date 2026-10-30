@@ -24,6 +24,7 @@ import {
     getInitializeInstruction,
     getWriteInstruction,
     InitializeInput,
+    Metadata,
     PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from './generated';
 import { getCloseDestination, isValidInstructionPlan } from './internals';
@@ -92,6 +93,105 @@ export async function getCreateMetadataInstructionPlan(
     return validPlan
         ? usingInstructionDataPlan
         : await getCreateMetadataInstructionPlanUsingNewBuffer(client, { ...input, data });
+}
+
+/**
+ * Resumes an interrupted create when the metadata account PDA already holds a
+ * pre-allocated buffer.
+ *
+ * The create flow allocates the metadata account PDA as a buffer, writes the
+ * data into it and finally initializes it as a metadata account. If a run is
+ * interrupted before the `initialize` instruction executes, the PDA is left
+ * holding a fully written buffer that the update flow cannot handle — its
+ * `set_data` instruction requires an initialized metadata account.
+ *
+ * When the desired data is already present, the plan consists of a single
+ * `initialize` instruction. Otherwise the buffer is grown (if needed) and the
+ * data rewritten before initializing. Buffer accounts cannot shrink, so a
+ * pre-allocated buffer larger than the desired data is rejected with guidance.
+ */
+export async function getResumeMetadataInstructionPlan(
+    client: ClientWithGetMinimumBalance,
+    input: Omit<InitializeInput, 'data' | 'metadata'> & {
+        buffer?: Account<Buffer>;
+        closeBuffer?: Address | HasAddress | boolean;
+        data?: ReadonlyUint8Array;
+        metadata: Account<Metadata>;
+        payer: TransactionSigner;
+        singleExtendPerTransaction?: boolean;
+    },
+): Promise<InstructionPlan> {
+    const currentData = input.metadata.data.data as ReadonlyUint8Array;
+    const desiredData = input.data ?? input.buffer?.data.data;
+    if (desiredData === undefined) {
+        throw new Error('Either `data` or `buffer` must be provided to resume a pre-allocated metadata buffer.');
+    }
+    if (desiredData.length < currentData.length) {
+        throw new Error(
+            `The metadata account at ${input.metadata.address} holds a pre-allocated buffer of ${currentData.length} ` +
+                `bytes which is larger than the ${desiredData.length} bytes to store, and buffer accounts cannot be ` +
+                `trimmed. Close it (eg. \`close-buffer ${input.metadata.address}\`) and retry to create the metadata ` +
+                `account from scratch.`,
+        );
+    }
+    const growth = desiredData.length - currentData.length;
+    return sequentialInstructionPlan([
+        ...(growth > 0
+            ? [
+                  getTransferSolInstruction({
+                      source: input.payer,
+                      destination: input.metadata.address,
+                      amount: await client.getMinimumBalance(growth),
+                  }),
+                  getExtendInstructionPlan({
+                      account: input.metadata.address,
+                      authority: input.authority,
+                      extraLength: growth,
+                      program: input.program,
+                      programData: input.programData,
+                      singleExtendPerTransaction: input.singleExtendPerTransaction,
+                  }),
+              ]
+            : []),
+        ...(!dataEquals(currentData, desiredData)
+            ? [
+                  input.data
+                      ? parallelInstructionPlan([
+                            getWriteInstructionPlan({
+                                buffer: input.metadata.address,
+                                authority: input.authority,
+                                data: input.data,
+                            }),
+                        ])
+                      : getWriteInstruction({
+                            buffer: input.metadata.address,
+                            authority: input.authority,
+                            sourceBuffer: input.buffer!.address,
+                            offset: 0,
+                        }),
+              ]
+            : []),
+        getInitializeInstruction({
+            ...input,
+            metadata: input.metadata.address,
+            system: PROGRAM_METADATA_PROGRAM_ADDRESS,
+            data: undefined,
+        }),
+        ...(input.buffer && input.closeBuffer
+            ? [
+                  getCloseInstruction({
+                      account: input.buffer.address,
+                      authority: input.authority,
+                      destination: getCloseDestination(input.closeBuffer, input.payer.address),
+                  }),
+              ]
+            : []),
+    ]);
+}
+
+function dataEquals(a: ReadonlyUint8Array, b: ReadonlyUint8Array): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((byte, index) => byte === b[index]);
 }
 
 export async function getCreateMetadataInstructionPlanUsingInstructionData(
