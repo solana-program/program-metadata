@@ -2,6 +2,7 @@ import { getTransferSolInstruction } from '@solana-program/system';
 import {
     Account,
     Address,
+    bytesEqual,
     ClientWithGetMinimumBalance,
     ClientWithRpc,
     ClientWithTransactionPlanning,
@@ -121,8 +122,12 @@ export async function getResumeMetadataInstructionPlan(
         singleExtendPerTransaction?: boolean;
     },
 ): Promise<InstructionPlan> {
+    if (input.buffer?.address === input.metadata.address) {
+        throw new Error('`buffer` must not be the metadata account itself when resuming a pre-allocated buffer.');
+    }
     const currentData = input.metadata.data.data as ReadonlyUint8Array;
-    const desiredData = input.data ?? input.buffer?.data.data;
+    // Prefer `buffer` over `data`, matching the create and update flows.
+    const desiredData = input.buffer?.data.data ?? input.data;
     if (desiredData === undefined) {
         throw new Error('Either `data` or `buffer` must be provided to resume a pre-allocated metadata buffer.');
     }
@@ -141,7 +146,7 @@ export async function getResumeMetadataInstructionPlan(
                   getTransferSolInstruction({
                       source: input.payer,
                       destination: input.metadata.address,
-                      amount: await client.getMinimumBalance(growth),
+                      amount: await client.getMinimumBalance(growth, { withoutHeader: true }),
                   }),
                   getExtendInstructionPlan({
                       account: input.metadata.address,
@@ -153,22 +158,22 @@ export async function getResumeMetadataInstructionPlan(
                   }),
               ]
             : []),
-        ...(!dataEquals(currentData, desiredData)
+        ...(!bytesEqual(currentData, desiredData)
             ? [
-                  input.data
-                      ? parallelInstructionPlan([
+                  input.buffer
+                      ? getWriteInstruction({
+                            buffer: input.metadata.address,
+                            authority: input.authority,
+                            sourceBuffer: input.buffer.address,
+                            offset: 0,
+                        })
+                      : parallelInstructionPlan([
                             getWriteInstructionPlan({
                                 buffer: input.metadata.address,
                                 authority: input.authority,
-                                data: input.data,
+                                data: desiredData,
                             }),
-                        ])
-                      : getWriteInstruction({
-                            buffer: input.metadata.address,
-                            authority: input.authority,
-                            sourceBuffer: input.buffer!.address,
-                            offset: 0,
-                        }),
+                        ]),
               ]
             : []),
         getInitializeInstruction({
@@ -187,11 +192,6 @@ export async function getResumeMetadataInstructionPlan(
               ]
             : []),
     ]);
-}
-
-function dataEquals(a: ReadonlyUint8Array, b: ReadonlyUint8Array): boolean {
-    if (a.length !== b.length) return false;
-    return a.every((byte, index) => byte === b[index]);
 }
 
 export async function getCreateMetadataInstructionPlanUsingInstructionData(

@@ -38,9 +38,10 @@ type WriteMetadataClient = ClientWithGetMinimumBalance &
  * When `input.metadata` is omitted, the PDA is derived from `program`, `seed`
  * and — for non-canonical metadata accounts — `authority`. The metadata
  * account is fetched to determine whether it already exists; if so, the
- * operation is an update, otherwise it is a create. When `input.buffer` is
- * provided as an address, the buffer account is fetched to determine its data
- * length.
+ * operation is an update, otherwise it is a create. A pre-allocated buffer at
+ * the metadata PDA — the remnant of an interrupted create — resumes the
+ * create instead. When `input.buffer` is provided as an address, the buffer
+ * account is fetched to determine its data length.
  */
 export async function writeMetadata(client: WriteMetadataClient, input: MetadataInput): Promise<TransactionPlanResult> {
     const metadata = await resolveMetadataPda(input);
