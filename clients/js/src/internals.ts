@@ -56,7 +56,9 @@ export async function fetchMetadataAndBuffer(
  * @throws If the account is owned by another program or holds an unexpected
  * discriminator.
  */
-export function decodeMaybeMetadataOrBuffer(account: MaybeEncodedAccount): Account<Buffer> | MaybeAccount<Metadata> {
+export function decodeMaybeMetadataOrBuffer(
+    account: MaybeEncodedAccount,
+): MaybeAccount<Metadata> | (MaybeAccount<Buffer> & { exists: true }) {
     if (!account.exists) return account;
     if (account.data.length === 0 && account.programAddress === SYSTEM_PROGRAM_ADDRESS) {
         return { address: account.address, exists: false };
@@ -71,7 +73,7 @@ export function decodeMaybeMetadataOrBuffer(account: MaybeEncodedAccount): Accou
         case AccountDiscriminator.Metadata:
             return decodeMetadata(account as MaybeEncodedAccount);
         case AccountDiscriminator.Buffer:
-            return decodeBuffer(account);
+            return decodeBuffer(account as MaybeEncodedAccount) as MaybeAccount<Buffer> & { exists: true };
         default:
             throw new Error(
                 `The account at ${account.address} has an unexpected discriminator (${account.data[0]}); ` +

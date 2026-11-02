@@ -1,4 +1,13 @@
-import { address, generateKeyPairSigner, getUtf8Encoder, none, some } from '@solana/kit';
+import {
+    address,
+    generateKeyPairSigner,
+    getUtf8Encoder,
+    isSolanaError,
+    lamports,
+    none,
+    SOLANA_ERROR__ACCOUNTS__ACCOUNT_NOT_FOUND,
+    some,
+} from '@solana/kit';
 import { expect, it } from 'vitest';
 
 import {
@@ -567,4 +576,60 @@ it('cannot update a pre-allocated buffer left by an interrupted create', async (
 
     // And no transaction was sent, so no new buffer was paid for.
     expect(await getBalance(client, client.payer.address)).toBe(balanceBefore);
+});
+
+it('cannot update a metadata PDA owned by another program', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given the canonical metadata PDA holds an account owned by another program.
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const owner = address('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+    client.svm.setAccount({
+        address: metadata,
+        data: new Uint8Array(96),
+        executable: false,
+        lamports: lamports(client.svm.minimumBalanceForRentExemption(96n)),
+        programAddress: owner,
+        space: 96n,
+    });
+
+    // When we try to update it, then we expect an error.
+    await expect(
+        client.programMetadata.updateMetadata({
+            authority,
+            program,
+            programData,
+            seed: 'idl',
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            dataSource: DataSource.Direct,
+            format: Format.Json,
+            data: getUtf8Encoder().encode('NEW'),
+        }),
+    ).rejects.toThrow(`The account at ${metadata} is owned by ${owner}`);
+});
+
+it('cannot update a metadata account that does not exist', async () => {
+    // Given the following authority and deployed program without metadata.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // When we try to update its canonical metadata account, then we expect an error.
+    await expect(
+        client.programMetadata.updateMetadata({
+            authority,
+            program,
+            programData,
+            seed: 'idl',
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            dataSource: DataSource.Direct,
+            format: Format.Json,
+            data: getUtf8Encoder().encode('NEW'),
+        }),
+    ).rejects.toSatisfy(error => isSolanaError(error, SOLANA_ERROR__ACCOUNTS__ACCOUNT_NOT_FOUND));
 });

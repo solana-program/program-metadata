@@ -260,10 +260,10 @@ function getMetadataPdaState(metadata: CreateMetadataTarget): MetadataPdaState {
 }
 
 /**
- * Shared steps of the buffer-based create flows. Each step that an
- * interrupted create already completed on the metadata PDA is skipped: rent
- * the account holds is not transferred again, an allocated account is not
- * allocated again and the account is only extended by the growth left.
+ * Shared steps of the buffer-based create flows. When the metadata PDA holds
+ * a pre-allocated buffer, each step that an interrupted create already
+ * completed is skipped: rent the buffer holds is not transferred again, the
+ * account is not allocated again and it is only extended by the growth left.
  */
 async function getCreateMetadataInstructionPlanUsingPdaBuffer(
     client: ClientWithGetMinimumBalance,

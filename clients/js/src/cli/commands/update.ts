@@ -1,8 +1,8 @@
 import { Address } from '@solana/kit';
 import picocolors from 'picocolors';
 
-import { decodeMetadata, Seed } from '../../generated';
-import { fetchMetadataAndBuffer } from '../../internals';
+import { Seed } from '../../generated';
+import { decodeMaybeMetadataOrBuffer, fetchMetadataAndBuffer } from '../../internals';
 import { getUpdateMetadataInstructionPlan } from '../../updateMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';
@@ -41,7 +41,7 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
     });
 
     const [encodedMetadata, buffer] = await fetchMetadataAndBuffer(client.rpc, metadata, options.buffer);
-    const metadataAccount = decodeMetadata(encodedMetadata);
+    const metadataAccount = decodeMaybeMetadataOrBuffer(encodedMetadata);
     const writeInput = getWriteInput(file, options, buffer);
 
     if (!metadataAccount.exists) {
