@@ -11,7 +11,13 @@ import {
     Format,
     Metadata,
 } from '../src';
-import { createDeployedProgram, createTestClient, generateKeyPairSignerWithSol, REALLOC_LIMIT } from './_setup';
+import {
+    createDeployedProgram,
+    createTestClient,
+    generateKeyPairSignerWithSol,
+    getBalance,
+    REALLOC_LIMIT,
+} from './_setup';
 
 it('updates a canonical metadata account', async () => {
     // Given the following authority and deployed program.
@@ -526,4 +532,39 @@ it('can close an existing buffer after using it to update a new metadata account
     // Then we expect the buffer account to no longer exist.
     const bufferAccount = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
     expect(bufferAccount.exists).toBe(false);
+});
+
+it('cannot update a pre-allocated buffer left by an interrupted create', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given an interrupted create left a fully written pre-allocated buffer
+    // at the canonical metadata PDA.
+    await client.programMetadata.instructions
+        .createCanonicalBuffer({ authority, program, programData, seed: 'idl', data: getUtf8Encoder().encode('OLD') })
+        .sendTransaction();
+    const balanceBefore = await getBalance(client, client.payer.address);
+
+    // When we try to update it, then we expect an error.
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    await expect(
+        client.programMetadata.updateMetadata({
+            authority,
+            program,
+            programData,
+            seed: 'idl',
+            encoding: Encoding.Utf8,
+            compression: Compression.None,
+            dataSource: DataSource.Direct,
+            format: Format.Json,
+            data: new Uint8Array(REALLOC_LIMIT).fill(42),
+        }),
+    ).rejects.toThrow(
+        `The metadata account at ${metadata} holds a pre-allocated buffer left by an interrupted create.`,
+    );
+
+    // And no transaction was sent, so no new buffer was paid for.
+    expect(await getBalance(client, client.payer.address)).toBe(balanceBefore);
 });

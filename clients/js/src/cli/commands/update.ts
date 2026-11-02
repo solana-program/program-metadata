@@ -1,7 +1,8 @@
 import { Address } from '@solana/kit';
 import picocolors from 'picocolors';
 
-import { fetchMaybeMetadata, Seed } from '../../generated';
+import { decodeMetadata, Seed } from '../../generated';
+import { fetchMetadataAndBuffer } from '../../internals';
 import { getUpdateMetadataInstructionPlan } from '../../updateMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';
@@ -39,10 +40,9 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
         authority: client.identity.address,
     });
 
-    const [metadataAccount, writeInput] = await Promise.all([
-        fetchMaybeMetadata(client.rpc, metadata),
-        getWriteInput(client, file, options),
-    ]);
+    const [encodedMetadata, buffer] = await fetchMetadataAndBuffer(client.rpc, metadata, options.buffer);
+    const metadataAccount = decodeMetadata(encodedMetadata);
+    const writeInput = getWriteInput(file, options, buffer);
 
     if (!metadataAccount.exists) {
         logErrorAndExit(`Metadata account ${picocolors.bold(metadataAccount.address)} does not exist.`);

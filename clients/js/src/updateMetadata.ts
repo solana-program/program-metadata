@@ -2,12 +2,13 @@ import { getTransferSolInstruction } from '@solana-program/system';
 import {
     Account,
     Address,
+    assertAccountExists,
     ClientWithGetMinimumBalance,
     ClientWithRpc,
     ClientWithTransactionPlanning,
     ClientWithTransactionSending,
     generateKeyPairSigner,
-    GetAccountInfoApi,
+    GetMultipleAccountsApi,
     HasAddress,
     InstructionPlan,
     lamports,
@@ -21,19 +22,18 @@ import {
 import { getCreateBufferInstructionPlan } from './createBuffer';
 import {
     Buffer,
-    fetchBuffer,
-    fetchMetadata,
+    decodeMetadata,
     getCloseInstruction,
     getSetDataInstruction,
     getTrimInstruction,
     Metadata,
     SetDataInput,
 } from './generated';
-import { getCloseDestination, isValidInstructionPlan } from './internals';
+import { fetchMetadataAndBuffer, getCloseDestination, isPreAllocatedBuffer, isValidInstructionPlan } from './internals';
 import { getExtendInstructionPlan, MetadataInput, REALLOC_LIMIT, resolveMetadataPda } from './utils';
 
 type UpdateMetadataClient = ClientWithGetMinimumBalance &
-    ClientWithRpc<GetAccountInfoApi> &
+    ClientWithRpc<GetMultipleAccountsApi> &
     ClientWithTransactionPlanning &
     ClientWithTransactionSending;
 
@@ -44,20 +44,18 @@ type UpdateMetadataClient = ClientWithGetMinimumBalance &
  * and — for non-canonical metadata accounts — `authority`. The current
  * metadata account is fetched to compute the size difference. When
  * `input.buffer` is provided as an address, the buffer account is fetched
- * to determine its data length.
+ * alongside it to determine its data length.
  */
 export async function updateMetadata(
     client: UpdateMetadataClient,
     input: MetadataInput,
 ): Promise<TransactionPlanResult> {
     const metadata = await resolveMetadataPda(input);
-    const [metadataAccount, buffer] = await Promise.all([
-        fetchMetadata(client.rpc, metadata),
-        input.buffer ? fetchBuffer(client.rpc, input.buffer) : Promise.resolve(undefined),
-    ]);
+    const [metadataAccount, buffer] = await fetchMetadataAndBuffer(client.rpc, metadata, input.buffer);
+    assertAccountExists(metadataAccount);
     const plan = await getUpdateMetadataInstructionPlan(client, {
         ...input,
-        metadata: metadataAccount,
+        metadata: decodeMetadata(metadataAccount),
         buffer,
     });
     return await client.sendTransactions(plan);
@@ -76,6 +74,14 @@ export async function getUpdateMetadataInstructionPlan(
 ): Promise<InstructionPlan> {
     if (!input.buffer && !input.data) {
         throw new Error('Either `buffer` or `data` must be provided to update a metadata account.');
+    }
+    if (isPreAllocatedBuffer(input.metadata)) {
+        // The `set_data` instruction requires an initialized metadata account,
+        // so fail before planning any buffer transactions.
+        throw new Error(
+            `The metadata account at ${input.metadata.address} holds a pre-allocated buffer left by an ` +
+                'interrupted create. Write or create the metadata account instead to resume that create.',
+        );
     }
     if (!input.metadata.data.mutable) {
         throw new Error('Metadata account is immutable');

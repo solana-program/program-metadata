@@ -53,7 +53,6 @@ import {
     DataSource,
     decodeMetadata,
     Encoding,
-    fetchBuffer,
     findMetadataPda,
     Format,
     SeedArgs,
@@ -445,18 +444,29 @@ async function getCanonicalPdaDetailsUnchecked(
     return { isAuthorized: storedAuthority === identity, metadata, programData };
 }
 
-export async function getWriteInput(
-    client: Client,
+/**
+ * Warning shown by the `create` and `write` commands when the metadata PDA
+ * holds a pre-allocated buffer left by an interrupted create, which they
+ * resume instead of starting over.
+ */
+export const INTERRUPTED_CREATE_WARNING =
+    'The metadata account holds a pre-allocated buffer left by an interrupted create. Resuming that create...';
+
+/**
+ * Builds the write input shared by commands writing data from the CLI
+ * arguments and options. When the `--buffer` option is used, the fetched
+ * buffer account must be provided so commands can batch its fetch with other
+ * accounts.
+ */
+export function getWriteInput(
     file: string | undefined,
     options: WriteOptions,
-): Promise<
-    PackedData & {
-        buffer?: Account<Buffer>;
-        format: Format;
-        closeBuffer?: Address | boolean;
-    }
-> {
-    const buffer = options.buffer ? await fetchBuffer(client.rpc, options.buffer) : undefined;
+    buffer: Account<Buffer> | undefined,
+): PackedData & {
+    buffer?: Account<Buffer>;
+    format: Format;
+    closeBuffer?: Address | boolean;
+} {
     return {
         ...getPackedData(file, options),
         format: options.format ?? getFormatFromFile(file),

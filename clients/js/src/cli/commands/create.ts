@@ -1,10 +1,10 @@
 import { Address } from '@solana/kit';
-import picocolors from 'picocolors';
 
 import { getCreateMetadataInstructionPlan } from '../../createMetadata';
-import { fetchMaybeMetadata, Seed } from '../../generated';
+import { Seed } from '../../generated';
+import { decodeMaybeMetadataOrBuffer, fetchMetadataAndBuffer, isPreAllocatedBuffer } from '../../internals';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
-import { logCommand, logErrorAndExit } from '../logs';
+import { logCommand, logWarning } from '../logs';
 import {
     GlobalOptions,
     nonCanonicalWriteOption,
@@ -12,7 +12,7 @@ import {
     setWriteOptions,
     WriteOptions,
 } from '../options';
-import { CustomCommand, getClient, getPdaDetailsForWriting, getWriteInput } from '../utils';
+import { CustomCommand, getClient, getPdaDetailsForWriting, getWriteInput, INTERRUPTED_CREATE_WARNING } from '../utils';
 
 export function setCreateCommand(program: CustomCommand): void {
     program
@@ -39,13 +39,12 @@ export async function doCreate(seed: Seed, program: Address, file: string | unde
         authority: client.identity.address,
     });
 
-    const [metadataAccount, writeInput] = await Promise.all([
-        fetchMaybeMetadata(client.rpc, metadata),
-        getWriteInput(client, file, options),
-    ]);
+    const [encodedMetadata, buffer] = await fetchMetadataAndBuffer(client.rpc, metadata, options.buffer);
+    const metadataAccount = decodeMaybeMetadataOrBuffer(encodedMetadata);
+    const writeInput = getWriteInput(file, options, buffer);
 
-    if (metadataAccount.exists) {
-        logErrorAndExit(`Metadata account ${picocolors.bold(metadataAccount.address)} already exists.`);
+    if (isPreAllocatedBuffer(metadataAccount)) {
+        logWarning(INTERRUPTED_CREATE_WARNING);
     }
 
     await client.runOrExport(
@@ -56,7 +55,7 @@ export async function doCreate(seed: Seed, program: Address, file: string | unde
             program,
             programData,
             seed,
-            metadata,
+            metadata: metadataAccount,
             singleExtendPerTransaction: options.singleExtendPerTx,
         }),
     );

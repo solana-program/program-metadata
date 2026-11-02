@@ -1,4 +1,4 @@
-import { address, generateKeyPairSigner, getUtf8Encoder, none, some } from '@solana/kit';
+import { address, generateKeyPairSigner, getUtf8Encoder, none, ReadonlyUint8Array, some } from '@solana/kit';
 import { expect, it } from 'vitest';
 
 import {
@@ -9,6 +9,8 @@ import {
     findCanonicalPda,
     findNonCanonicalPda,
     Format,
+    getAccountSize,
+    getCreateMetadataInstructionPlan,
     Metadata,
 } from '../src';
 import {
@@ -454,4 +456,186 @@ it('accepts address wrappers for the program, program data, metadata, buffer and
     const bufferAccount = await client.programMetadata.accounts.buffer.fetchMaybe(buffer.address);
     expect(bufferAccount.exists).toBe(false);
     expect(await getBalance(client, recipient)).toBe(bufferLamports);
+});
+
+it('resumes an interrupted create that left a pre-allocated buffer at the metadata PDA', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given an interrupted create left a fully written pre-allocated buffer
+    // at the canonical metadata PDA, never initialized as a metadata account.
+    const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
+    await client.programMetadata.instructions
+        .createCanonicalBuffer({ authority, program, programData, seed: 'idl', data })
+        .sendTransaction();
+
+    // When we create the canonical metadata account with the same data.
+    await client.programMetadata.createMetadata({
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        data,
+    });
+
+    // Then the pre-allocated buffer is initialized as the metadata account.
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
+    expect(account.data).toMatchObject(<Metadata>{
+        discriminator: AccountDiscriminator.Metadata,
+        program,
+        authority: none(),
+        canonical: true,
+        seed: 'idl',
+        dataLength: data.length,
+        data,
+    });
+});
+
+it('only transfers the missing rent when resuming an interrupted create', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given an interrupted create funded the canonical metadata PDA for its
+    // final size and allocated it as a buffer, but never wrote any data to it.
+    const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
+    await client.programMetadata.instructions
+        .createCanonicalBuffer({ authority, program, programData, seed: 'idl', dataLength: data.length })
+        .sendTransaction();
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const rent = client.svm.minimumBalanceForRentExemption(BigInt(getAccountSize(data.length)));
+    expect(await getBalance(client, metadata)).toBe(rent);
+
+    // When we create the canonical metadata account.
+    await client.programMetadata.createMetadata({
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        data,
+    });
+
+    // Then the metadata account is initialized with the data.
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
+    expect(account.data).toMatchObject(<Metadata>{
+        discriminator: AccountDiscriminator.Metadata,
+        dataLength: data.length,
+        data,
+    });
+
+    // And it holds exactly the rent it needs since no extra rent was transferred.
+    expect(await getBalance(client, metadata)).toBe(rent);
+});
+
+it('extends a pre-allocated buffer by more than the realloc limit when resuming an interrupted create', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given an interrupted create only allocated an empty buffer at the
+    // canonical metadata PDA.
+    await client.programMetadata.instructions
+        .createCanonicalBuffer({ authority, program, programData, seed: 'idl' })
+        .sendTransaction();
+
+    // And given a source buffer holding data larger than the realloc limit,
+    // which a single `write` instruction cannot copy without a prior `extend`.
+    const data: ReadonlyUint8Array = new Uint8Array(REALLOC_LIMIT * 2 + 100).fill(42);
+    const sourceBuffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: sourceBuffer, authority: sourceBuffer, data })
+        .sendTransactions();
+
+    // When we create the canonical metadata account from the source buffer.
+    await client.programMetadata.createMetadata({
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.None,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.None,
+        buffer: sourceBuffer.address,
+    });
+
+    // Then the pre-allocated buffer is extended, written and initialized.
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
+    expect(account.data).toMatchObject(<Metadata>{
+        discriminator: AccountDiscriminator.Metadata,
+        dataLength: data.length,
+        data,
+    });
+    expect(await getBalance(client, metadata)).toBe(
+        client.svm.minimumBalanceForRentExemption(BigInt(getAccountSize(data.length))),
+    );
+});
+
+it('cannot create a metadata account that already exists', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given the following existing canonical metadata account.
+    const input = {
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        data: getUtf8Encoder().encode('{"standard":"dummyIdl"}'),
+    };
+    await client.programMetadata.createMetadata(input);
+
+    // When we try to create it again, then we expect an error.
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    await expect(client.programMetadata.createMetadata(input)).rejects.toThrow(
+        `Metadata account ${metadata} already exists.`,
+    );
+});
+
+it('cannot plan the creation of a metadata account that already exists', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given the following existing canonical metadata account.
+    const input = {
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        data: getUtf8Encoder().encode('{"standard":"dummyIdl"}'),
+    };
+    await client.programMetadata.createMetadata(input);
+
+    // When we plan its creation from the fetched account, then we expect an error.
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const metadataAccount = await client.programMetadata.accounts.metadata.fetchMaybe(metadata);
+    await expect(
+        getCreateMetadataInstructionPlan(client, { ...input, payer: client.payer, metadata: metadataAccount }),
+    ).rejects.toThrow(`Metadata account ${metadata} already exists.`);
 });

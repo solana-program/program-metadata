@@ -5,7 +5,7 @@ import {
     ClientWithRpc,
     ClientWithTransactionPlanning,
     ClientWithTransactionSending,
-    GetAccountInfoApi,
+    GetMultipleAccountsApi,
     HasAddress,
     InstructionPlan,
     MaybeAccount,
@@ -14,21 +14,14 @@ import {
     TransactionSigner,
 } from '@solana/kit';
 
-import { getCreateMetadataInstructionPlan, getResumeMetadataInstructionPlan } from './createMetadata';
-import {
-    AccountDiscriminator,
-    Buffer,
-    fetchBuffer,
-    fetchMaybeMetadata,
-    InitializeInput,
-    Metadata,
-    SetDataInput,
-} from './generated';
+import { getCreateMetadataInstructionPlan } from './createMetadata';
+import { Buffer, InitializeInput, Metadata, SetDataInput } from './generated';
+import { decodeMaybeMetadataOrBuffer, fetchMetadataAndBuffer, isInitializedMetadata } from './internals';
 import { getUpdateMetadataInstructionPlan } from './updateMetadata';
 import { MetadataInput, resolveMetadataPda } from './utils';
 
 type WriteMetadataClient = ClientWithGetMinimumBalance &
-    ClientWithRpc<GetAccountInfoApi> &
+    ClientWithRpc<GetMultipleAccountsApi> &
     ClientWithTransactionPlanning &
     ClientWithTransactionSending;
 
@@ -41,22 +34,28 @@ type WriteMetadataClient = ClientWithGetMinimumBalance &
  * operation is an update, otherwise it is a create. A pre-allocated buffer at
  * the metadata PDA — the remnant of an interrupted create — resumes the
  * create instead. When `input.buffer` is provided as an address, the buffer
- * account is fetched to determine its data length.
+ * account is fetched alongside it to determine its data length.
  */
 export async function writeMetadata(client: WriteMetadataClient, input: MetadataInput): Promise<TransactionPlanResult> {
     const metadata = await resolveMetadataPda(input);
-    const [metadataAccount, buffer] = await Promise.all([
-        fetchMaybeMetadata(client.rpc, metadata),
-        input.buffer ? fetchBuffer(client.rpc, input.buffer) : Promise.resolve(undefined),
-    ]);
+    const [metadataAccount, buffer] = await fetchMetadataAndBuffer(client.rpc, metadata, input.buffer);
     const plan = await getWriteMetadataInstructionPlan(client, {
         ...input,
-        metadata: metadataAccount,
+        metadata: decodeMaybeMetadataOrBuffer(metadataAccount),
         buffer,
     });
     return await client.sendTransactions(plan);
 }
 
+/**
+ * Builds a plan that creates or updates a metadata account depending on the
+ * state of `input.metadata`:
+ *
+ * - a missing account is created,
+ * - a pre-allocated buffer — the remnant of a create interrupted before its
+ *   final `initialize` instruction — resumes that create,
+ * - an initialized metadata account is updated.
+ */
 export async function getWriteMetadataInstructionPlan(
     client: ClientWithGetMinimumBalance & ClientWithTransactionPlanning,
     input: Omit<InitializeInput, 'data' | 'metadata'> &
@@ -64,27 +63,14 @@ export async function getWriteMetadataInstructionPlan(
             buffer?: Account<Buffer>;
             closeBuffer?: Address | HasAddress | boolean;
             data?: ReadonlyUint8Array;
-            metadata: MaybeAccount<Metadata>;
+            metadata: Account<Buffer> | MaybeAccount<Metadata>;
             payer: TransactionSigner;
             singleExtendPerTransaction?: boolean;
         },
 ): Promise<InstructionPlan> {
-    if (!input.metadata.exists) {
-        return await getCreateMetadataInstructionPlan(client, { ...input, metadata: input.metadata.address });
+    const { metadata } = input;
+    if (!isInitializedMetadata(metadata)) {
+        return await getCreateMetadataInstructionPlan(client, { ...input, metadata });
     }
-    switch (input.metadata.data.discriminator) {
-        case AccountDiscriminator.Metadata:
-            return await getUpdateMetadataInstructionPlan(client, { ...input, metadata: input.metadata });
-        // A pre-allocated buffer at the metadata PDA means a previous create
-        // was interrupted before initializing the account — resume it instead
-        // of updating, which would fail since `set_data` requires an
-        // initialized metadata account.
-        case AccountDiscriminator.Buffer:
-            return await getResumeMetadataInstructionPlan(client, { ...input, metadata: input.metadata });
-        default:
-            throw new Error(
-                `The account at ${input.metadata.address} has an unexpected discriminator ` +
-                    `(${input.metadata.data.discriminator}); expected a metadata account or a pre-allocated buffer.`,
-            );
-    }
+    return await getUpdateMetadataInstructionPlan(client, { ...input, metadata });
 }
