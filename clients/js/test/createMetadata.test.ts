@@ -1,3 +1,4 @@
+import { getTransferSolInstruction } from '@solana-program/system';
 import { address, generateKeyPairSigner, getUtf8Encoder, none, ReadonlyUint8Array, some } from '@solana/kit';
 import { expect, it } from 'vitest';
 
@@ -536,6 +537,47 @@ it('only transfers the missing rent when resuming an interrupted create', async 
     });
 
     // And it holds exactly the rent it needs since no extra rent was transferred.
+    expect(await getBalance(client, metadata)).toBe(rent);
+});
+
+it('does not transfer rent again for a pre-funded metadata PDA', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given the canonical metadata PDA was funded with its full rent but
+    // never allocated as a buffer.
+    const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+    const rent = client.svm.minimumBalanceForRentExemption(BigInt(getAccountSize(data.length)));
+    await client.sendTransaction([
+        getTransferSolInstruction({ source: authority, destination: metadata, amount: rent }),
+    ]);
+
+    // When we create the canonical metadata account.
+    await client.programMetadata.createMetadata({
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        data,
+    });
+
+    // Then the metadata account is initialized with the data.
+    const account = await client.programMetadata.accounts.metadata.fetch(metadata);
+    expect(account.data).toMatchObject(<Metadata>{
+        discriminator: AccountDiscriminator.Metadata,
+        dataLength: data.length,
+        data,
+    });
+
+    // And it holds exactly the rent it needs since the rent it held was not
+    // transferred again.
     expect(await getBalance(client, metadata)).toBe(rent);
 });
 

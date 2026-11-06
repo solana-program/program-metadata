@@ -16,6 +16,7 @@ import {
     Encoding,
     findCanonicalPda,
     Format,
+    getCreateMetadataInstructionPlan,
     getCreateMetadataInstructionPlanUsingExistingBuffer,
     getCreateMetadataInstructionPlanUsingNewBuffer,
     getExtendInstructionPlan,
@@ -23,6 +24,7 @@ import {
     PROGRAM_METADATA_PROGRAM_ADDRESS,
     ProgramMetadataInstruction,
 } from '../src';
+import { decodeMaybeMetadataOrBuffer, fetchMetadataAndBuffer } from '../src/internals';
 import {
     createDeployedProgram,
     createTestClient,
@@ -300,6 +302,49 @@ it('adds a single extend instruction when the data alone fits within the realloc
         ProgramMetadataInstruction.Initialize,
     ]);
     expect(getExtendLengths(messages[0], metadata)).toEqual([REALLOC_LIMIT]);
+});
+
+it('skips the write when the pre-allocated buffer already holds the source data', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And given an interrupted create wrote data into the canonical metadata
+    // PDA, which was never initialized.
+    const data = getUtf8Encoder().encode('{"standard":"dummyIdl"}');
+    await client.programMetadata.instructions
+        .createCanonicalBuffer({ authority, program, programData, seed: 'idl', dataLength: data.length, data })
+        .sendTransaction();
+    const [metadata] = await findCanonicalPda({ program, seed: 'idl' });
+
+    // And given a source buffer holding the same data.
+    const sourceBuffer = await generateKeyPairSigner();
+    await client.programMetadata.instructions
+        .createBuffer({ newBuffer: sourceBuffer, authority: sourceBuffer, data })
+        .sendTransaction();
+
+    // When we plan the create from the fetched PDA account and source buffer.
+    const [encodedMetadata, buffer] = await fetchMetadataAndBuffer(client.rpc, metadata, sourceBuffer);
+    const plan = await getCreateMetadataInstructionPlan(client, {
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        buffer,
+        metadata: decodeMaybeMetadataOrBuffer(encodedMetadata),
+        payer: authority,
+    });
+    const messages = await planMessages(client, plan);
+
+    // Then the plan only initializes the account, since the source data is
+    // already in the buffer.
+    expect(messages).toHaveLength(1);
+    expect(getInstructionTypes(messages[0], metadata)).toEqual([ProgramMetadataInstruction.Initialize]);
 });
 
 async function planMessages(client: TestClient, plan: InstructionPlan): Promise<TransactionMessage[]> {

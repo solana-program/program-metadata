@@ -51,17 +51,18 @@ export async function fetchMetadataAndBuffer(
  * account so callers can resume the create.
  *
  * A system-owned account without data — i.e. a PDA that was only funded — is
- * reported as missing since the create flow supports pre-funded accounts.
+ * reported as missing with its lamports, since the create flow supports
+ * pre-funded accounts.
  *
  * @throws If the account is owned by another program or holds an unexpected
  * discriminator.
  */
 export function decodeMaybeMetadataOrBuffer(
     account: MaybeEncodedAccount,
-): MaybeAccount<Metadata> | (MaybeAccount<Buffer> & { exists: true }) {
+): (MaybeAccount<Metadata> & { lamports?: bigint }) | (MaybeAccount<Buffer> & { exists: true }) {
     if (!account.exists) return account;
     if (account.data.length === 0 && account.programAddress === SYSTEM_PROGRAM_ADDRESS) {
-        return { address: account.address, exists: false };
+        return { address: account.address, exists: false, lamports: account.lamports };
     }
     if (account.programAddress !== PROGRAM_METADATA_PROGRAM_ADDRESS) {
         throw new Error(

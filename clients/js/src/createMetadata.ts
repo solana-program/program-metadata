@@ -117,6 +117,7 @@ export async function getCreateMetadataInstructionPlan(
             ...input,
             buffer: input.buffer.address,
             dataLength: input.buffer.data.data.length,
+            sourceData: input.buffer.data.data,
         });
     }
 
@@ -129,6 +130,7 @@ export async function getCreateMetadataInstructionPlan(
         ...input,
         metadata: pda.address,
         data,
+        existingLamports: pda.lamports,
     });
     const validPlan = await isValidInstructionPlan(usingInstructionDataPlan, client);
     return validPlan
@@ -139,18 +141,24 @@ export async function getCreateMetadataInstructionPlan(
 export async function getCreateMetadataInstructionPlanUsingInstructionData(
     client: ClientWithGetMinimumBalance,
     input: Omit<InitializeInput, 'data'> & {
+        existingLamports?: bigint;
         data?: ReadonlyUint8Array;
         payer: TransactionSigner;
     },
 ) {
     const dataLength = input.data?.length ?? 0;
     const rent = await client.getMinimumBalance(Number(getAccountSize(dataLength)));
+    const missingRent = rent - (input.existingLamports ?? 0n);
     return sequentialInstructionPlan([
-        getTransferSolInstruction({
-            source: input.payer,
-            destination: input.metadata,
-            amount: rent,
-        }),
+        ...(missingRent > 0n
+            ? [
+                  getTransferSolInstruction({
+                      source: input.payer,
+                      destination: input.metadata,
+                      amount: missingRent,
+                  }),
+              ]
+            : []),
         getInitializeInstruction(input),
     ]);
 }
@@ -191,7 +199,7 @@ export async function getCreateMetadataInstructionPlanUsingNewBuffer(
  * optionally closing `buffer` afterwards.
  *
  * When `input.metadata` holds a pre-allocated buffer, the allocation is
- * skipped.
+ * skipped and so is the write if the buffer already holds `sourceData`.
  */
 export async function getCreateMetadataInstructionPlanUsingExistingBuffer(
     client: ClientWithGetMinimumBalance,
@@ -202,6 +210,7 @@ export async function getCreateMetadataInstructionPlanUsingExistingBuffer(
         payer: TransactionSigner;
         closeBuffer?: Address | HasAddress | boolean;
         singleExtendPerTransaction?: boolean;
+        sourceData?: ReadonlyUint8Array;
     },
 ) {
     const pda = getMetadataPdaState(input.metadata);
@@ -212,12 +221,15 @@ export async function getCreateMetadataInstructionPlanUsingExistingBuffer(
     return await getCreateMetadataInstructionPlanUsingPdaBuffer(client, {
         ...input,
         pda,
-        write: getWriteInstruction({
-            buffer: pda.address,
-            authority: input.authority,
-            sourceBuffer: buffer,
-            offset: 0,
-        }),
+        write:
+            input.sourceData && pda.allocated && bytesEqual(pda.data, input.sourceData)
+                ? undefined
+                : getWriteInstruction({
+                      buffer: pda.address,
+                      authority: input.authority,
+                      sourceBuffer: buffer,
+                      offset: 0,
+                  }),
         close: input.closeBuffer
             ? getCloseInstruction({
                   account: buffer,
@@ -243,7 +255,8 @@ function getMetadataPdaState(metadata: CreateMetadataTarget): MetadataPdaState {
     const discriminator = getDecodedAccountDiscriminator(metadata);
     if (discriminator === undefined) {
         const address = getAddressFromResolvedInstructionAccount('metadata', metadata as InitializeInput['metadata']);
-        return { address, allocated: false, data: new Uint8Array(0), lamports: 0n };
+        const lamports = typeof metadata === 'object' && 'lamports' in metadata ? (metadata.lamports ?? 0n) : 0n;
+        return { address, allocated: false, data: new Uint8Array(0), lamports };
     }
     const account = metadata as Account<Buffer>;
     switch (discriminator) {
@@ -262,7 +275,7 @@ function getMetadataPdaState(metadata: CreateMetadataTarget): MetadataPdaState {
 /**
  * Shared steps of the buffer-based create flows. When the metadata PDA holds
  * a pre-allocated buffer, each step that an interrupted create already
- * completed is skipped: rent the buffer holds is not transferred again, the
+ * completed is skipped: rent the account holds is not transferred again, the
  * account is not allocated again and it is only extended by the growth left.
  */
 async function getCreateMetadataInstructionPlanUsingPdaBuffer(
