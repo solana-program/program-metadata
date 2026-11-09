@@ -116,6 +116,7 @@ export async function getUpdateMetadataInstructionPlan(
     return await getUpdateMetadataInstructionPlanUsingNewBuffer(client, {
         ...input,
         buffer: newBuffer,
+        closeBuffer: input.closeBuffer ?? true,
         data,
         metadata,
     });
