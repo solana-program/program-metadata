@@ -1,6 +1,6 @@
 import { Address } from '@solana/kit';
 
-import { fetchMaybeBuffer } from '../../generated';
+import { fetchBuffer, fetchMaybeBuffer } from '../../generated';
 import { bufferArgument, fileArgument } from '../arguments';
 import { logCommand, logErrorAndExit } from '../logs';
 import { GlobalOptions, setWriteOptions, WriteOptions } from '../options';
@@ -22,10 +22,11 @@ export async function doUpdateBuffer(buffer: Address, file: string | undefined, 
     const client = await getClient(options);
 
     logCommand(`Updating buffer...`, { buffer });
-    const [writeInput, bufferAccount] = await Promise.all([
-        getWriteInput(client, file, options),
+    const [bufferAccount, sourceBuffer] = await Promise.all([
         fetchMaybeBuffer(client.rpc, buffer),
+        options.buffer ? fetchBuffer(client.rpc, options.buffer) : Promise.resolve(undefined),
     ]);
+    const writeInput = getWriteInput(file, options, sourceBuffer);
 
     if (!bufferAccount.exists) {
         logErrorAndExit(`Buffer account not found: "${buffer}"`);

@@ -1,9 +1,10 @@
 import { Address } from '@solana/kit';
 
-import { fetchMaybeMetadata, Seed } from '../../generated';
+import { Seed } from '../../generated';
+import { decodeMaybeMetadataOrBuffer, fetchMetadataAndBuffer, isPreAllocatedBuffer } from '../../internals';
 import { getWriteMetadataInstructionPlan } from '../../writeMetadata';
 import { fileArgument, programArgument, seedArgument } from '../arguments';
-import { logCommand } from '../logs';
+import { logCommand, logWarning } from '../logs';
 import {
     GlobalOptions,
     nonCanonicalWriteOption,
@@ -11,7 +12,7 @@ import {
     setWriteOptions,
     WriteOptions,
 } from '../options';
-import { CustomCommand, getClient, getPdaDetailsForWriting, getWriteInput } from '../utils';
+import { CustomCommand, getClient, getPdaDetailsForWriting, getWriteInput, INTERRUPTED_CREATE_WARNING } from '../utils';
 
 export function setWriteCommand(program: CustomCommand): void {
     program
@@ -38,10 +39,13 @@ export async function doWrite(seed: Seed, program: Address, file: string | undef
         authority: client.identity.address,
     });
 
-    const [metadataAccount, writeInput] = await Promise.all([
-        fetchMaybeMetadata(client.rpc, metadata),
-        getWriteInput(client, file, options),
-    ]);
+    const [encodedMetadata, buffer] = await fetchMetadataAndBuffer(client.rpc, metadata, options.buffer);
+    const metadataAccount = decodeMaybeMetadataOrBuffer(encodedMetadata);
+    const writeInput = getWriteInput(file, options, buffer);
+
+    if (isPreAllocatedBuffer(metadataAccount)) {
+        logWarning(INTERRUPTED_CREATE_WARNING);
+    }
 
     await client.runOrExport(
         getWriteMetadataInstructionPlan(client, {

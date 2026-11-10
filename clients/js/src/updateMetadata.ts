@@ -2,12 +2,13 @@ import { getTransferSolInstruction } from '@solana-program/system';
 import {
     Account,
     Address,
+    assertAccountExists,
     ClientWithGetMinimumBalance,
     ClientWithRpc,
     ClientWithTransactionPlanning,
     ClientWithTransactionSending,
     generateKeyPairSigner,
-    GetAccountInfoApi,
+    GetMultipleAccountsApi,
     HasAddress,
     InstructionPlan,
     lamports,
@@ -21,19 +22,23 @@ import {
 import { getCreateBufferInstructionPlan } from './createBuffer';
 import {
     Buffer,
-    fetchBuffer,
-    fetchMetadata,
     getCloseInstruction,
     getSetDataInstruction,
     getTrimInstruction,
     Metadata,
     SetDataInput,
 } from './generated';
-import { getCloseDestination, isValidInstructionPlan } from './internals';
+import {
+    decodeMaybeMetadataOrBuffer,
+    fetchMetadataAndBuffer,
+    getCloseDestination,
+    isPreAllocatedBuffer,
+    isValidInstructionPlan,
+} from './internals';
 import { getExtendInstructionPlan, MetadataInput, REALLOC_LIMIT, resolveMetadataPda } from './utils';
 
 type UpdateMetadataClient = ClientWithGetMinimumBalance &
-    ClientWithRpc<GetAccountInfoApi> &
+    ClientWithRpc<GetMultipleAccountsApi> &
     ClientWithTransactionPlanning &
     ClientWithTransactionSending;
 
@@ -44,17 +49,16 @@ type UpdateMetadataClient = ClientWithGetMinimumBalance &
  * and — for non-canonical metadata accounts — `authority`. The current
  * metadata account is fetched to compute the size difference. When
  * `input.buffer` is provided as an address, the buffer account is fetched
- * to determine its data length.
+ * alongside it to determine its data length.
  */
 export async function updateMetadata(
     client: UpdateMetadataClient,
     input: MetadataInput,
 ): Promise<TransactionPlanResult> {
     const metadata = await resolveMetadataPda(input);
-    const [metadataAccount, buffer] = await Promise.all([
-        fetchMetadata(client.rpc, metadata),
-        input.buffer ? fetchBuffer(client.rpc, input.buffer) : Promise.resolve(undefined),
-    ]);
+    const [encodedMetadata, buffer] = await fetchMetadataAndBuffer(client.rpc, metadata, input.buffer);
+    const metadataAccount = decodeMaybeMetadataOrBuffer(encodedMetadata);
+    assertAccountExists<Buffer | Metadata>(metadataAccount);
     const plan = await getUpdateMetadataInstructionPlan(client, {
         ...input,
         metadata: metadataAccount,
@@ -66,7 +70,7 @@ export async function updateMetadata(
 export async function getUpdateMetadataInstructionPlan(
     client: ClientWithGetMinimumBalance & ClientWithTransactionPlanning,
     input: Omit<SetDataInput, 'buffer' | 'data' | 'metadata'> & {
-        metadata: Account<Metadata>;
+        metadata: Account<Buffer> | Account<Metadata>;
         buffer?: Account<Buffer>;
         data?: ReadonlyUint8Array;
         payer: TransactionSigner;
@@ -77,7 +81,16 @@ export async function getUpdateMetadataInstructionPlan(
     if (!input.buffer && !input.data) {
         throw new Error('Either `buffer` or `data` must be provided to update a metadata account.');
     }
-    if (!input.metadata.data.mutable) {
+    const { metadata } = input;
+    if (isPreAllocatedBuffer(metadata)) {
+        // The `set_data` instruction requires an initialized metadata account,
+        // so fail before planning any buffer transactions.
+        throw new Error(
+            `The metadata account at ${metadata.address} holds a pre-allocated buffer left by an ` +
+                'interrupted create. Write or create the metadata account instead to resume that create.',
+        );
+    }
+    if (!metadata.data.mutable) {
         throw new Error('Metadata account is immutable');
     }
 
@@ -86,7 +99,7 @@ export async function getUpdateMetadataInstructionPlan(
             ...input,
             buffer: input.buffer.address,
             dataLength: input.buffer.data.data.length,
-            metadata: input.metadata,
+            metadata,
         });
     }
 
@@ -94,7 +107,7 @@ export async function getUpdateMetadataInstructionPlan(
     const usingInstructionDataPlan = await getUpdateMetadataInstructionPlanUsingInstructionData(client, {
         ...input,
         data,
-        metadata: input.metadata,
+        metadata,
     });
     const validPlan = await isValidInstructionPlan(usingInstructionDataPlan, client);
     if (validPlan) return usingInstructionDataPlan;
@@ -104,7 +117,7 @@ export async function getUpdateMetadataInstructionPlan(
         ...input,
         buffer: newBuffer,
         data,
-        metadata: input.metadata,
+        metadata,
     });
 }
 
