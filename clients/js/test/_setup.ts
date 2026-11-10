@@ -12,9 +12,11 @@ import {
     getU32Encoder,
     getU64Encoder,
     getUtf8Encoder,
+    HasAddress,
     KeyPairSigner,
     lamports,
     Lamports,
+    none,
     sol,
     solToLamports,
     some,
@@ -33,10 +35,11 @@ import {
     PROGRAM_METADATA_PROGRAM_ADDRESS,
     programMetadataProgram,
 } from '../src';
+import { toAddress } from '../src/internals';
 
 export { REALLOC_LIMIT } from '../src';
 
-const PROGRAM_METADATA_BINARY_PATH = path.resolve(
+export const PROGRAM_METADATA_BINARY_PATH = path.resolve(
     __dirname,
     '..',
     '..',
@@ -102,7 +105,8 @@ const getLoaderV3ProgramDataAccountEncoder = () =>
  */
 export const createDeployedProgram = async (
     client: TestClient,
-    authority: KeyPairSigner,
+    authority: Address | HasAddress | null,
+    slot: bigint = 0n,
 ): Promise<[Address, Address]> => {
     const program = await generateKeyPairSigner();
     const [programData] = await getLoaderV3ProgramDataPda(program.address);
@@ -113,8 +117,8 @@ export const createDeployedProgram = async (
     });
     const programDataAccountData = getLoaderV3ProgramDataAccountEncoder().encode({
         discriminator: 3,
-        slot: 0n,
-        authority: some(authority.address),
+        slot,
+        authority: authority ? some(toAddress(authority)) : none(),
     });
 
     const programSpace = BigInt(programAccountData.length);
