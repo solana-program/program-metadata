@@ -85,7 +85,7 @@ export type MetadataInput = {
     /**
      * When using a buffer, whether to close the buffer account after the operation.
      * If an address is provided, it will be used as the destination for the close instruction.
-     * Defaults to `true`.
+     * Defaults to `true` for a buffer created to hold `data` and `false` for an existing `buffer`.
      */
     closeBuffer?: Address | HasAddress | boolean;
     /**
