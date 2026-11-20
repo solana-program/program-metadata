@@ -85,7 +85,7 @@ fn test_trim_canonical() {
                         .build(),
                     // destination lamports
                     Check::account(&destination_key)
-                        .lamports(lamports_for(EXCESS_LAMPORTS))
+                        .lamports(minimum_balance_for(0) + lamports_for(EXCESS_LAMPORTS))
                         .build(),
                 ],
             ),
@@ -95,7 +95,10 @@ fn test_trim_canonical() {
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
-            (destination_key, Account::default()),
+            (
+                destination_key,
+                create_funded_account(minimum_balance_for(0), system_program::ID),
+            ),
             keyed_account_for_system_program(),
             (solana_rent::sysvar::ID, rent_sysvar()),
         ],
@@ -179,7 +182,7 @@ fn test_trim_non_canonical() {
                         .build(),
                     // destination lamports
                     Check::account(&destination_key)
-                        .lamports(lamports_for(EXCESS_LAMPORTS))
+                        .lamports(minimum_balance_for(0) + lamports_for(EXCESS_LAMPORTS))
                         .build(),
                 ],
             ),
@@ -189,7 +192,10 @@ fn test_trim_non_canonical() {
             (authority_key, Account::default()),
             (program_key, program_account),
             (program_data_key, program_data_account),
-            (destination_key, Account::default()),
+            (
+                destination_key,
+                create_funded_account(minimum_balance_for(0), system_program::ID),
+            ),
             keyed_account_for_system_program(),
             (solana_rent::sysvar::ID, rent_sysvar()),
         ],
@@ -237,14 +243,17 @@ fn test_trim_buffer() {
                         .build(),
                     // destination lamports
                     Check::account(&destination_key)
-                        .lamports(lamports_for(EXCESS_LAMPORTS))
+                        .lamports(minimum_balance_for(0) + lamports_for(EXCESS_LAMPORTS))
                         .build(),
                 ],
             ),
         ],
         &[
             (buffer_key, buffer_account),
-            (destination_key, Account::default()),
+            (
+                destination_key,
+                create_funded_account(minimum_balance_for(0), system_program::ID),
+            ),
             keyed_account_for_system_program(),
             (solana_rent::sysvar::ID, rent_sysvar()),
         ],
