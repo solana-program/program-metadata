@@ -6,7 +6,7 @@ members = ["program", "clients/rust"]
 solana = "3.1.14"
 
 [workspace.metadata.toolchains]
-nightly = "nightly-2026-01-22"
+nightly = "nightly-2026-07-16"
 
 [workspace.metadata.spellcheck]
 config = "scripts/spellcheck.toml"

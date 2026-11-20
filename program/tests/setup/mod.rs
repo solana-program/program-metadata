@@ -18,8 +18,8 @@ pub use set_immutable::*;
 pub use trim::*;
 pub use write::*;
 
-use mollusk_svm::{result::Check, Mollusk};
-use solana_account::{create_account_for_test, Account};
+use mollusk_svm::{result::Check, sysvar::Sysvars, Mollusk};
+use solana_account::Account;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 use solana_rent::{Rent, DEFAULT_LAMPORTS_PER_BYTE};
@@ -81,7 +81,12 @@ pub fn process_instructions(
 }
 
 pub fn rent_sysvar() -> Account {
-    create_account_for_test(&Rent::with_lamports_per_byte(DEFAULT_LAMPORTS_PER_BYTE))
+    Sysvars {
+        rent: Rent::with_lamports_per_byte(DEFAULT_LAMPORTS_PER_BYTE),
+        ..Default::default()
+    }
+    .keyed_account_for_rent_sysvar()
+    .1
 }
 
 pub fn setup_program_account(program_data: &Pubkey) -> Account {
