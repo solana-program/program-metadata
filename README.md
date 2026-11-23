@@ -112,7 +112,8 @@ Using a buffer account you can split the metadata update into the uploading of t
 - List all buffer accounts for an authority:  
   `npx @solana-program/program-metadata@latest list-buffers [authority]`
 - Update a metadata account with a buffer:  
-  `npx @solana-program/program-metadata@latest write <seed> <program-id> --buffer <buffer-address>`
+  `npx @solana-program/program-metadata@latest write <seed> <program-id> --buffer <buffer-address> --format json`  
+  A buffer does not record the format of its data, so without `--format` the metadata account is written with format `none` and `fetchAndParseMetadataContent` returns a string instead of the parsed content.
 
 ### Options
 
@@ -143,19 +144,19 @@ npx @solana-program/program-metadata@latest set-buffer-authority <buffer-address
 3. Export the transaction as base58 and then import it into your multisig under `developers/txBuilder/createTransaction/addInstruction/ImportAsBase58`
 
 ```bash
-npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back>
+npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --format json --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back>
 ```
 
 Squads v3 only accepts legacy transactions. If your multisig is on Squads v3, add `--tx-version legacy` so the exported transaction is a legacy transaction instead of a version 0 transaction:
 
 ```bash
-npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --tx-version legacy
+npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --format json --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --tx-version legacy
 ```
 
 If the metadata account needs to grow by more than 10KB — because it is being created with more than 10KB of data, or updated with more than 10KB of additional data — add `--single-extend-per-tx`. Multisigs execute exported transactions through a CPI and the Solana runtime caps the growth of an account at 10KB per top-level instruction. Therefore, an exported transaction cannot resize an account by more than 10KB. This option spreads the growth over several transactions accordingly, so expect more than one transaction to import:
 
 ```bash
-npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --single-extend-per-tx
+npx @solana-program/program-metadata@latest write idl <program-address> --buffer <buffer-address> --format json --export <multisig-address> --export-encoding base58 --close-buffer <your-address-to-get-the-buffer-rent-back> --single-extend-per-tx
 ```
 
 4. Sign the transaction(s) in your multisig and send them in order
