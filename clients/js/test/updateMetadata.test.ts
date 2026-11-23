@@ -1,5 +1,6 @@
 import {
     address,
+    flattenTransactionPlanResult,
     generateKeyPairSigner,
     getUtf8Encoder,
     isSolanaError,
@@ -12,6 +13,7 @@ import { expect, it } from 'vitest';
 
 import {
     AccountDiscriminator,
+    ALLOCATE_DISCRIMINATOR,
     Compression,
     DataSource,
     Encoding,
@@ -19,6 +21,7 @@ import {
     findNonCanonicalPda,
     Format,
     Metadata,
+    PROGRAM_METADATA_PROGRAM_ADDRESS,
 } from '../src';
 import {
     createDeployedProgram,
@@ -495,6 +498,49 @@ it('can close a new buffer after using it to update a new metadata account', asy
         dataLength: newData.length,
         data: newData,
     });
+});
+
+it('closes the buffer it creates for data larger than a transaction size by default', async () => {
+    // Given the following authority and deployed program.
+    const client = await createTestClient();
+    const authority = await generateKeyPairSignerWithSol(client);
+    const [program, programData] = await createDeployedProgram(client, authority);
+
+    // And the following existing canonical metadata account.
+    await client.programMetadata.createMetadata({
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        data: getUtf8Encoder().encode('OLD'),
+    });
+
+    // When we update the metadata account with data that needs a buffer.
+    const result = await client.programMetadata.updateMetadata({
+        authority,
+        program,
+        programData,
+        seed: 'idl',
+        encoding: Encoding.Utf8,
+        compression: Compression.None,
+        dataSource: DataSource.Direct,
+        format: Format.Json,
+        data: getUtf8Encoder().encode('x'.repeat(3_000)),
+    });
+
+    // Then we expect the buffer created along the way to no longer exist.
+    const allocate = flattenTransactionPlanResult(result)
+        .flatMap(({ plannedMessage }) => plannedMessage.instructions)
+        .find(
+            ({ data, programAddress }) =>
+                programAddress === PROGRAM_METADATA_PROGRAM_ADDRESS && data?.[0] === ALLOCATE_DISCRIMINATOR,
+        );
+    const bufferAccount = await client.programMetadata.accounts.buffer.fetchMaybe(allocate!.accounts![0].address);
+    expect(bufferAccount.exists).toBe(false);
 });
 
 it('can close an existing buffer after using it to update a new metadata account', async () => {
