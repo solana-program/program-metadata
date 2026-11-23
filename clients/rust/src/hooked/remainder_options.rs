@@ -126,7 +126,7 @@ impl BorshSerialize for RemainderOptionBytes {
         Self: Sized,
     {
         match &self {
-            Self::Some(item) => item.serialize(writer),
+            Self::Some(item) => writer.write_all(item),
             Self::None => Ok(()),
         }
     }
@@ -137,9 +137,12 @@ impl BorshDeserialize for RemainderOptionBytes {
     where
         Self: Sized,
     {
-        match Vec::<u8>::deserialize_reader(reader) {
-            Ok(item) => Ok(RemainderOptionBytes::Some(item)),
-            Err(_) => Ok(RemainderOptionBytes::None),
+        let mut item = Vec::new();
+        reader.read_to_end(&mut item)?;
+        if item.is_empty() {
+            Ok(RemainderOptionBytes::None)
+        } else {
+            Ok(RemainderOptionBytes::Some(item))
         }
     }
 }
@@ -150,5 +153,63 @@ impl From<Option<Vec<u8>>> for RemainderOptionBytes {
             Some(item) => RemainderOptionBytes::Some(item),
             None => RemainderOptionBytes::None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instructions::WriteInstructionArgs;
+
+    #[test]
+    fn remainder_option_bytes_some_is_serialized_without_prefix() {
+        let bytes = borsh::to_vec(&RemainderOptionBytes::Some(vec![1, 2, 3])).unwrap();
+        assert_eq!(bytes, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn remainder_option_bytes_none_is_serialized_as_empty() {
+        let bytes = borsh::to_vec(&RemainderOptionBytes::None).unwrap();
+        assert!(bytes.is_empty());
+    }
+
+    #[test]
+    fn remainder_option_bytes_deserializes_remaining_bytes() {
+        assert_eq!(
+            borsh::from_slice::<RemainderOptionBytes>(&[1, 2, 3]).unwrap(),
+            RemainderOptionBytes::Some(vec![1, 2, 3])
+        );
+        assert_eq!(
+            borsh::from_slice::<RemainderOptionBytes>(&[]).unwrap(),
+            RemainderOptionBytes::None
+        );
+    }
+
+    #[test]
+    fn remainder_option_bytes_round_trip() {
+        for value in [
+            RemainderOptionBytes::Some(vec![3, 0, 0, 0, 255]),
+            RemainderOptionBytes::None,
+        ] {
+            let bytes = borsh::to_vec(&value).unwrap();
+            assert_eq!(
+                borsh::from_slice::<RemainderOptionBytes>(&bytes).unwrap(),
+                value
+            );
+        }
+    }
+
+    #[test]
+    fn write_instruction_args_append_data_after_offset() {
+        let args = WriteInstructionArgs {
+            offset: 7,
+            data: RemainderOptionBytes::Some(vec![1, 2, 3]),
+        };
+        let bytes = borsh::to_vec(&args).unwrap();
+        assert_eq!(bytes, vec![7, 0, 0, 0, 1, 2, 3]);
+        assert_eq!(
+            borsh::from_slice::<WriteInstructionArgs>(&bytes).unwrap(),
+            args
+        );
     }
 }
